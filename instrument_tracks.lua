@@ -79,6 +79,11 @@ function GetUnusedSlot()
     bus, chan = GetUnusedMidiChannel(sends)
 
     if chan == -1 then
+      if smplId == 1 then
+        -- append the ommited sampler ID to the first sampler track
+        reaper.GetSetMediaTrackInfo_String(sampler, "P_NAME", "Sampler 1", true)
+      end
+
       InsertSamplerAt(trackId+1, smplId+1)
     end
   end
@@ -98,7 +103,7 @@ function GetLastSampler()
     local match = string.find(name, "^Sampler%s?")
     if match ~= nil then
       local id = tonumber(string.sub(name, 9))
-      if id == "" then id = 1 end
+      if id == nil then id = 1 end
       
       if lastId < id then
         trackId = index
@@ -117,7 +122,10 @@ function InsertSamplerAt(index, id)
   reaper.InsertTrackAtIndex(index, false)
   track = reaper.GetTrack(0, index)
 
-  reaper.GetSetMediaTrackInfo_String(track, "P_NAME", "Sampler " .. id, true)
+  local name = "Sampler"
+  if id > 1 then name = string.format("%s %d", name, id) end
+
+  reaper.GetSetMediaTrackInfo_String(track, "P_NAME", name, true)
   reaper.SetMediaTrackInfo_Value(track, "B_MAINSEND", 0)
   reaper.SetMediaTrackInfo_Value(track, "B_SHOWINTCP", 0)
   reaper.SetMediaTrackInfo_Value(track, "I_NCHAN", MAX_CHANNEL_COUNT)
