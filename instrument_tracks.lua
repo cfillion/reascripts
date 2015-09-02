@@ -6,7 +6,7 @@ function GetTrackMidiReceives(track)
 
   list, index, recvIndex = {}, 0, 0
   recvCount = reaper.GetTrackNumSends(track, -1)
- 
+
   while recvIndex < recvCount do
     local srcBus, srcChan, dstBus, dstChan
 
@@ -18,13 +18,13 @@ function GetTrackMidiReceives(track)
       track, -1, recvIndex, "I_MIDI_DSTBUS", false, 0)
     dstChan = reaper.BR_GetSetTrackSendInfo(
       track, -1, recvIndex, "I_MIDI_DSTCHAN", false, 0)
-    
+
     if dstBus + dstChan > -1 then
       if dstBus == 0 then dstBus = 1 end
       list[index] = {BUS=dstBus, CHAN=dstChan}
       index = index + 1
     end
-    
+
     recvIndex = recvIndex + 1
   end
 
@@ -33,9 +33,9 @@ end
 
 function GetUnusedMidiChannel(sends)
   local index, busses, maxMidiBus
-  
+
   busses = {}
- 
+
   index = 1
   maxMidiBus = math.floor(MAX_CHANNEL_COUNT / (16 * 2))
 
@@ -58,13 +58,13 @@ function GetUnusedMidiChannel(sends)
       return i,chan+1
     end
   end
-  
+
   return -1, -1
 end
 
 function GetUnusedSlot()
   local trackId, smplId, sampler, sends, bus, chan
-  
+
   bus, chan = -1, -1
 
   while chan == -1 do
@@ -87,24 +87,24 @@ function GetUnusedSlot()
       InsertSamplerAt(trackId+1, smplId+1)
     end
   end
-  
+
   return sampler, smplId, bus, chan
 end
 
 function GetLastSampler()
   local index, trackCount = 0, reaper.GetNumTracks()
   local trackId, lastId, sampler = -1, 0, nil
- 
+
   while index < trackCount do
     local track = reaper.GetTrack(0, index)
     local _, name = reaper.GetSetMediaTrackInfo_String(
       track, "P_NAME", "", false)
-    
+
     local match = string.find(name, "^Sampler%s?")
     if match ~= nil then
       local id = tonumber(string.sub(name, 9))
       if id == nil then id = 1 end
-      
+
       if lastId < id then
         trackId = index
         lastId = id
@@ -114,7 +114,7 @@ function GetLastSampler()
 
     index = index + 1
   end
-  
+
   return trackId, lastId, sampler
 end
 
