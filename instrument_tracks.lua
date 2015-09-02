@@ -1,3 +1,4 @@
+-- set this to 64 if you need to use two MIDI busses
 MAX_CHANNEL_COUNT = 32
 
 function GetTrackMidiReceives(track)
@@ -61,7 +62,7 @@ function GetUnusedMidiChannel(sends)
   return -1, -1
 end
 
-function FindUnusedSlot()
+function GetUnusedSlot()
   local trackId, smplId, sampler, sends, bus, chan
   
   bus, chan = -1, -1
@@ -71,7 +72,7 @@ function FindUnusedSlot()
 
     if trackId == -1 then
       smplId = 1
-      sampler = InsertSamplerAt(reaper.GetNumTracks(), 1)
+      sampler = InsertSamplerAt(0, 1)
     end
 
     sends = GetTrackMidiReceives(sampler)
@@ -132,7 +133,7 @@ end
 
 reaper.Undo_BeginBlock()
 
-local sampler, smplId, bus, chan = FindUnusedSlot()
+local sampler, smplId, bus, chan = GetUnusedSlot()
 local audioChan = MidiToAudioChannel(bus, chan)
 
 -- create AUDIO track
