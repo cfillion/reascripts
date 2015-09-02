@@ -138,14 +138,25 @@ function MidiToAudioChannel(bus, chan)
   return (bus * 16) + (chan - 1) * 2
 end
 
+function GetInsertionPoint()
+  local selectionSize = reaper.CountSelectedTracks(0)
+  if selectionSize == 0 then
+    return reaper.GetNumTracks()
+  end
+
+  track = reaper.GetSelectedTrack(0, selectionSize - 1)
+  return reaper.GetMediaTrackInfo_Value(track, "IP_TRACKNUMBER")
+end
+
 reaper.Undo_BeginBlock()
 
 local sampler, smplId, bus, chan = GetUnusedSlot()
 local audioChan = MidiToAudioChannel(bus, chan)
+local insertPos = GetInsertionPoint()
 
 -- create AUDIO track
-reaper.InsertTrackAtIndex(reaper.GetNumTracks(), true)
-audioTrack = reaper.GetTrack(0, reaper.GetNumTracks()-1)
+reaper.InsertTrackAtIndex(insertPos, true)
+audioTrack = reaper.GetTrack(0, insertPos)
 reaper.SetMediaTrackInfo_Value(audioTrack, "I_FOLDERDEPTH", 1)
 reaper.SetMediaTrackInfo_Value(audioTrack, "I_HEIGHTOVERRIDE", 1)
 reaper.GetSetMediaTrackInfo_String(audioTrack, "P_NAME",
@@ -157,8 +168,8 @@ reaper.BR_GetSetTrackSendInfo(
   audioTrack, -1, 0, "I_DSTCHAN", true, audioChan)
 
 -- create MIDI track
-reaper.InsertTrackAtIndex(reaper.GetNumTracks(), true)
-midiTrack = reaper.GetTrack(0, reaper.GetNumTracks()-1)
+reaper.InsertTrackAtIndex(insertPos+1, true)
+midiTrack = reaper.GetTrack(0, insertPos+1)
 reaper.SetMediaTrackInfo_Value(midiTrack, "B_SHOWINMIXER", 0)
 reaper.SetMediaTrackInfo_Value(midiTrack, "I_FOLDERDEPTH", -1)
 reaper.SetMediaTrackInfo_Value(midiTrack, "I_RECMON", 1)
@@ -171,7 +182,7 @@ reaper.BR_GetSetTrackSendInfo(
   midiTrack, 0, 0, "I_MIDI_SRCCHAN", true, 0)
 reaper.BR_GetSetTrackSendInfo(
   midiTrack, 0, 0, "I_MIDI_DSTBUS", true, bus)
- reaper.BR_GetSetTrackSendInfo(
+reaper.BR_GetSetTrackSendInfo(
   midiTrack, 0, 0, "I_MIDI_DSTCHAN", true, chan)
 
 reaper.Undo_EndBlock("Create Instrument Track", -1)
