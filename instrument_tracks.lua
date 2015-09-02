@@ -117,8 +117,7 @@ function InsertSamplerAt(index, id)
   reaper.InsertTrackAtIndex(index, false)
   track = reaper.GetTrack(0, index)
 
-  reaper.GetSetMediaTrackInfo_String(
-    track, "P_NAME", "Sampler " .. id, true)
+  reaper.GetSetMediaTrackInfo_String(track, "P_NAME", "Sampler " .. id, true)
   reaper.SetMediaTrackInfo_Value(track, "B_MAINSEND", 0)
   reaper.SetMediaTrackInfo_Value(track, "B_SHOWINTCP", 0)
   reaper.SetMediaTrackInfo_Value(track, "I_NCHAN", MAX_CHANNEL_COUNT)
@@ -152,6 +151,7 @@ reaper.BR_GetSetTrackSendInfo(
 -- create MIDI track
 reaper.InsertTrackAtIndex(reaper.GetNumTracks(), true)
 midiTrack = reaper.GetTrack(0, reaper.GetNumTracks()-1)
+reaper.SetMediaTrackInfo_Value(midiTrack, "B_SHOWINMIXER", 0)
 reaper.SetMediaTrackInfo_Value(midiTrack, "I_FOLDERDEPTH", -1)
 reaper.SetMediaTrackInfo_Value(midiTrack, "I_RECMON", 1)
 reaper.GetSetMediaTrackInfo_String(midiTrack, "P_NAME",
