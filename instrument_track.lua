@@ -1,7 +1,7 @@
 -- instrument_track.lua v0.1 by Christian Fillion (cfillion)
 
--- set this to 64 if you need to use two MIDI busses
-MAX_CHANNEL_COUNT = 32
+MAX_CHANNEL_COUNT = 32 -- set this to 64 if you need to use two MIDI busses
+MAX_MIDI_BUS = MAX_CHANNEL_COUNT / (16 * 2)
 
 function GetTrackMidiReceives(track)
   local list, index, recvIndex, recvCount
@@ -34,14 +34,12 @@ function GetTrackMidiReceives(track)
 end
 
 function GetUnusedMidiChannel(sends)
-  local index, busses, maxMidiBus
+  local index, busses
 
   busses = {}
 
   index = 1
-  maxMidiBus = math.floor(MAX_CHANNEL_COUNT / (16 * 2))
-
-  while index <= maxMidiBus do
+  while index <= MAX_MIDI_BUS do
     busses[index] = 0
     index = index + 1
   end
@@ -82,7 +80,7 @@ function GetUnusedSlot()
 
     if chan == -1 then
       if smplId == 1 then
-        -- append the ommited sampler ID to the first sampler track
+        -- append the omitted sampler ID to the first sampler track
         reaper.GetSetMediaTrackInfo_String(sampler, "P_NAME", "Sampler 1", true)
       end
 
@@ -177,7 +175,7 @@ reaper.SetMediaTrackInfo_Value(midiTrack, "B_SHOWINMIXER", 0)
 reaper.SetMediaTrackInfo_Value(midiTrack, "I_FOLDERDEPTH", -1)
 reaper.SetMediaTrackInfo_Value(midiTrack, "I_RECMON", 1)
 reaper.GetSetMediaTrackInfo_String(midiTrack, "P_NAME",
-  string.format("-> #%d %d/%d", smplId, bus, chan), true)
+  string.format("-> #%d B:%d C:%d", smplId, bus, chan), true)
 reaper.SNM_AddReceive(midiTrack, sampler, 0)
 reaper.BR_GetSetTrackSendInfo(
   midiTrack, 0, 0, "I_MIDI_SRCBUS", true, 0)
