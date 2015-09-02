@@ -1,3 +1,5 @@
+-- instrument_track.lua v0.1 by Christian Fillion (cfillion)
+
 -- set this to 64 if you need to use two MIDI busses
 MAX_CHANNEL_COUNT = 32
 
@@ -164,9 +166,9 @@ reaper.GetSetMediaTrackInfo_String(audioTrack, "P_NAME",
   string.format("#%d %d/%d", smplId, audioChan+1, audioChan+2), true)
 reaper.SNM_AddReceive(sampler, audioTrack, -1)
 reaper.BR_GetSetTrackSendInfo(
-  audioTrack, -1, 0, "I_SRCCHAN", true, 0)
+  audioTrack, -1, 0, "I_SRCCHAN", true, audioChan)
 reaper.BR_GetSetTrackSendInfo(
-  audioTrack, -1, 0, "I_DSTCHAN", true, audioChan)
+  audioTrack, -1, 0, "I_DSTCHAN", true, 0)
 
 -- create MIDI track
 reaper.InsertTrackAtIndex(insertPos+1, true)
