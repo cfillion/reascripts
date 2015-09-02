@@ -148,6 +148,7 @@ function GetInsertionPoint()
   return reaper.GetMediaTrackInfo_Value(track, "IP_TRACKNUMBER")
 end
 
+reaper.PreventUIRefresh(1)
 reaper.Undo_BeginBlock()
 
 local sampler, smplId, bus, chan = GetUnusedSlot()
@@ -187,4 +188,5 @@ reaper.BR_GetSetTrackSendInfo(
 
 reaper.Undo_EndBlock("Create Instrument Track", -1)
 
+reaper.PreventUIRefresh(-1)
 reaper.TrackList_AdjustWindows(false)
