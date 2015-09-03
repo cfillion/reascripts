@@ -186,7 +186,7 @@ reaper.BR_GetSetTrackSendInfo(
 reaper.BR_GetSetTrackSendInfo(
   midiTrack, 0, 0, "I_MIDI_DSTCHAN", true, chan)
 
-reaper.Undo_EndBlock("Create Instrument Track", -1)
+reaper.Undo_EndBlock("Create Instrument Track", 1)
 
 reaper.PreventUIRefresh(-1)
 reaper.TrackList_AdjustWindows(false)
