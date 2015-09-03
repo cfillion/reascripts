@@ -10,12 +10,8 @@ function GetTrackMidiReceives(track)
   recvCount = reaper.GetTrackNumSends(track, -1)
 
   while recvIndex < recvCount do
-    local srcBus, srcChan, dstBus, dstChan
+    local dstBus, dstChan
 
-    srcBus = reaper.BR_GetSetTrackSendInfo(
-      track, -1, recvIndex, "I_MIDI_SRCBUS", false, 0)
-    srcChan = reaper.BR_GetSetTrackSendInfo(
-      track, -1, recvIndex, "I_MIDI_SRCCHAN", false, 0)
     dstBus = reaper.BR_GetSetTrackSendInfo(
       track, -1, recvIndex, "I_MIDI_DSTBUS", false, 0)
     dstChan = reaper.BR_GetSetTrackSendInfo(
