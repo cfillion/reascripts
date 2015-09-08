@@ -126,6 +126,9 @@ function InsertSamplerAt(index, id)
   reaper.SetMediaTrackInfo_Value(track, "B_SHOWINTCP", 0)
   reaper.SetMediaTrackInfo_Value(track, "I_NCHAN", MAX_CHANNEL_COUNT)
 
+  -- set recording mode to multichannel output
+  reaper.SetMediaTrackInfo_Value(track, "I_RECMODE", 10)
+
   return track
 end
 
