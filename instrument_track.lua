@@ -159,8 +159,10 @@ reaper.InsertTrackAtIndex(insertPos, true)
 audioTrack = reaper.GetTrack(0, insertPos)
 reaper.SetMediaTrackInfo_Value(audioTrack, "I_FOLDERDEPTH", 1)
 reaper.SetMediaTrackInfo_Value(audioTrack, "I_HEIGHTOVERRIDE", 1)
+reaper.SetMediaTrackInfo_Value(audioTrack, "I_RECMODE", 1)
 reaper.GetSetMediaTrackInfo_String(audioTrack, "P_NAME",
   string.format("#%d %d/%d", smplId, audioChan+1, audioChan+2), true)
+
 reaper.SNM_AddReceive(sampler, audioTrack, -1)
 reaper.BR_GetSetTrackSendInfo(
   audioTrack, -1, 0, "I_SRCCHAN", true, audioChan)
