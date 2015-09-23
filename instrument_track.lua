@@ -168,6 +168,8 @@ reaper.BR_GetSetTrackSendInfo(
   audioTrack, -1, 0, "I_SRCCHAN", true, audioChan)
 reaper.BR_GetSetTrackSendInfo(
   audioTrack, -1, 0, "I_DSTCHAN", true, 0)
+reaper.BR_GetSetTrackSendInfo(
+  audioTrack, -1, 0, "I_MIDI_SRCCHAN", true, -1)
 
 -- create MIDI track
 reaper.InsertTrackAtIndex(insertPos+1, true)
@@ -178,6 +180,8 @@ reaper.SetMediaTrackInfo_Value(midiTrack, "I_RECMON", 1)
 reaper.GetSetMediaTrackInfo_String(midiTrack, "P_NAME",
   string.format("-> #%d B:%d C:%d", smplId, bus, chan), true)
 reaper.SNM_AddReceive(midiTrack, sampler, 0)
+reaper.BR_GetSetTrackSendInfo(
+  midiTrack, 0, 0, "I_SRCCHAN", true, -1)
 reaper.BR_GetSetTrackSendInfo(
   midiTrack, 0, 0, "I_MIDI_SRCBUS", true, 0)
 reaper.BR_GetSetTrackSendInfo(
