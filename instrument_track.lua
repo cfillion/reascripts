@@ -1,4 +1,4 @@
--- instrument_track.lua v0.1 by Christian Fillion (cfillion)
+-- instrument_track.lua v0.2 by Christian Fillion (cfillion)
 
 MAX_CHANNEL_COUNT = 32 -- set this to 64 if you need to use two MIDI busses
 MAX_MIDI_BUS = MAX_CHANNEL_COUNT / (16 * 2)
