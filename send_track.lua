@@ -1,9 +1,15 @@
 -- send_track.lua v0.1 by Christian Fillion (cfillion)
 
+local selectionSize = reaper.CountSelectedTracks(0)
+
+if selectionSize < 1 then
+  reaper.Main_OnCommand(40001, 0) -- Track: Insert new track
+  return
+end
+
 reaper.PreventUIRefresh(1)
 reaper.Undo_BeginBlock()
 
-local selectionSize = reaper.CountSelectedTracks(0)
 local insertPos, index = reaper.GetNumTracks(), 0
 reaper.InsertTrackAtIndex(insertPos, true)
 local track = reaper.GetTrack(0, insertPos)
