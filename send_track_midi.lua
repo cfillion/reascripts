@@ -1,4 +1,4 @@
--- send_track.lua v0.1 by Christian Fillion (cfillion)
+-- send_track_midi.lua v0.1 by Christian Fillion (cfillion)
 
 local selectionSize = reaper.CountSelectedTracks(0)
 
@@ -17,20 +17,18 @@ local track = reaper.GetTrack(0, insertPos)
 while index < selectionSize do
   reaper.SNM_AddReceive(track, reaper.GetSelectedTrack(0, index), 0)
   reaper.BR_GetSetTrackSendInfo(
-    track, 0, index, "D_VOL", true, 0)
+    track, 0, index, "I_SRCCHAN", true, -1)
   reaper.BR_GetSetTrackSendInfo(
-    track, 0, index, "I_SRCCHAN", true, 0)
+    track, 0, index, "I_MIDI_SRCCHAN", true, 0)
   reaper.BR_GetSetTrackSendInfo(
-    track, 0, index, "I_DSTCHAN", true, 0)
-  reaper.BR_GetSetTrackSendInfo(
-    track, 0, index, "I_MIDI_SRCCHAN", true, -1)
+    track, 0, index, "I_MIDI_DSTCHAN", true, 0)
 
   index = index + 1
 end
 
 reaper.SetOnlyTrackSelected(track)
 
-reaper.Undo_EndBlock("Create Send Track", 1)
+reaper.Undo_EndBlock("Create MIDI Send Track", 1)
 
 reaper.PreventUIRefresh(-1)
 reaper.TrackList_AdjustWindows(false)
