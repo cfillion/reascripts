@@ -17,8 +17,6 @@ local track = reaper.GetTrack(0, insertPos)
 while index < selectionSize do
   reaper.SNM_AddReceive(track, reaper.GetSelectedTrack(0, index), 0)
   reaper.BR_GetSetTrackSendInfo(
-    track, 0, index, "D_VOL", true, 0)
-  reaper.BR_GetSetTrackSendInfo(
     track, 0, index, "I_SRCCHAN", true, 0)
   reaper.BR_GetSetTrackSendInfo(
     track, 0, index, "I_DSTCHAN", true, 0)
