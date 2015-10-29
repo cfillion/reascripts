@@ -15,7 +15,7 @@ while track_index < track_count do
   local depth      = reaper.GetMediaTrackInfo_Value(track, "I_FOLDERDEPTH")
   local is_armed   = reaper.GetMediaTrackInfo_Value(track, "I_RECARM")
 
-  if fx_count + item_count + env_count + math.abs(depth) + is_armed == 0 then
+  if fx_count + item_count + env_count + math.max(depth, 0) + is_armed == 0 then
     bucket[bucket_index] = track
     bucket_index = bucket_index + 1
   end
