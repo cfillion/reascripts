@@ -47,9 +47,11 @@ function setSongEnabled(song, enabled)
 end
 
 function setCurrentIndex(index)
+  if index == currentIndex then return end
+
   reaper.PreventUIRefresh(1)
 
-  if currentIndex == -1 then
+  if currentIndex < 0 then
     for _,song in pairs(songs) do
       setSongEnabled(song, false)
     end
@@ -123,14 +125,25 @@ function drawSongList()
     local line = textLine(song.name, 10, PADDING)
     local x, y, w, h = line.rect
 
-    if mouseState > 0 and isUnderMouse(line.rect.x, line.rect.y, line.rect.w, line.rect.h) then
-      useColor(COLOR_HIGHLIGHT)
+    color = COLOR_LGRAY
+
+    if index == currentIndex then
+      useColor(COLOR_ACTIVE)
       gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
-      useColor(COLOR_BLACK)
-    else
-      useColor(COLOR_LGRAY)
+      color = COLOR_WHITE
     end
 
+    if isUnderMouse(line.rect.x, line.rect.y, line.rect.w, line.rect.h) then
+      if mouseState > 0 then
+        useColor(COLOR_HIGHLIGHT)
+        gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
+        color = COLOR_BLACK
+      elseif mouseClick then
+        setCurrentIndex(index)
+      end
+    end
+
+    useColor(color)
     drawTextLine(line)
 
     index = index + 1
@@ -178,13 +191,12 @@ function mouse()
   end
 
   if mouseState == 1 and gfx.mouse_cap == 0 then
-    onClick()
+    mouseClick = true
+  else
+    mouseClick = false
   end
 
   mouseState = gfx.mouse_cap
-end
-
-function onClick()
 end
 
 function loop()
@@ -207,7 +219,7 @@ end
 songs = loadTracks()
 
 -- initial state: disable every tracks
-currentIndex = -1
+currentIndex = -2
 setCurrentIndex(-1)
 
 -- graphic initialization
@@ -219,6 +231,7 @@ COLOR_WHITE = {255, 255, 255}
 COLOR_LGRAY = {200, 200, 200}
 COLOR_DGRAY = {178, 178, 178}
 COLOR_HIGHLIGHT = {164, 204, 255}
+COLOR_ACTIVE = {70, 70, 70}
 COLOR_BLACK = {0, 0, 0}
 
 KEY_ESCAPE = 27
@@ -227,6 +240,7 @@ KEY_SPACE = 32
 PADDING = 3
 
 mouseState = 0
+mouseClick = false
 
 gfx.init("cfillion's Song Switcher", 500, 300)
 gfx.setfont(FONT_LARGE, "sans-serif", 28, 'b')
