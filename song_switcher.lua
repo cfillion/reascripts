@@ -1,6 +1,6 @@
 function loadTracks()
-  local index, size = 0, reaper.GetNumTracks()
-  local songs, sIndex = {}, -1
+  local size = reaper.GetNumTracks()
+  local songs, sIndex = {}, 0
   local depth = 0
 
   for index=0,size-1 do
@@ -14,18 +14,33 @@ function loadTracks()
       local _, name = reaper.GetSetMediaTrackInfo_String(track, "P_NAME", "", false)
 
       local tracks = {}
-      tracks[0] = track
+      tracks[1] = track
 
       songs[sIndex] = {name=name, folder=track, tracks=tracks, tracks_size=1}
     elseif depth >= 1 then
-      songs[sIndex].tracks[songs[sIndex].tracks_size] = track
       songs[sIndex].tracks_size = songs[sIndex].tracks_size + 1
+      songs[sIndex].tracks[songs[sIndex].tracks_size] = track
     end
 
     depth = depth + track_depth
   end
 
+  table.sort(songs, compareSongs)
   return songs
+end
+
+function getSongNum(song)
+  return tonumber(string.match(song.name, "^%d+"))
+end
+
+function compareSongs(a, b)
+  local anum, bnum = getSongNum(a), getSongNum(b)
+
+  if anum and bnum then
+    return anum < bnum
+  else
+    return a.name < b.name
+  end
 end
 
 function setSongEnabled(song, enabled)
@@ -39,7 +54,7 @@ function setSongEnabled(song, enabled)
 
   reaper.SetMediaTrackInfo_Value(song.folder, "B_MUTE", off)
 
-  for _,track in pairs(song.tracks) do
+  for _,track in ipairs(song.tracks) do
     reaper.SetMediaTrackInfo_Value(track, "B_SHOWINMIXER", on)
     reaper.SetMediaTrackInfo_Value(track, "B_SHOWINTCP", on)
   end
@@ -50,8 +65,8 @@ function setCurrentIndex(index)
 
   reaper.PreventUIRefresh(1)
 
-  if currentIndex < 0 then
-    for _,song in pairs(songs) do
+  if currentIndex < 1 then
+    for _,song in ipairs(songs) do
       setSongEnabled(song, false)
     end
   else
@@ -79,15 +94,12 @@ function findSong(buffer)
   local index = 0
   local song = songs[index]
 
-  while song ~= nil do
+  for index, song in ipairs(songs) do
     local name = string.upper(song.name)
 
     if string.find(name, buffer, 0, true) ~= nil then
       return index, song
     end
-
-    index = index + 1
-    song = songs[index]
   end
 end
 
@@ -128,7 +140,7 @@ function drawTextLine(line)
 end
 
 function drawName(song)
-  local name = "##. No Song Selected"
+  local name = "## No Song Selected ##"
 
   if song ~= nil then
     name = song.name
@@ -162,18 +174,12 @@ end
 function songList()
   gfx.setfont(FONT_DEFAULT)
 
-  local index = 0
-  local song = songs[index]
-
-  while song ~= nil do
+  for index, song in ipairs(songs) do
     local line = textLine(song.name, 10, PADDING)
 
     if button(line, index == currentIndex, index == nextIndex) then
       setCurrentIndex(index)
     end
-
-    index = index + 1
-    song = songs[index]
   end
 end
 
@@ -351,10 +357,10 @@ end
 function reset()
   songs = loadTracks()
 
-  currentIndex = -2
-  nextIndex = -1
+  currentIndex = -1
+  nextIndex = 0
 
-  setCurrentIndex(-1)
+  setCurrentIndex(0)
 end
 
 reset()
