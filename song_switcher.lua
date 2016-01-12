@@ -1,4 +1,4 @@
-function loadTracks()
+function loadSongs()
   local index, size = 0, reaper.GetNumTracks()
   local songs, sIndex = {}, -1
   local depth = 0
@@ -14,19 +14,54 @@ function loadTracks()
       local _, name = reaper.GetSetMediaTrackInfo_String(track, "P_NAME", "", false)
 
       local tracks = {}
-      tracks[0] = track
+      tracks[0] = index
 
-      songs[sIndex] = {name=name, folder=track, tracks=tracks, tracks_size=1}
+      songs[sIndex] = {name=name, folder=index, tracks=tracks, tracks_size=1}
     elseif depth >= 1 then
-      songs[sIndex].tracks[songs[sIndex].tracks_size] = track
+      songs[sIndex].tracks[songs[sIndex].tracks_size] = index
       songs[sIndex].tracks_size = songs[sIndex].tracks_size + 1
     end
 
     depth = depth + track_depth
-
   end
 
+  lastLoad = os.time()
+
   return songs
+end
+
+function reloadSongs()
+  local deleted = false
+  if lastLoad == os.time() then return end
+
+  for _,song in pairs(songs) do
+    local folder = reaper.GetTrack(0, song.folder)
+    if folder == nil then
+      deleted = true
+      break
+    end
+
+    local _, name = reaper.GetSetMediaTrackInfo_String(folder, "P_NAME", "", false)
+
+    if name ~= song.name then
+      deleted = true
+      break
+    end
+
+    for index=1,song.tracks_size do
+      if reaper.GetTrack(0, index) == nil then
+        deleted = true
+        break
+      end
+    end
+  end
+
+  songs = loadSongs()
+
+  if deleted then
+    currentIndex = -2
+    setCurrentIndex(-1)
+  end
 end
 
 function setSongEnabled(song, enabled)
@@ -38,11 +73,19 @@ function setSongEnabled(song, enabled)
   local off = 0
   if not enabled then off = 1 end
 
-  reaper.SetMediaTrackInfo_Value(song.folder, "B_MUTE", off)
+  local folder = reaper.GetTrack(0, song.folder)
 
-  for _,track in pairs(song.tracks) do
-    reaper.SetMediaTrackInfo_Value(track, "B_SHOWINMIXER", on)
-    reaper.SetMediaTrackInfo_Value(track, "B_SHOWINTCP", on)
+  if folder then
+    reaper.SetMediaTrackInfo_Value(folder, "B_MUTE", off)
+  end
+
+  for _,trackIndex in pairs(song.tracks) do
+    local track = reaper.GetTrack(0, trackIndex)
+
+    if track then
+      reaper.SetMediaTrackInfo_Value(track, "B_SHOWINMIXER", on)
+      reaper.SetMediaTrackInfo_Value(track, "B_SHOWINTCP", on)
+    end
   end
 end
 
@@ -99,7 +142,7 @@ function drawTextLine(line)
   gfx.y = line.ty
 
   gfx.drawstr(line.text)
-  gfx.y = line.ty + line.rect.h
+  gfx.y = line.rect.y + line.rect.h
 end
 
 function drawName(song)
@@ -200,6 +243,8 @@ function mouse()
 end
 
 function loop()
+  reloadSongs()
+
   gfx.y = 10
   drawName(songs[currentIndex])
 
@@ -216,7 +261,7 @@ function loop()
   mouse()
 end
 
-songs = loadTracks()
+songs = loadSongs()
 
 -- initial state: disable every tracks
 currentIndex = -2
@@ -241,6 +286,7 @@ PADDING = 3
 
 mouseState = 0
 mouseClick = false
+lastLoad = 0
 
 gfx.init("cfillion's Song Switcher", 500, 300)
 gfx.setfont(FONT_LARGE, "sans-serif", 28, 'b')
