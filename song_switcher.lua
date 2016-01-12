@@ -84,6 +84,7 @@ end
 function setNextIndex(index)
   if songs[index] then
     nextIndex = index
+    highlightTime = os.time()
   end
 end
 
@@ -229,7 +230,7 @@ function button(line, active, highlight, danger)
 
   -- draw highlight rect after mouse colors
   -- so that hover don't override it
-  if highlight and not active and os.time() % 2 == 0 then
+  if highlight and not active and shouldShowHighlight() then
     useColor(COLOR_HIGHLIGHTBG)
     color = COLOR_HIGHLIGHTFG
     gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
@@ -239,6 +240,11 @@ function button(line, active, highlight, danger)
   drawTextLine(line)
 
   return triggered
+end
+
+function shouldShowHighlight()
+  local time = os.time() - highlightTime
+  return time < 2 or time % 2 == 0
 end
 
 function keyboard()
@@ -403,6 +409,7 @@ mouseState = 0
 mouseClick = false
 filterPrompt = false
 filterBuffer = ''
+highlightTime = 0
 
 gfx.init("cfillion's Song Switcher", 500, 300)
 gfx.setfont(FONT_LARGE, "sans-serif", 28, 'b')
