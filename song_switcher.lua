@@ -65,6 +65,25 @@ function setCurrentIndex(index)
   reaper.TrackList_AdjustWindows(false)
 end
 
+function findSong(buffer)
+  if string.len(buffer) == 0 then return end
+  buffer = string.upper(buffer)
+
+  local index = 0
+  local song = songs[index]
+
+  while song ~= nil do
+    local name = string.upper(song.name)
+
+    if string.find(name, buffer, 0, true) ~= nil then
+      return index, song
+    end
+
+    index = index + 1
+    song = songs[index]
+  end
+end
+
 function useColor(color)
   gfx.r = color[1] / 255
   gfx.g = color[2] / 255
@@ -112,6 +131,25 @@ function drawName(song)
   useColor(COLOR_WHITE)
 
   drawTextLine(textLine(name))
+end
+
+function drawFilter()
+  gfx.setfont(FONT_LARGE)
+  useColor(COLOR_LGRAY)
+
+  local buffer = filterBuffer
+
+  if string.len(buffer) == 0 then
+    buffer = "\x20"
+  end
+
+  local line = textLine(buffer)
+  drawTextLine(line)
+
+  if os.time() % 2 == 0 then
+    local topRight = line.tx + line.tw
+    gfx.line(topRight, line.ty, topRight, line.ty + line.rect.h)
+  end
 end
 
 function songList()
@@ -191,6 +229,33 @@ function keyboard()
   --   reaper.ShowConsoleMsg("\n")
   -- end
 
+  if filterPrompt then
+    filterKey(input)
+  else
+    normalKey(input)
+  end
+end
+
+function filterKey(input)
+  if input == KEY_BACKSPACE then
+    filterBuffer = string.sub(filterBuffer, 0, -2)
+  elseif input == KEY_CLEAR or input == KEY_CTRLU then
+    filterBuffer = ''
+  elseif input == KEY_ENTER then
+    local index, _ = findSong(filterBuffer)
+
+    if index then
+      setCurrentIndex(index)
+    end
+
+    filterPrompt = false
+    filterBuffer = ''
+  elseif input >= KEY_INPUTRANGE_FIRST and input <= KEY_INPUTRANGE_LAST then
+    filterBuffer = filterBuffer .. string.char(input)
+  end
+end
+
+function normalKey(input)
   if input == KEY_SPACE then
     local playing = reaper.GetPlayState() == 1
 
@@ -211,6 +276,8 @@ function keyboard()
     if songs[index] then
       setCurrentIndex(index)
     end
+  elseif input == KEY_ENTER then
+    filterPrompt = true
   end
 end
 
@@ -246,7 +313,11 @@ function loop()
   resetButton()
 
   gfx.y = 10
-  drawName(songs[currentIndex])
+  if filterPrompt then
+    drawFilter()
+  else
+    drawName(songs[currentIndex])
+  end
 
   gfx.y = gfx.y + 10
   useColor(COLOR_DGRAY)
@@ -289,11 +360,19 @@ KEY_UP = 30064
 KEY_DOWN = 1685026670
 KEY_RIGHT = 1919379572
 KEY_LEFT = 1818584692
+KEY_INPUTRANGE_FIRST = 32
+KEY_INPUTRANGE_LAST = 122
+KEY_ENTER = 13
+KEY_BACKSPACE = 8
+KEY_CTRLU = 21
+KEY_CLEAR = 144
 
 PADDING = 3
 
 mouseState = 0
 mouseClick = false
+filterPrompt = false
+filterBuffer = ''
 
 gfx.init("cfillion's Song Switcher", 500, 300)
 gfx.setfont(FONT_LARGE, "sans-serif", 28, 'b')
