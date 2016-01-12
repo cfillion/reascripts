@@ -13,10 +13,11 @@ function loadTracks()
 
       local _, name = reaper.GetSetMediaTrackInfo_String(track, 'P_NAME', '', false)
 
-      local tracks = {}
-      tracks[1] = track
+      if string.len(name) == 0 then
+        name = string.format("%02d. No Name", sIndex)
+      end
 
-      songs[sIndex] = {name=name, folder=track, tracks=tracks, tracks_size=1}
+      songs[sIndex] = {name=name, folder=track, tracks={track}, tracks_size=1}
     elseif depth >= 1 then
       songs[sIndex].tracks_size = songs[sIndex].tracks_size + 1
       songs[sIndex].tracks[songs[sIndex].tracks_size] = track
@@ -78,6 +79,7 @@ function setCurrentIndex(index)
   setNextIndex(index)
 
   reaper.PreventUIRefresh(-1)
+
   reaper.TrackList_AdjustWindows(false)
   reaper.UpdateArrange()
 end
