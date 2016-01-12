@@ -79,6 +79,7 @@ function setCurrentIndex(index)
 
   reaper.PreventUIRefresh(-1)
   reaper.TrackList_AdjustWindows(false)
+  reaper.UpdateArrange()
 end
 
 function setNextIndex(index)
@@ -185,6 +186,7 @@ function songList()
 end
 
 function resetButton()
+  gfx.setfont(FONT_DEFAULT)
   gfx.x = 0
   gfx.y = 0
 
