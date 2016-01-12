@@ -6,12 +6,12 @@ function loadTracks()
   for index=0,size-1 do
     local track = reaper.GetTrack(0, index)
 
-    local track_depth = reaper.GetMediaTrackInfo_Value(track, "I_FOLDERDEPTH")
+    local track_depth = reaper.GetMediaTrackInfo_Value(track, 'I_FOLDERDEPTH')
 
     if depth == 0 and track_depth == 1 then
       sIndex = sIndex + 1
 
-      local _, name = reaper.GetSetMediaTrackInfo_String(track, "P_NAME", "", false)
+      local _, name = reaper.GetSetMediaTrackInfo_String(track, 'P_NAME', '', false)
 
       local tracks = {}
       tracks[1] = track
@@ -30,7 +30,7 @@ function loadTracks()
 end
 
 function getSongNum(song)
-  return tonumber(string.match(song.name, "^%d+"))
+  return tonumber(string.match(song.name, '^%d+'))
 end
 
 function compareSongs(a, b)
@@ -52,11 +52,11 @@ function setSongEnabled(song, enabled)
   local off = 0
   if not enabled then off = 1 end
 
-  reaper.SetMediaTrackInfo_Value(song.folder, "B_MUTE", off)
+  reaper.SetMediaTrackInfo_Value(song.folder, 'B_MUTE', off)
 
   for _,track in ipairs(song.tracks) do
-    reaper.SetMediaTrackInfo_Value(track, "B_SHOWINMIXER", on)
-    reaper.SetMediaTrackInfo_Value(track, "B_SHOWINTCP", on)
+    reaper.SetMediaTrackInfo_Value(track, 'B_SHOWINMIXER', on)
+    reaper.SetMediaTrackInfo_Value(track, 'B_SHOWINTCP', on)
   end
 end
 
@@ -141,7 +141,7 @@ function drawTextLine(line)
 end
 
 function drawName(song)
-  local name = "## No Song Selected ##"
+  local name = '## No Song Selected ##'
 
   if song ~= nil then
     name = song.name
@@ -188,7 +188,7 @@ function resetButton()
   gfx.x = 0
   gfx.y = 0
 
-  btn = textLine("reset")
+  btn = textLine('reset')
   btn.tx = btn.rect.w - btn.tw
   btn.rect.w = btn.tw
   btn.rect.x = btn.tx
@@ -411,9 +411,9 @@ filterPrompt = false
 filterBuffer = ''
 highlightTime = 0
 
-gfx.init("cfillion's Song Switcher", 500, 300)
-gfx.setfont(FONT_LARGE, "sans-serif", 28, 'b')
-gfx.setfont(FONT_SMALL, "sans-serif", 13)
+gfx.init('Song Switcher', 500, 300)
+gfx.setfont(FONT_LARGE, 'sans-serif', 28, 'b')
+gfx.setfont(FONT_SMALL, 'sans-serif', 13)
 
 -- GO!!
 reaper.defer(loop)
