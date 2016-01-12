@@ -60,9 +60,16 @@ function setCurrentIndex(index)
 
   setSongEnabled(songs[index], true)
   currentIndex = index
+  setNextIndex(index)
 
   reaper.PreventUIRefresh(-1)
   reaper.TrackList_AdjustWindows(false)
+end
+
+function setNextIndex(index)
+  if songs[index] then
+    nextIndex = index
+  end
 end
 
 function findSong(buffer)
@@ -161,7 +168,7 @@ function songList()
   while song ~= nil do
     local line = textLine(song.name, 10, PADDING)
 
-    if button(line, index == currentIndex) then
+    if button(line, index == currentIndex, index == nextIndex) then
       setCurrentIndex(index)
     end
 
@@ -179,27 +186,32 @@ function resetButton()
   btn.rect.w = btn.tw
   btn.rect.x = btn.tx
 
-  if button(btn, false) then
+  if button(btn, false, false, true) then
     reset()
   end
 end
 
-function button(line, active, callback)
+function button(line, active, highlight, danger)
   local color, triggered = COLOR_LGRAY, false
 
   if active then
-    useColor(COLOR_ACTIVE)
+    useColor(COLOR_ACTIVEBG)
     gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
-    color = COLOR_WHITE
+    color = COLOR_ACTIVEFG
   end
 
   if isUnderMouse(line.rect.x, line.rect.y, line.rect.w, line.rect.h) then
     if mouseState > 0 then
-      useColor(COLOR_HIGHLIGHT)
-      color = COLOR_BLACK
+      if danger then
+        useColor(COLOR_DANGERBG)
+        color = COLOR_DANGERFG
+      else
+        useColor(COLOR_HIGHLIGHTBG)
+        color = COLOR_HIGHLIGHTFG
+      end
     elseif not active then
-      useColor(COLOR_HOVER)
-      color = COLOR_WHITE
+      useColor(COLOR_HOVERBG)
+      color = COLOR_HOVERFG
     end
 
     gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
@@ -207,6 +219,14 @@ function button(line, active, callback)
     if mouseClick then
       triggered = true
     end
+  end
+
+  -- draw highlight rect after mouse colors
+  -- so that hover don't override it
+  if highlight and not active and os.time() % 2 == 0 then
+    useColor(COLOR_HIGHLIGHTBG)
+    color = COLOR_HIGHLIGHTFG
+    gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
   end
 
   useColor(color)
@@ -265,19 +285,15 @@ function normalKey(input)
       reaper.OnPlayButton()
     end
   elseif input == KEY_UP or input == KEY_LEFT then
-    local index = currentIndex - 1
-
-    if songs[index] then
-      setCurrentIndex(index)
-    end
+    setNextIndex(nextIndex - 1)
   elseif input == KEY_DOWN or input == KEY_RIGHT then
-    local index = currentIndex + 1
-
-    if songs[index] then
-      setCurrentIndex(index)
-    end
+    setNextIndex(nextIndex + 1)
   elseif input == KEY_ENTER then
-    filterPrompt = true
+    if nextIndex == currentIndex then
+      filterPrompt = true
+    else
+      setCurrentIndex(nextIndex)
+    end
   end
 end
 
@@ -336,6 +352,8 @@ function reset()
   songs = loadTracks()
 
   currentIndex = -2
+  nextIndex = -1
+
   setCurrentIndex(-1)
 end
 
@@ -349,10 +367,16 @@ FONT_SMALL = 2
 COLOR_WHITE = {255, 255, 255}
 COLOR_LGRAY = {200, 200, 200}
 COLOR_DGRAY = {178, 178, 178}
-COLOR_HIGHLIGHT = {164, 204, 255}
-COLOR_HOVER = {30, 30, 30}
-COLOR_ACTIVE = {80, 80, 90}
 COLOR_BLACK = {0, 0, 0}
+
+COLOR_HOVERBG = {30, 30, 30}
+COLOR_HOVERFG = COLOR_WHITE
+COLOR_HIGHLIGHTBG = {164, 204, 255}
+COLOR_HIGHLIGHTFG = COLOR_BLACK
+COLOR_DANGERBG = {255, 0, 0}
+COLOR_DANGERFG = COLOR_BLACK
+COLOR_ACTIVEBG = {80, 80, 90}
+COLOR_ACTIVEFG = COLOR_WHITE
 
 KEY_ESCAPE = 27
 KEY_SPACE = 32
