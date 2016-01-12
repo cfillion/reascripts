@@ -23,7 +23,6 @@ function loadTracks()
     end
 
     depth = depth + track_depth
-
   end
 
   return songs
@@ -80,7 +79,7 @@ function textLine(text, x, padding)
     x = math.max(0, (gfx.w - w) / 2)
   end
 
-  local tx, ty = x, y
+  local tx, ty, tw = x, y, w
 
   if padding ~= nil then
     x = x - padding
@@ -91,7 +90,7 @@ function textLine(text, x, padding)
   end
 
   local rect = {x=0, y=y, w=gfx.w, h=h}
-  return {text=text, rect=rect, tx=tx, ty=ty}
+  return {text=text, rect=rect, tx=tx, ty=ty, tw=tw}
 end
 
 function drawTextLine(line)
@@ -115,7 +114,7 @@ function drawName(song)
   drawTextLine(textLine(name))
 end
 
-function drawSongList()
+function songList()
   gfx.setfont(FONT_DEFAULT)
 
   local index = 0
@@ -123,32 +122,59 @@ function drawSongList()
 
   while song ~= nil do
     local line = textLine(song.name, 10, PADDING)
-    local x, y, w, h = line.rect
 
-    color = COLOR_LGRAY
-
-    if index == currentIndex then
-      useColor(COLOR_ACTIVE)
-      gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
-      color = COLOR_WHITE
+    if button(line, index == currentIndex) then
+      setCurrentIndex(index)
     end
-
-    if isUnderMouse(line.rect.x, line.rect.y, line.rect.w, line.rect.h) then
-      if mouseState > 0 then
-        useColor(COLOR_HIGHLIGHT)
-        gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
-        color = COLOR_BLACK
-      elseif mouseClick then
-        setCurrentIndex(index)
-      end
-    end
-
-    useColor(color)
-    drawTextLine(line)
 
     index = index + 1
     song = songs[index]
   end
+end
+
+function resetButton()
+  gfx.x = 0
+  gfx.y = 0
+
+  btn = textLine("reset")
+  btn.tx = btn.rect.w - btn.tw
+  btn.rect.w = btn.tw
+  btn.rect.x = btn.tx
+
+  if button(btn, false) then
+    reset()
+  end
+end
+
+function button(line, active, callback)
+  local color, triggered = COLOR_LGRAY, false
+
+  if active then
+    useColor(COLOR_ACTIVE)
+    gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
+    color = COLOR_WHITE
+  end
+
+  if isUnderMouse(line.rect.x, line.rect.y, line.rect.w, line.rect.h) then
+    if mouseState > 0 then
+      useColor(COLOR_HIGHLIGHT)
+      color = COLOR_BLACK
+    elseif not active then
+      useColor(COLOR_HOVER)
+      color = COLOR_WHITE
+    end
+
+    gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
+
+    if mouseClick then
+      triggered = true
+    end
+  end
+
+  useColor(color)
+  drawTextLine(line)
+
+  return triggered
 end
 
 function keyboard()
@@ -160,6 +186,11 @@ function keyboard()
     reaper.defer(loop)
   end
 
+  -- if input ~= 0 then
+  --   reaper.ShowConsoleMsg(input)
+  --   reaper.ShowConsoleMsg("\n")
+  -- end
+
   if input == KEY_SPACE then
     local playing = reaper.GetPlayState() == 1
 
@@ -167,6 +198,18 @@ function keyboard()
       reaper.OnStopButton()
     else
       reaper.OnPlayButton()
+    end
+  elseif input == KEY_UP or input == KEY_LEFT then
+    local index = currentIndex - 1
+
+    if songs[index] then
+      setCurrentIndex(index)
+    end
+  elseif input == KEY_DOWN or input == KEY_RIGHT then
+    local index = currentIndex + 1
+
+    if songs[index] then
+      setCurrentIndex(index)
     end
   end
 end
@@ -200,6 +243,8 @@ function mouse()
 end
 
 function loop()
+  resetButton()
+
   gfx.y = 10
   drawName(songs[currentIndex])
 
@@ -208,7 +253,7 @@ function loop()
   gfx.line(0, gfx.y, gfx.w, gfx.y)
 
   gfx.y = gfx.y + 10
-  drawSongList()
+  songList()
 
   gfx.update()
 
@@ -216,11 +261,14 @@ function loop()
   mouse()
 end
 
-songs = loadTracks()
+function reset()
+  songs = loadTracks()
 
--- initial state: disable every tracks
-currentIndex = -2
-setCurrentIndex(-1)
+  currentIndex = -2
+  setCurrentIndex(-1)
+end
+
+reset()
 
 -- graphic initialization
 FONT_DEFAULT = 0
@@ -231,11 +279,16 @@ COLOR_WHITE = {255, 255, 255}
 COLOR_LGRAY = {200, 200, 200}
 COLOR_DGRAY = {178, 178, 178}
 COLOR_HIGHLIGHT = {164, 204, 255}
-COLOR_ACTIVE = {70, 70, 70}
+COLOR_HOVER = {30, 30, 30}
+COLOR_ACTIVE = {80, 80, 90}
 COLOR_BLACK = {0, 0, 0}
 
 KEY_ESCAPE = 27
 KEY_SPACE = 32
+KEY_UP = 30064
+KEY_DOWN = 1685026670
+KEY_RIGHT = 1919379572
+KEY_LEFT = 1818584692
 
 PADDING = 3
 
