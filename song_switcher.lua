@@ -59,14 +59,14 @@ function setSongEnabled(song, enabled)
 
   local on, off, isValid = 1, 0, isSongValid(song)
 
-  if enabled then
-    invalid = not isValid
-  else
+  invalid = not isSongValid(song)
+
+  if not enabled then
     on = 0
     off = 1
   end
 
-  if not isValid then return end
+  if invalid then return false end
 
   reaper.SetMediaTrackInfo_Value(song.folder, 'B_MUTE', off)
 
@@ -74,6 +74,8 @@ function setSongEnabled(song, enabled)
     reaper.SetMediaTrackInfo_Value(track, 'B_SHOWINMIXER', on)
     reaper.SetMediaTrackInfo_Value(track, 'B_SHOWINTCP', on)
   end
+
+  return true
 end
 
 function setCurrentIndex(index)
@@ -89,9 +91,13 @@ function setCurrentIndex(index)
     setSongEnabled(songs[currentIndex], false)
   end
 
-  setSongEnabled(songs[index], true)
-  currentIndex = index
-  setNextIndex(index)
+  local disableOk = not invalid
+  local enableOk = setSongEnabled(songs[index], true)
+
+  if enableOk or disableOk then
+    currentIndex = index
+    setNextIndex(index)
+  end
 
   reaper.PreventUIRefresh(-1)
 
