@@ -87,6 +87,7 @@ end
 function setNextIndex(index)
   if songs[index] then
     nextIndex = index
+    scrollTo = index
     highlightTime = os.time()
   end
 end
@@ -179,36 +180,52 @@ function songList(y)
   gfx.setfont(FONT_DEFAULT)
   gfx.y = y - scrollOffset
 
-  local lastIndex, line, bottom
+  local lastIndex, line, bottom, newScrollOffset
 
   for index, song in ipairs(songs) do
     lastIndex = index
     line = textLine(song.name, MARGIN, PADDING)
     bottom = line.rect.y + line.rect.h
 
-    if line.rect.y >= (y - line.rect.h) and bottom < (gfx.h + line.rect.h) then
+    if line.rect.y >= y - line.rect.h and bottom < gfx.h + line.rect.h then
       if button(line, index == currentIndex, index == nextIndex) then
         setCurrentIndex(index)
       end
     else
       gfx.y = bottom
     end
+
+    if index == scrollTo then
+      if bottom + line.rect.h > gfx.h then
+        -- scroll down
+        newScrollOffset = scrollOffset + (bottom - gfx.h) + line.rect.h
+      elseif line.rect.y <= y + line.rect.h then
+        -- scroll up
+        newScrollOffset = scrollOffset - ((y - line.rect.y) + line.rect.h)
+      end
+    end
   end
 
+  scrollTo = 0
+
   if lastIndex then
-    scrollHeight = math.max(0,
-      (bottom - gfx.h) + scrollOffset + PADDING)
+    maxScrollOffset = math.max(0,
+      scrollOffset + (bottom - gfx.h) + PADDING)
 
     scrollbar(y, gfx.h - y)
+  end
+
+  if newScrollOffset then
+    scrollOffset = math.max(0, math.min(newScrollOffset, maxScrollOffset))
   end
 end
 
 function scrollbar(top, height)
-  if scrollHeight < 1 then return end
+  if maxScrollOffset < 1 then return end
 
   height = height - MARGIN
 
-  local bottom = height + scrollHeight
+  local bottom = height + maxScrollOffset
   local percent = height / bottom
 
   useColor(COLOR_DGRAY)
@@ -358,7 +375,7 @@ end
 function mouse()
   if gfx.mouse_wheel ~= 0 then
     local offset = math.max(0, scrollOffset - gfx.mouse_wheel)
-    scrollOffset = math.min(offset, scrollHeight)
+    scrollOffset = math.min(offset, maxScrollOffset)
 
     gfx.mouse_wheel = 0
   end
@@ -410,7 +427,7 @@ function reset()
   currentIndex = -1
   nextIndex = 0
   scrollOffset = 0
-  scrollHeight = 0
+  maxScrollOffset = 0
 
   setCurrentIndex(0)
 end
@@ -457,6 +474,7 @@ mouseClick = false
 filterPrompt = false
 filterBuffer = ''
 highlightTime = 0
+scrollTo = 0
 -- other variable initializations in reset()
 
 gfx.init('Song Switcher', 500, 300)
