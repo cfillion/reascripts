@@ -79,15 +79,13 @@ function setSongEnabled(song, enabled)
 end
 
 function setCurrentIndex(index)
-  if index == currentIndex then return end
-
   reaper.PreventUIRefresh(1)
 
   if currentIndex < 1 then
     for _,song in ipairs(songs) do
       setSongEnabled(song, false)
     end
-  else
+  elseif index ~= currentIndex then
     setSongEnabled(songs[currentIndex], false)
   end
 
@@ -400,11 +398,11 @@ end
 function isUnderMouse(x, y, w, h)
   local hor, ver = false, false
 
-  if gfx.mouse_x > x and gfx.mouse_x < x + w then
+  if gfx.mouse_x > x and gfx.mouse_x <= x + w then
     hor = true
   end
 
-  if gfx.mouse_y > y and gfx.mouse_y < y + h then
+  if gfx.mouse_y > y and gfx.mouse_y <= y + h then
     ver = true
   end
 
