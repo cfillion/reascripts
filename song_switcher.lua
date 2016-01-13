@@ -44,14 +44,29 @@ function compareSongs(a, b)
   end
 end
 
+function isSongValid(song)
+  for _,track in ipairs(song.tracks) do
+    if not reaper.ValidatePtr(track, 'MediaTrack*') then
+      return false
+    end
+  end
+
+  return true
+end
+
 function setSongEnabled(song, enabled)
   if song == nil then return end
 
-  local on = 1
-  if not enabled then on = 0 end
+  local on, off, isValid = 1, 0, isSongValid(song)
 
-  local off = 0
-  if not enabled then off = 1 end
+  if enabled then
+    invalid = not isValid
+  else
+    on = 0
+    off = 1
+  end
+
+  if not isValid then return end
 
   reaper.SetMediaTrackInfo_Value(song.folder, 'B_MUTE', off)
 
@@ -66,11 +81,11 @@ function setCurrentIndex(index)
 
   reaper.PreventUIRefresh(1)
 
-  if currentIndex < 1 then
+  if currentIndex < 0 then
     for _,song in ipairs(songs) do
       setSongEnabled(song, false)
     end
-  else
+  elseif currentIndex > 0 then
     setSongEnabled(songs[currentIndex], false)
   end
 
@@ -152,9 +167,15 @@ function drawName(song)
   end
 
   gfx.setfont(FONT_LARGE)
-  useColor(COLOR_WHITE)
+  line = textLine(name)
 
-  drawTextLine(textLine(name))
+  if invalid then
+    useColor(COLOR_RED)
+    gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
+  end
+
+  useColor(COLOR_WHITE)
+  drawTextLine(line)
 end
 
 function drawFilter()
@@ -428,6 +449,7 @@ function reset()
   nextIndex = 0
   scrollOffset = 0
   maxScrollOffset = 0
+  invalid = false
 
   setCurrentIndex(0)
 end
@@ -443,12 +465,13 @@ COLOR_WHITE = {255, 255, 255}
 COLOR_LGRAY = {200, 200, 200}
 COLOR_DGRAY = {178, 178, 178}
 COLOR_BLACK = {0, 0, 0}
+COLOR_RED = {255, 0, 0}
 
 COLOR_HOVERBG = {30, 30, 30}
 COLOR_HOVERFG = COLOR_WHITE
 COLOR_HIGHLIGHTBG = {164, 204, 255}
 COLOR_HIGHLIGHTFG = COLOR_BLACK
-COLOR_DANGERBG = {255, 0, 0}
+COLOR_DANGERBG = COLOR_RED
 COLOR_DANGERFG = COLOR_BLACK
 COLOR_ACTIVEBG = {80, 80, 90}
 COLOR_ACTIVEFG = COLOR_WHITE
