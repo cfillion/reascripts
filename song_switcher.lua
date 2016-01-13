@@ -180,17 +180,17 @@ function drawName(song)
   line = textLine(name)
 
   if invalid then
-    useColor(COLOR_RED)
+    useColor(COLOR_DANGERBG)
     gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
   end
 
-  useColor(COLOR_WHITE)
+  useColor(COLOR_NAME)
   drawTextLine(line)
 end
 
 function drawFilter()
   gfx.setfont(FONT_LARGE)
-  useColor(COLOR_LGRAY)
+  useColor(COLOR_FILTER)
 
   local buffer = filterBuffer
 
@@ -259,7 +259,7 @@ function scrollbar(top, height)
   local bottom = height + maxScrollOffset
   local percent = height / bottom
 
-  useColor(COLOR_DGRAY)
+  useColor(COLOR_BORDER)
   gfx.rect((gfx.w - MARGIN), top + (scrollOffset * percent), 4, height * percent)
 end
 
@@ -279,7 +279,7 @@ function resetButton()
 end
 
 function button(line, active, highlight, danger)
-  local color, triggered = COLOR_LGRAY, false
+  local color, triggered = COLOR_BUTTON, false
 
   if active then
     useColor(COLOR_ACTIVEBG)
@@ -449,7 +449,7 @@ function loop()
 
   -- separator line
   gfx.y = gfx.y + MARGIN
-  useColor(COLOR_DGRAY)
+  useColor(COLOR_BORDER)
   gfx.line(0, gfx.y, gfx.w, gfx.y)
 
   gfx.update()
@@ -504,19 +504,22 @@ FONT_LARGE = 1
 FONT_SMALL = 2
 
 COLOR_WHITE = {255, 255, 255}
-COLOR_LGRAY = {200, 200, 200}
-COLOR_DGRAY = {178, 178, 178}
+COLOR_GRAY = {190, 190, 190}
 COLOR_BLACK = {0, 0, 0}
 COLOR_RED = {255, 0, 0}
 
+COLOR_NAME = COLOR_WHITE
+COLOR_FILTER = COLOR_WHITE
+COLOR_BORDER = COLOR_GRAY
+COLOR_BUTTON = COLOR_GRAY
 COLOR_HOVERBG = {30, 30, 30}
 COLOR_HOVERFG = COLOR_WHITE
-COLOR_HIGHLIGHTBG = {164, 204, 255}
-COLOR_HIGHLIGHTFG = COLOR_BLACK
+COLOR_ACTIVEBG = {124, 165, 215}
+COLOR_ACTIVEFG = COLOR_BLACK
 COLOR_DANGERBG = COLOR_RED
 COLOR_DANGERFG = COLOR_BLACK
-COLOR_ACTIVEBG = {80, 80, 90}
-COLOR_ACTIVEFG = COLOR_WHITE
+COLOR_HIGHLIGHTBG = {60, 90, 100}
+COLOR_HIGHLIGHTFG = COLOR_WHITE
 
 KEY_ESCAPE = 27
 KEY_SPACE = 32
