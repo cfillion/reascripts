@@ -175,16 +175,44 @@ function drawFilter()
   end
 end
 
-function songList()
+function songList(y)
   gfx.setfont(FONT_DEFAULT)
+  gfx.y = y - scrollOffset
+
+  local lastIndex, line, bottom
 
   for index, song in ipairs(songs) do
-    local line = textLine(song.name, 10, PADDING)
+    lastIndex = index
+    line = textLine(song.name, MARGIN, PADDING)
+    bottom = line.rect.y + line.rect.h
 
-    if button(line, index == currentIndex, index == nextIndex) then
-      setCurrentIndex(index)
+    if line.rect.y >= (y - line.rect.h) and bottom < (gfx.h + line.rect.h) then
+      if button(line, index == currentIndex, index == nextIndex) then
+        setCurrentIndex(index)
+      end
+    else
+      gfx.y = bottom
     end
   end
+
+  if lastIndex then
+    scrollHeight = math.max(0,
+      (bottom - gfx.h) + scrollOffset + PADDING)
+
+    scrollbar(y, gfx.h - y)
+  end
+end
+
+function scrollbar(top, height)
+  if scrollHeight < 1 then return end
+
+  height = height - MARGIN
+
+  local bottom = height + scrollHeight
+  local percent = height / bottom
+
+  useColor(COLOR_DGRAY)
+  gfx.rect((gfx.w - MARGIN), top + (scrollOffset * percent), 4, height * percent)
 end
 
 function resetButton()
@@ -328,6 +356,13 @@ function isUnderMouse(x, y, w, h)
 end
 
 function mouse()
+  if gfx.mouse_wheel ~= 0 then
+    local offset = math.max(0, scrollOffset - gfx.mouse_wheel)
+    scrollOffset = math.min(offset, scrollHeight)
+
+    gfx.mouse_wheel = 0
+  end
+
   if mouseState == 0 and gfx.mouse_cap ~= 0 then
     -- NOTE: mouse press handling here
   end
@@ -342,21 +377,26 @@ function mouse()
 end
 
 function loop()
+  local listStart = 60
+  songList(listStart)
+
+  -- solid header background, to hide scrolled list items
+  gfx.y = MARGIN
+  useColor(COLOR_BLACK)
+  gfx.rect(0, 0, gfx.w, listStart)
+
   resetButton()
 
-  gfx.y = 10
   if filterPrompt then
     drawFilter()
   else
     drawName(songs[currentIndex])
   end
 
-  gfx.y = gfx.y + 10
+  -- separator line
+  gfx.y = gfx.y + MARGIN
   useColor(COLOR_DGRAY)
   gfx.line(0, gfx.y, gfx.w, gfx.y)
-
-  gfx.y = gfx.y + 10
-  songList()
 
   gfx.update()
 
@@ -369,6 +409,8 @@ function reset()
 
   currentIndex = -1
   nextIndex = 0
+  scrollOffset = 0
+  scrollHeight = 0
 
   setCurrentIndex(0)
 end
@@ -408,12 +450,14 @@ KEY_CTRLU = 21
 KEY_CLEAR = 144
 
 PADDING = 3
+MARGIN = 10
 
 mouseState = 0
 mouseClick = false
 filterPrompt = false
 filterBuffer = ''
 highlightTime = 0
+-- other variable initializations in reset()
 
 gfx.init('Song Switcher', 500, 300)
 gfx.setfont(FONT_LARGE, 'sans-serif', 28, 'b')
