@@ -105,6 +105,12 @@ function setCurrentIndex(index)
   reaper.UpdateArrange()
 end
 
+function trySetCurrentIndex(index)
+  if songs[index] then
+    setCurrentIndex(index)
+  end
+end
+
 function setNextIndex(index)
   if songs[index] then
     nextIndex = index
@@ -376,6 +382,12 @@ function normalKey(input)
     setNextIndex(nextIndex - 1)
   elseif input == KEY_DOWN or input == KEY_RIGHT then
     setNextIndex(nextIndex + 1)
+  elseif input == KEY_PGUP or input == KEY_MINUS then
+    trySetCurrentIndex(currentIndex - 1)
+  elseif input == KEY_PGDOWN or input == KEY_PLUS then
+    trySetCurrentIndex(currentIndex + 1)
+  elseif input == KEY_CLEAR then
+    reset()
   elseif input == KEY_ENTER then
     if nextIndex == currentIndex then
       filterPrompt = true
@@ -520,6 +532,10 @@ KEY_ENTER = 13
 KEY_BACKSPACE = 8
 KEY_CTRLU = 21
 KEY_CLEAR = 144
+KEY_PGUP = 1885828464
+KEY_PGDOWN = 1885824110
+KEY_MINUS = 45
+KEY_PLUS = 43
 
 PADDING = 3
 MARGIN = 10
