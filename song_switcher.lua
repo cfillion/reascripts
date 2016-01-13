@@ -467,23 +467,20 @@ function reset()
 
   currentIndex = 0
   nextIndex = 0
+  invalid = false
+  scrollOffset = 0
+  maxScrollOffset = 0
 
   if activeCount == 1 then
     if visibleCount == 0 then
       currentIndex = activeIndex
       nextIndex = activeIndex
+      scrollTo = activeIndex
     else
       setCurrentIndex(activeIndex)
     end
   end
-
-  invalid = false
-
-  scrollOffset = 0
-  maxScrollOffset = 0
 end
-
-reset()
 
 -- graphic initialization
 FONT_DEFAULT = 0
@@ -527,7 +524,9 @@ filterPrompt = false
 filterBuffer = ''
 highlightTime = 0
 scrollTo = 0
+
 -- other variable initializations in reset()
+reset()
 
 gfx.init('Song Switcher', 500, 300)
 gfx.setfont(FONT_LARGE, 'sans-serif', 28, 'b')
