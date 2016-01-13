@@ -81,11 +81,11 @@ function setCurrentIndex(index)
 
   reaper.PreventUIRefresh(1)
 
-  if currentIndex < 0 then
+  if currentIndex < 1 then
     for _,song in ipairs(songs) do
       setSongEnabled(song, false)
     end
-  elseif currentIndex > 0 then
+  else
     setSongEnabled(songs[currentIndex], false)
   end
 
@@ -445,13 +445,27 @@ end
 function reset()
   songs = loadTracks()
 
-  currentIndex = -1
-  nextIndex = 0
-  scrollOffset = 0
-  maxScrollOffset = 0
+  local activeIndex, activeCount = nil, 0
+
+  for index,song in ipairs(songs) do
+    local muted = reaper.GetMediaTrackInfo_Value(song.folder, 'B_MUTE')
+
+    if muted == 0 then
+      activeIndex = index
+      activeCount = activeCount + 1
+    end
+  end
+
+  if activeIndex == nil or activeCount > 1 then
+    activeIndex = 0
+  end
+
+  currentIndex = activeIndex
+  nextIndex = activeIndex
   invalid = false
 
-  setCurrentIndex(0)
+  scrollOffset = 0
+  maxScrollOffset = 0
 end
 
 reset()
