@@ -445,7 +445,7 @@ end
 function reset()
   songs = loadTracks()
 
-  local activeIndex, activeCount = nil, 0
+  local activeIndex, activeCount, visibleCount = nil, 0, 0
 
   for index,song in ipairs(songs) do
     local muted = reaper.GetMediaTrackInfo_Value(song.folder, 'B_MUTE')
@@ -454,14 +454,29 @@ function reset()
       activeIndex = index
       activeCount = activeCount + 1
     end
+
+    for _,track in ipairs(song.tracks) do
+      local tcp = reaper.GetMediaTrackInfo_Value(track, 'B_SHOWINTCP')
+      local mixer = reaper.GetMediaTrackInfo_Value(track, 'B_SHOWINMIXER')
+
+      if tcp == 1 or mixer == 1 then
+        visibleCount = visibleCount + 1
+      end
+    end
   end
 
-  if activeIndex == nil or activeCount > 1 then
-    activeIndex = 0
+  currentIndex = 0
+  nextIndex = 0
+
+  if activeCount == 1 then
+    if visibleCount == 0 then
+      currentIndex = activeIndex
+      nextIndex = activeIndex
+    else
+      setCurrentIndex(activeIndex)
+    end
   end
 
-  currentIndex = activeIndex
-  nextIndex = activeIndex
   invalid = false
 
   scrollOffset = 0
