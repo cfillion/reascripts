@@ -467,16 +467,21 @@ function reset()
     local muted = reaper.GetMediaTrackInfo_Value(song.folder, 'B_MUTE')
 
     if muted == 0 then
-      activeIndex = index
+      if activeIndex == nil then
+        activeIndex = index
+      end
+
       activeCount = activeCount + 1
     end
 
-    for _,track in ipairs(song.tracks) do
-      local tcp = reaper.GetMediaTrackInfo_Value(track, 'B_SHOWINTCP')
-      local mixer = reaper.GetMediaTrackInfo_Value(track, 'B_SHOWINMIXER')
+    if activeIndex ~= index then
+      for _,track in ipairs(song.tracks) do
+        local tcp = reaper.GetMediaTrackInfo_Value(track, 'B_SHOWINTCP')
+        local mixer = reaper.GetMediaTrackInfo_Value(track, 'B_SHOWINMIXER')
 
-      if tcp == 1 or mixer == 1 then
-        visibleCount = visibleCount + 1
+        if tcp == 1 or mixer == 1 then
+          visibleCount = visibleCount + 1
+        end
       end
     end
   end
