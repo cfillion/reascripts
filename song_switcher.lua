@@ -176,7 +176,6 @@ function drawName(song)
     name = song.name
   end
 
-  gfx.setfont(FONT_LARGE)
   line = textLine(name)
 
   if invalid then
@@ -189,7 +188,6 @@ function drawName(song)
 end
 
 function drawFilter()
-  gfx.setfont(FONT_LARGE)
   useColor(COLOR_FILTER)
 
   local buffer = filterBuffer
@@ -278,6 +276,29 @@ function resetButton()
   end
 end
 
+function dockButton()
+  gfx.setfont(FONT_DEFAULT)
+  gfx.x = 0
+  gfx.y = 0
+
+  btn = textLine('dock', 0)
+  btn.rect.w = btn.tw
+
+  dockState = gfx.dock(-1)
+
+  if button(btn, dockState ~= 0, false, false) then
+    if dockState == 0 then
+      if reaper.HasExtState(EXT_SECTION, 'docked_state') then
+        restoreDockedState()
+      else
+        gfx.dock(1)
+      end
+    else
+      gfx.dock(0)
+    end
+  end
+end
+
 function button(line, active, highlight, danger)
   local color, triggered = COLOR_BUTTON, false
 
@@ -330,8 +351,10 @@ end
 function keyboard()
   local input = gfx.getchar()
 
-  if input < 0 or input == KEY_ESCAPE then
-    gfx.quit()
+  if input < 0 then
+    -- bye bye!
+    saveDockedState()
+    return
   else
     reaper.defer(loop)
   end
@@ -353,6 +376,9 @@ function filterKey(input)
     filterBuffer = string.sub(filterBuffer, 0, -2)
   elseif input == KEY_CLEAR or input == KEY_CTRLU then
     filterBuffer = ''
+  elseif input == KEY_ESCAPE then
+    filterPrompt = false
+    filterBuffer = ''
   elseif input == KEY_ENTER then
     local index, _ = findSong(filterBuffer)
 
@@ -368,7 +394,9 @@ function filterKey(input)
 end
 
 function normalKey(input)
-  if input == KEY_SPACE then
+  if (input == KEY_ESCAPE and dockedState == 0) or input == KEY_STAR then
+    gfx.quit()
+  elseif input == KEY_SPACE then
     local playing = reaper.GetPlayState() == 1
 
     if playing then
@@ -431,26 +459,34 @@ function mouse()
 end
 
 function loop()
-  local listStart = 60
-  songList(listStart)
+  local listStart = 50
 
-  -- solid header background, to hide scrolled list items
-  gfx.y = MARGIN
-  useColor(COLOR_BLACK)
-  gfx.rect(0, 0, gfx.w, listStart)
+  if gfx.h > listStart + MARGIN then
+    songList(listStart)
 
-  resetButton()
+    -- solid header background, to hide scrolled list items
+    gfx.y = MARGIN
+    useColor(COLOR_BLACK)
+    gfx.rect(0, 0, gfx.w, listStart)
+
+    -- separator line
+    gfx.y = listStart - HALF_MARGIN
+    useColor(COLOR_BORDER)
+    gfx.line(0, gfx.y, gfx.w, gfx.y)
+
+    dockButton()
+    resetButton()
+    gfx.setfont(FONT_LARGE)
+  else
+    gfx.y = MARGIN + PADDING
+    gfx.setfont(FONT_HUGE)
+  end
 
   if filterPrompt then
     drawFilter()
   else
     drawName(songs[currentIndex])
   end
-
-  -- separator line
-  gfx.y = gfx.y + MARGIN
-  useColor(COLOR_BORDER)
-  gfx.line(0, gfx.y, gfx.w, gfx.y)
 
   gfx.update()
 
@@ -503,10 +539,23 @@ function reset()
   end
 end
 
+function restoreDockedState()
+  local docked_state = tonumber(reaper.GetExtState(EXT_SECTION, 'docked_state'))
+
+  if docked_state then
+    gfx.dock(docked_state)
+  end
+end
+
+function saveDockedState()
+  reaper.SetExtState(EXT_SECTION, 'docked_state', tostring(dockState), true)
+end
+
 -- graphic initialization
 FONT_DEFAULT = 0
 FONT_LARGE = 1
 FONT_SMALL = 2
+FONT_HUGE = 3
 
 COLOR_WHITE = {255, 255, 255}
 COLOR_GRAY = {190, 190, 190}
@@ -542,9 +591,13 @@ KEY_PGUP = 1885828464
 KEY_PGDOWN = 1885824110
 KEY_MINUS = 45
 KEY_PLUS = 43
+KEY_STAR = 42
 
 PADDING = 3
 MARGIN = 10
+HALF_MARGIN = 5
+
+EXT_SECTION = 'cfillion_song_switcher'
 
 mouseState = 0
 mouseClick = false
@@ -552,13 +605,17 @@ filterPrompt = false
 filterBuffer = ''
 highlightTime = 0
 scrollTo = 0
+dockState = 0
 
 -- other variable initializations in reset()
 reset()
 
 gfx.init('Song Switcher', 500, 300)
+gfx.setfont(FONT_HUGE, 'sans-serif', 36, 'b')
 gfx.setfont(FONT_LARGE, 'sans-serif', 28, 'b')
 gfx.setfont(FONT_SMALL, 'sans-serif', 13)
+
+restoreDockedState()
 
 -- GO!!
 reaper.defer(loop)
