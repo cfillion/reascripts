@@ -185,6 +185,10 @@ function drawName(song)
 
   useColor(COLOR_NAME)
   drawTextLine(line)
+
+  if isLineUnderMouse(line) and isDoubleClick then
+    filterPrompt = true
+  end
 end
 
 function drawFilter()
@@ -202,6 +206,10 @@ function drawFilter()
   if os.time() % 2 == 0 then
     local topRight = line.tx + line.tw
     gfx.line(topRight, line.ty, topRight, line.ty + line.rect.h)
+  end
+
+  if isLineUnderMouse(line) and isDoubleClick then
+    filterPrompt = false
   end
 end
 
@@ -437,7 +445,13 @@ function isUnderMouse(x, y, w, h)
   if hor and ver then return true else return false end
 end
 
+function isLineUnderMouse(line)
+  return isUnderMouse(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
+end
+
 function mouse()
+  isDoubleClick = false
+
   if gfx.mouse_wheel ~= 0 then
     local offset = math.max(0, scrollOffset - gfx.mouse_wheel)
     scrollOffset = math.min(offset, maxScrollOffset)
@@ -450,7 +464,15 @@ function mouse()
   end
 
   if mouseState == 1 and gfx.mouse_cap == 0 then
+    -- mouse release
     mouseClick = true
+    local now = os.clock()
+    if lastClick > now - 0.1 then
+      isDoubleClick = true
+      lastClick = 0
+    else
+      lastClick = now
+    end
   else
     mouseClick = false
   end
@@ -606,6 +628,8 @@ filterBuffer = ''
 highlightTime = 0
 scrollTo = 0
 dockState = 0
+lastClick = 0
+isDoubleClick = false
 
 -- other variable initializations in reset()
 reset()
