@@ -463,11 +463,15 @@ function mouse()
     -- NOTE: mouse press handling here
   end
 
-  if mouseState == 1 and gfx.mouse_cap == 0 then
-    -- mouse release
-    mouseClick = true
+  if mouseState == 3 and gfx.mouse_cap < 3 and gfx.mouse_cap >= 0 then
+    -- two button release
+    -- also triggered if one button is released slightly before the other
+    reset()
+  elseif mouseState == 1 and gfx.mouse_cap == 0 then
+    -- left button releace
+
     local now = os.clock()
-    if lastClick > now - 0.1 then
+    if lastClick > now - 0.2 then
       isDoubleClick = true
       lastClick = 0
     else
