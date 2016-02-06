@@ -554,6 +554,8 @@ function reset()
   invalid = false
   scrollOffset = 0
   maxScrollOffset = 0
+  filterPrompt = false
+  filterBuffer = ''
 
   if activeCount == 1 then
     if visibleCount == 0 then
@@ -628,8 +630,6 @@ EXT_SECTION = 'cfillion_song_switcher'
 
 mouseState = 0
 mouseClick = false
-filterPrompt = false
-filterBuffer = ''
 highlightTime = 0
 scrollTo = 0
 dockState = 0
