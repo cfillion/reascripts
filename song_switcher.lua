@@ -451,6 +451,7 @@ end
 
 function mouse()
   isDoubleClick = false
+  mouseClick = false
 
   if gfx.mouse_wheel ~= 0 then
     local offset = math.max(0, scrollOffset - gfx.mouse_wheel)
@@ -468,7 +469,7 @@ function mouse()
     -- also triggered if one button is released slightly before the other
     reset()
   elseif mouseState == 1 and gfx.mouse_cap == 0 then
-    -- left button releace
+    -- left button release
 
     local now = os.clock()
     if lastClick > now - 0.2 then
@@ -477,8 +478,8 @@ function mouse()
     else
       lastClick = now
     end
-  else
-    mouseClick = false
+
+    mouseClick = true
   end
 
   mouseState = gfx.mouse_cap
