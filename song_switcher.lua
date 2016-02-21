@@ -312,26 +312,31 @@ end
 
 function navButtons()
   gfx.setfont(FONT_HUGE)
-  gfx.y = MARGIN + PADDING
 
-  prev = textLine('◀', 0)
-  prev.rect.x = gfx.y
-  prev.tx = gfx.y
-  prev.rect.w = prev.tw
+  if currentIndex > 1 then
+    gfx.y = MARGIN + PADDING
 
-  if button(prev, false, false, false) then
-    trySetCurrentIndex(currentIndex - 1)
+    prev = textLine('◀', 0)
+    prev.rect.x = gfx.y
+    prev.tx = gfx.y
+    prev.rect.w = prev.tw
+
+    if button(prev, false, false, false) then
+      setCurrentIndex(currentIndex - 1)
+    end
   end
 
-  gfx.y = MARGIN + PADDING
+  if songs[currentIndex + 1] then
+    gfx.y = MARGIN + PADDING
 
-  next = textLine('▶', 0)
-  next.tx = next.rect.w - next.tw - gfx.y
-  next.rect.x = next.tx
-  next.rect.w = next.tw
+    next = textLine('▶', 0)
+    next.tx = next.rect.w - next.tw - gfx.y
+    next.rect.x = next.tx
+    next.rect.w = next.tw
 
-  if button(next, false, false, false) then
-    trySetCurrentIndex(currentIndex + 1)
+    if button(next, false, false, false) then
+      setCurrentIndex(currentIndex + 1)
+    end
   end
 end
 
