@@ -307,6 +307,31 @@ function dockButton()
   end
 end
 
+function navButtons()
+  gfx.setfont(FONT_HUGE)
+  gfx.y = MARGIN + PADDING
+
+  prev = textLine('◀', 0)
+  prev.rect.x = gfx.y
+  prev.tx = gfx.y
+  prev.rect.w = prev.tw
+
+  if button(prev, false, false, false) then
+    trySetCurrentIndex(currentIndex - 1)
+  end
+
+  gfx.y = MARGIN + PADDING
+
+  next = textLine('▶', 0)
+  next.tx = next.rect.w - next.tw - gfx.y
+  next.rect.x = next.tx
+  next.rect.w = next.tw
+
+  if button(next, false, false, false) then
+    trySetCurrentIndex(currentIndex + 1)
+  end
+end
+
 function button(line, active, highlight, danger)
   local color, triggered = COLOR_BUTTON, false
 
@@ -505,6 +530,8 @@ function loop()
     resetButton()
     gfx.setfont(FONT_LARGE)
   else
+    navButtons()
+
     gfx.y = MARGIN + PADDING
     gfx.setfont(FONT_HUGE)
   end
