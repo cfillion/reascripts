@@ -101,6 +101,9 @@ function setCurrentIndex(index)
 
   reaper.TrackList_AdjustWindows(false)
   reaper.UpdateArrange()
+
+  filterPrompt = false
+  filterBuffer = ''
 end
 
 function trySetCurrentIndex(index)
