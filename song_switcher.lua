@@ -516,7 +516,9 @@ end
 function loop()
   local listStart = 50
 
-  if gfx.h > listStart + MARGIN then
+  local fullUI = gfx.h > listStart + MARGIN
+
+  if fullUI then
     songList(listStart)
 
     -- solid header background, to hide scrolled list items
@@ -533,8 +535,6 @@ function loop()
     resetButton()
     gfx.setfont(FONT_LARGE)
   else
-    navButtons()
-
     gfx.y = MARGIN + PADDING
     gfx.setfont(FONT_HUGE)
   end
@@ -543,6 +543,10 @@ function loop()
     drawFilter()
   else
     drawName(songs[currentIndex])
+  end
+
+  if not fullUI then
+    navButtons()
   end
 
   gfx.update()
