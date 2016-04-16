@@ -686,5 +686,4 @@ gfx.setfont(FONT_SMALL, 'sans-serif', 13)
 restoreDockedState()
 
 -- GO!!
-reaper.defer(loop)
 loop()
