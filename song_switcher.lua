@@ -455,6 +455,8 @@ function normalKey(input)
     trySetCurrentIndex(currentIndex + 1)
   elseif input == KEY_CLEAR then
     reset()
+  elseif input == KEY_F3 then
+    reaper.Main_OnCommand(40345, 0) -- send all note off
   elseif input == KEY_ENTER then
     if nextIndex == currentIndex then
       filterPrompt = true
@@ -660,6 +662,7 @@ KEY_PGDOWN = 1885824110
 KEY_MINUS = 45
 KEY_PLUS = 43
 KEY_STAR = 42
+KEY_F3 = 26163
 
 PADDING = 3
 MARGIN = 10
