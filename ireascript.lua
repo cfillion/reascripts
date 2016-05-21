@@ -275,7 +275,7 @@ function ireascript.eval()
 end
 
 function ireascript.lua(code)
-  local func, err = load('return ' .. code, 'eval')
+  local func, err = load(code, 'eval')
 
   if err then
     ireascript.errorFormat()
