@@ -11,6 +11,7 @@ local ireascript = {
   COLOR_BLUE = {90, 90, 190},
   COLOR_RED = {190, 90, 90},
   COLOR_BLACK = {0, 0, 0},
+  COLOR_WHITE = {255, 255, 255},
 
   SG_NEWLINE = 1,
   SG_CURSOR = 2,
@@ -28,7 +29,26 @@ local ireascript = {
 }
 
 function ireascript.help()
-  ireascript.push('help')
+  ireascript.resetFormat()
+  ireascript.push('Built-in commands:')
+  ireascript.nl()
+
+  local colWidth = 8
+
+  for name,command in pairs(ireascript.BUILTIN) do
+    local spaces = ''
+    for i=1,colWidth-name:len() do
+      spaces = spaces .. ' '
+    end
+
+    ireascript.highlightFormat()
+    ireascript.push(string.format('.%s', name))
+
+    ireascript.resetFormat()
+    ireascript.push(spaces .. command.desc)
+
+    ireascript.nl()
+  end
 end
 
 function ireascript.clear()
@@ -41,9 +61,9 @@ function ireascript.exit()
 end
 
 ireascript.BUILTIN = {
-  help = ireascript.help,
-  clear = ireascript.clear,
-  exit = ireascript.exit,
+  clear = {desc="Clear the line buffer", func=ireascript.clear},
+  exit = {desc="Close iReaScript", func=ireascript.exit},
+  help = {desc="Print this help text", func=ireascript.help},
 }
 
 function ireascript.reset(banner)
@@ -56,7 +76,7 @@ function ireascript.reset(banner)
   if banner then
     ireascript.push('Interactive ReaScript v0.1 by cfillion')
     ireascript.nl()
-    ireascript.push("Type Lua code or 'help'")
+    ireascript.push("Type Lua code or .help")
     ireascript.nl()
   end
 
@@ -207,6 +227,12 @@ function ireascript.errorFormat()
   ireascript.background = ireascript.COLOR_RED
 end
 
+function ireascript.highlightFormat()
+  ireascript.font = ireascript.FONT_NORMAL
+  ireascript.foreground = ireascript.COLOR_WHITE
+  ireascript.background = ireascript.COLOR_BLACK
+end
+
 function ireascript.nl()
   ireascript.buffer[#ireascript.buffer + 1] = ireascript.SG_NEWLINE
 end
@@ -262,16 +288,20 @@ function ireascript.eval()
   ireascript.removeCursor()
   ireascript.nl()
 
-  local builtin = ireascript.BUILTIN[ireascript.input:lower()]
+  if ireascript.input:sub(0, 1) == '.' then
+    local name = ireascript.input:sub(2)
+    local command = ireascript.BUILTIN[name:lower()]
+    if command then
+      command.func()
 
-  if builtin then
-    builtin()
-
-    if ireascript.input:len() == 0 then
-      return -- buffer got reset
+      if ireascript.input:len() == 0 then
+        return -- buffer got reset
+      end
+    else
+      ireascript.errorFormat()
+      ireascript.push('command not found: ' .. name)
+      ireascript.nl()
     end
-
-    ireascript.nl()
   elseif ireascript.input:len() > 0 then
     local _, err = pcall(function()
       ireascript.lua(ireascript.input)
