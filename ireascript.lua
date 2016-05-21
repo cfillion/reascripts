@@ -223,7 +223,7 @@ function lua(code)
   else
     local values = {func()}
 
-    if #values == 1 then
+    if #values <= 1 then
       format(values[1])
     else
       format(values)
