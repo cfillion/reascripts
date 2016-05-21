@@ -1,13 +1,16 @@
-function reset()
+function reset(banner)
   buffer = {}
   wrappedBuffer = {w = 0}
+  input = ''
 
   resetFormat()
 
-  push('Interactive ReaScript v0.1 by cfillion')
-  nl()
-  push("Type Lua code or 'help'")
-  nl()
+  if banner then
+    push('Interactive ReaScript v0.1 by cfillion')
+    nl()
+    push("Type Lua code or 'help'")
+    nl()
+  end
 
   prompt()
 end
@@ -170,7 +173,7 @@ end
 
 function backtrack()
   local i = #buffer
-  while i > 1 do
+  while i >= 1 do
     if buffer[i] == SG_NEWLINE then
       return
     end
@@ -203,13 +206,16 @@ function eval()
 
   if builtin then
     builtin()
+
+    if input:len() == 0 then
+      return -- buffer got reset
+    end
   elseif input:len() > 0 then
     lua(input)
   end
 
-  nl()
-
   input = ''
+  nl()
   prompt()
   update()
 end
@@ -320,10 +326,12 @@ MARGIN = 3
 BUILTIN = {
   help = function()
     push("help")
-  end
+  end,
+  clear = function()
+    reset(false)
+    update()
+  end,
 }
-
-input = ''
 
 FONT_NORMAL = 1
 FONT_BOLD = 2
@@ -345,7 +353,7 @@ KEY_ENTER = 13
 KEY_INPUTRANGE_FIRST = 32
 KEY_INPUTRANGE_LAST = 125
 
-reset()
+reset(true)
 
 gfx.init(TITLE, 500, 300)
 gfx.setfont(FONT_NORMAL, 'Courier', 14)
