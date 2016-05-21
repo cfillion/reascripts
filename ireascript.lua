@@ -29,12 +29,17 @@ function keyboard()
   if char == KEY_BACKSPACE then
     input = string.sub(input, 0, -2)
     prompt()
+    update()
   elseif char == KEY_CLEAR or char == KEY_CTRLU then
     input = ''
     prompt()
+    update()
+  elseif char == KEY_ENTER then
+    eval()
   elseif char >= KEY_INPUTRANGE_FIRST and char <= KEY_INPUTRANGE_LAST then
     input = input .. string.char(char)
     prompt()
+    update()
   end
 
   return true
@@ -70,55 +75,9 @@ function draw()
   end
 end
 
-function resetFormat()
-  font = FONT_NORMAL
-  foreground = COLOR_DEFAULT
-  background = COLOR_BLACK
-end
-
-function nl()
-  buffer[#buffer + 1] = SG_NEWLINE
-end
-
-function push(contents)
-  buffer[#buffer + 1] = {font=font, fg=foreground, bg=background, text=contents}
-  wrap()
-end
-
-function prompt()
-  resetFormat()
-  backtrack()
-  push('> ')
-  push(input)
-  buffer[#buffer + 1] = SG_CURSOR
-end
-
-function backtrack()
-  local i = #buffer
-  while i > 1 do
-    if buffer[i] == SG_NEWLINE then
-      return
-    end
-
-    table.remove(buffer)
-    i = i - 1
-  end
-
-  wrap()
-end
-
-function dup(table)
-  local copy = {}
-  for k,v in pairs(table) do copy[k] = v end
-  return copy
-end
-
-function wrap()
-  if wrappedBuffer.w == gfx.w then
-    return false
-  end
-
+function update()
   wrappedBuffer = {}
+  wrappedBuffer.w = gfx.w
 
   local leftmost = MARGIN
   local left = leftmost
@@ -172,17 +131,82 @@ function loop()
     reaper.defer(loop)
   end
 
-  wrap()
+  if wrappedBuffer.w ~= gfx.w then
+    update()
+  end
+
   draw()
 
   gfx.update()
+end
 
+function resetFormat()
+  font = FONT_NORMAL
+  foreground = COLOR_DEFAULT
+  background = COLOR_BLACK
+end
+
+function nl()
+  buffer[#buffer + 1] = SG_NEWLINE
+end
+
+function push(contents)
+  buffer[#buffer + 1] = {font=font, fg=foreground, bg=background, text=contents}
+end
+
+function prompt()
+  resetFormat()
+  backtrack()
+  push('> ')
+  push(input)
+  buffer[#buffer + 1] = SG_CURSOR
+end
+
+function backtrack()
+  local i = #buffer
+  while i > 1 do
+    if buffer[i] == SG_NEWLINE then
+      return
+    end
+
+    table.remove(buffer)
+    i = i - 1
+  end
+end
+
+function removeCursor()
+  local i = #buffer
+  while i > 1 do
+    local segment = buffer[i]
+
+    if segment == SG_NEWLINE then
+      return
+    elseif segment == SG_CURSOR then
+      table.remove(buffer)
+    end
+
+    i = i - 1
+  end
+end
+
+function eval()
+  removeCursor()
+  nl()
+  input = ''
+  prompt()
+  update()
 end
 
 function useColor(color)
   gfx.r = color[1] / 255
   gfx.g = color[2] / 255
   gfx.b = color[3] / 255
+end
+
+function dup(table)
+  local copy = {}
+  for k,v in pairs(table) do copy[k] = v end
+  return copy
 end
 
 function restoreDockedState()
@@ -217,8 +241,9 @@ SG_CURSOR = 2
 EXT_SECTION = 'cfillion_ireascripts'
 
 KEY_BACKSPACE = 8
-KEY_CTRLU = 21
 KEY_CLEAR = 144
+KEY_CTRLU = 21
+KEY_ENTER = 13
 KEY_INPUTRANGE_FIRST = 32
 KEY_INPUTRANGE_LAST = 122
 
