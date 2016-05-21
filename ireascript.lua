@@ -3,15 +3,6 @@ local ireascript = {
   BANNER = 'Interactive ReaScript v1.0 by cfillion',
   MARGIN = 3,
 
-  BUILTIN = {
-    help = function()
-      ireascript.push("help")
-    end,
-    clear = function()
-      ireascript.reset(false)
-      ireascript.update()
-    end,
-  },
 
   FONT_NORMAL = 1,
   FONT_BOLD = 2,
@@ -32,6 +23,20 @@ local ireascript = {
   KEY_ENTER = 13,
   KEY_INPUTRANGE_FIRST = 32,
   KEY_INPUTRANGE_LAST = 125,
+}
+
+function ireascript.help()
+  ireascript.push('help')
+end
+
+function ireascript.clear()
+  ireascript.reset(false)
+  ireascript.update()
+end
+
+ireascript.BUILTIN = {
+  help = ireascript.help,
+  clear = ireascript.clear,
 }
 
 function ireascript.reset(banner)
