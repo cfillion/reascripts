@@ -263,7 +263,7 @@ function ireascript.eval()
 
     if err then
       ireascript.errorFormat()
-      ireascript.push(err:sub(20))
+      ireascript.push(ireascript.makeError(err))
     end
 
     ireascript.nl()
@@ -274,12 +274,16 @@ function ireascript.eval()
   ireascript.update()
 end
 
+function ireascript.makeError(err)
+  return err:sub(20)
+end
+
 function ireascript.lua(code)
   local func, err = load(code, 'eval')
 
   if err then
     ireascript.errorFormat()
-    ireascript.push(err:sub(20))
+    ireascript.push(ireascript.makeError(err))
   else
     local values = {func()}
 
