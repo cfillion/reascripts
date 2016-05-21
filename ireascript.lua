@@ -4,9 +4,9 @@ function reset()
 
   resetFormat()
 
-  push('Interactive ReaScript v1.0 by cfillion')
+  push('Interactive ReaScript v0.1 by cfillion')
   nl()
-  push('Type Lua code or `help`')
+  push('Type Lua code or help')
   nl()
 
   prompt()
