@@ -21,8 +21,17 @@ function keyboard()
     return false
   end
 
-  if input == KEY_BACKSPACE then
+  -- if char ~= 0 then
+  --   reaper.ShowConsoleMsg(char)
+  --   reaper.ShowConsoleMsg("\n")
+  -- end
+
+  if char == KEY_BACKSPACE then
     input = string.sub(input, 0, -2)
+    prompt()
+  elseif char == KEY_CLEAR or char == KEY_CTRLU then
+    input = ''
+    prompt()
   elseif char >= KEY_INPUTRANGE_FIRST and char <= KEY_INPUTRANGE_LAST then
     input = input .. string.char(char)
     prompt()
@@ -43,6 +52,10 @@ function draw()
     if segment == SG_NEWLINE then
       gfx.x = MARGIN
       gfx.y = gfx.y + height
+    elseif segment == SG_CURSOR then
+      if os.time() % 2 == 0 then
+        gfx.line(gfx.x, gfx.y, gfx.x, gfx.y + height)
+      end
     else
       gfx.setfont(segment.font)
 
@@ -77,6 +90,7 @@ function prompt()
   backtrack()
   push('> ')
   push(input)
+  buffer[#buffer + 1] = SG_CURSOR
 end
 
 function backtrack()
@@ -112,9 +126,12 @@ function wrap()
   for i=1,#buffer do
     local segment = buffer[i]
 
-    if segment == SG_NEWLINE then
-      wrappedBuffer[#wrappedBuffer + 1] = SG_NEWLINE
-      left = leftmost
+    if type(segment) ~= 'table' then
+      wrappedBuffer[#wrappedBuffer + 1] = segment
+
+      if segment == SG_NEWLINE then
+        left = leftmost
+      end
     else
       gfx.setfont(segment.font)
 
@@ -199,6 +216,8 @@ SG_CURSOR = 2
 EXT_SECTION = 'cfillion_ireascripts'
 
 KEY_BACKSPACE = 8
+KEY_CTRLU = 21
+KEY_CLEAR = 144
 KEY_INPUTRANGE_FIRST = 32
 KEY_INPUTRANGE_LAST = 122
 
