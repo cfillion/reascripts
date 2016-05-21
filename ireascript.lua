@@ -146,6 +146,12 @@ function resetFormat()
   background = COLOR_BLACK
 end
 
+function errorFormat()
+  font = FONT_BOLD
+  foreground = COLOR_DEFAULT
+  background = COLOR_RED
+end
+
 function nl()
   buffer[#buffer + 1] = SG_NEWLINE
 end
@@ -192,9 +198,95 @@ end
 function eval()
   removeCursor()
   nl()
+
+  local builtin = BUILTIN[input:lower()]
+
+  if builtin then
+    builtin()
+  elseif input:len() > 0 then
+    lua(input)
+  end
+
+  nl()
+
   input = ''
   prompt()
   update()
+end
+
+function lua(code)
+  local func, err = load('return ' .. code)
+
+  if err then
+    errorFormat()
+    push(err)
+  else
+    local values = {func()}
+
+    if #values == 1 then
+      format(values[1])
+    else
+      format(values)
+    end
+  end
+end
+
+function format(value)
+  resetFormat()
+
+  local t = type(value)
+
+  if t == 'table' then
+    local i, array = 1, true
+    for k,v in pairs(value) do
+      if k ~= i then
+        array = false
+        break
+      end
+
+      i = i + 1
+    end
+
+    if array then
+      formatArray(value)
+    else
+      formatTable(value)
+    end
+  else
+    push(tostring(value))
+  end
+end
+
+function formatArray(value)
+  local i = 1
+
+  push('[')
+  for k,v in ipairs(value) do
+    if i > 1 then
+      push(', ')
+    end
+
+    format(v)
+    i = i + 1
+  end
+  push(']')
+end
+
+function formatTable(value)
+  local i = 1
+
+  push('{')
+  for k,v in pairs(value) do
+    if i > 1 then
+      push(', ')
+    end
+
+    format(k)
+    push(' = ')
+    format(v)
+    i = i + 1
+  end
+  push('}')
 end
 
 function useColor(color)
@@ -225,6 +317,12 @@ TITLE = 'Interactive ReaScript'
 BANNER = 'Interactive ReaScript v1.0 by cfillion'
 MARGIN = 3
 
+BUILTIN = {
+  help = function()
+    push("help")
+  end
+}
+
 input = ''
 
 FONT_NORMAL = 1
@@ -245,7 +343,7 @@ KEY_CLEAR = 144
 KEY_CTRLU = 21
 KEY_ENTER = 13
 KEY_INPUTRANGE_FIRST = 32
-KEY_INPUTRANGE_LAST = 122
+KEY_INPUTRANGE_LAST = 125
 
 reset()
 
