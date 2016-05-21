@@ -185,7 +185,7 @@ end
 
 function removeCursor()
   local i = #buffer
-  while i > 1 do
+  while i >= 1 do
     local segment = buffer[i]
 
     if segment == SG_NEWLINE then
@@ -210,12 +210,14 @@ function eval()
     if input:len() == 0 then
       return -- buffer got reset
     end
+
+    nl()
   elseif input:len() > 0 then
     lua(input)
+    nl()
   end
 
   input = ''
-  nl()
   prompt()
   update()
 end
