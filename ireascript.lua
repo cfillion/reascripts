@@ -257,7 +257,15 @@ function ireascript.eval()
 
     ireascript.nl()
   elseif ireascript.input:len() > 0 then
-    ireascript.lua(ireascript.input)
+    local _, err = pcall(function()
+      ireascript.lua(ireascript.input)
+    end)
+
+    if err then
+      ireascript.errorFormat()
+      ireascript.push(err:sub(20))
+    end
+
     ireascript.nl()
   end
 
