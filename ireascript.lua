@@ -306,7 +306,8 @@ function ireascript.format(value)
   local t = type(value)
 
   if t == 'table' then
-    local i, array = 1, true
+    local i, array = 1, #value > 0
+
     for k,v in pairs(value) do
       if k ~= i then
         array = false
