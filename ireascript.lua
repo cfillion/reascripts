@@ -19,6 +19,8 @@ local ireascript = {
 
   KEY_BACKSPACE = 8,
   KEY_CLEAR = 144,
+  KEY_CTRLD = 4,
+  KEY_CTRLL = 12,
   KEY_CTRLU = 21,
   KEY_ENTER = 13,
   KEY_INPUTRANGE_FIRST = 32,
@@ -34,9 +36,14 @@ function ireascript.clear()
   ireascript.update()
 end
 
+function ireascript.exit()
+  gfx.quit()
+end
+
 ireascript.BUILTIN = {
   help = ireascript.help,
   clear = ireascript.clear,
+  exit = ireascript.exit,
 }
 
 function ireascript.reset(banner)
@@ -80,6 +87,10 @@ function ireascript.keyboard()
     ireascript.update()
   elseif char == ireascript.KEY_ENTER then
     ireascript.eval()
+  elseif char == ireascript.KEY_CTRLL then
+    ireascript.clear()
+  elseif char == ireascript.KEY_CTRLD then
+    ireascript.exit()
   elseif char >= ireascript.KEY_INPUTRANGE_FIRST and char <= ireascript.KEY_INPUTRANGE_LAST then
     ireascript.input = ireascript.input .. string.char(char)
     ireascript.prompt()
