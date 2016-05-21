@@ -395,9 +395,7 @@ function keyboard()
   if input < 0 then
     -- bye bye!
     saveDockedState()
-    return
-  else
-    reaper.defer(loop)
+    return false
   end
 
   -- if input ~= 0 then
@@ -410,6 +408,8 @@ function keyboard()
   else
     normalKey(input)
   end
+
+  return true
 end
 
 function filterKey(input)
@@ -558,7 +558,10 @@ function loop()
 
   gfx.update()
 
-  keyboard()
+  if keyboard() then
+    reaper.defer(loop)
+  end
+
   mouse()
 end
 
