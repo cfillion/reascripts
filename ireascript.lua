@@ -215,11 +215,11 @@ function eval()
 end
 
 function lua(code)
-  local func, err = load('return ' .. code)
+  local func, err = load('return ' .. code, 'eval')
 
   if err then
     errorFormat()
-    push(err)
+    push(err:sub(20))
   else
     local values = {func()}
 
