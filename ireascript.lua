@@ -3,23 +3,29 @@ function reset()
   wrappedBuffer = {w = 0}
 
   resetFormat()
-  push('test test test test test test test test test test test test test test')
-  foreground = COLOR_BLUE
-  push('blue')
+
+  push('Interactive ReaScript v1.0 by cfillion')
   nl()
-  font = FONT_BOLD
-  foreground = COLOR_DEFAULT
-  background = COLOR_RED
-  push('error')
+  push('Type Lua code or `help`')
+  nl()
+
+  prompt()
 end
 
 function keyboard()
-  local input = gfx.getchar()
+  local char = gfx.getchar()
 
-  if input < 0 then
+  if char < 0 then
     -- bye bye!
     saveDockedState()
     return false
+  end
+
+  if input == KEY_BACKSPACE then
+    input = string.sub(input, 0, -2)
+  elseif char >= KEY_INPUTRANGE_FIRST and char <= KEY_INPUTRANGE_LAST then
+    input = input .. string.char(char)
+    prompt()
   end
 
   return true
@@ -34,7 +40,7 @@ function draw()
   for i=1,#wrappedBuffer do
     local segment = wrappedBuffer[i]
 
-    if segment == NEWLINE then
+    if segment == SG_NEWLINE then
       gfx.x = MARGIN
       gfx.y = gfx.y + height
     else
@@ -58,11 +64,32 @@ function resetFormat()
 end
 
 function nl()
-  buffer[#buffer + 1] = NEWLINE
+  buffer[#buffer + 1] = SG_NEWLINE
 end
 
 function push(contents)
   buffer[#buffer + 1] = {font=font, fg=foreground, bg=background, text=contents}
+  wrap()
+end
+
+function prompt()
+  resetFormat()
+  backtrack()
+  push('> ')
+  push(input)
+end
+
+function backtrack()
+  local i = #buffer
+  while i > 1 do
+    if buffer[i] == SG_NEWLINE then
+      return
+    end
+
+    table.remove(buffer)
+    i = i - 1
+  end
+
   wrap()
 end
 
@@ -85,8 +112,8 @@ function wrap()
   for i=1,#buffer do
     local segment = buffer[i]
 
-    if segment == NEWLINE then
-      wrappedBuffer[#wrappedBuffer + 1] = NEWLINE
+    if segment == SG_NEWLINE then
+      wrappedBuffer[#wrappedBuffer + 1] = SG_NEWLINE
       left = leftmost
     else
       gfx.setfont(segment.font)
@@ -113,7 +140,7 @@ function wrap()
         wrappedBuffer[#wrappedBuffer + 1] = newSeg
 
         if resized then
-          wrappedBuffer[#wrappedBuffer + 1] = NEWLINE
+          wrappedBuffer[#wrappedBuffer + 1] = SG_NEWLINE
           left = leftmost
         end
 
@@ -152,7 +179,11 @@ function saveDockedState()
   reaper.SetExtState(EXT_SECTION, 'docked_state', tostring(dockState), true)
 end
 
+TITLE = 'Interactive ReaScript'
+BANNER = 'Interactive ReaScript v1.0 by cfillion'
 MARGIN = 3
+
+input = ''
 
 FONT_NORMAL = 1
 FONT_BOLD = 2
@@ -162,12 +193,18 @@ COLOR_BLUE = {90, 90, 190}
 COLOR_RED = {190, 90, 90}
 COLOR_BLACK = {0, 0, 0}
 
-NEWLINE = 1
+SG_NEWLINE = 1
+SG_CURSOR = 2
+
 EXT_SECTION = 'cfillion_ireascripts'
+
+KEY_BACKSPACE = 8
+KEY_INPUTRANGE_FIRST = 32
+KEY_INPUTRANGE_LAST = 122
 
 reset()
 
-gfx.init('Interactive ReaScript', 500, 300)
+gfx.init(TITLE, 500, 300)
 gfx.setfont(FONT_NORMAL, 'Courier', 14)
 gfx.setfont(FONT_BOLD, 'Courier', 14, 'b')
 
