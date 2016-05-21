@@ -6,7 +6,7 @@ function reset()
 
   push('Interactive ReaScript v0.1 by cfillion')
   nl()
-  push('Type Lua code or help')
+  push("Type Lua code or 'help'")
   nl()
 
   prompt()
@@ -168,14 +168,15 @@ function wrap()
 end
 
 function loop()
+  if keyboard() then
+    reaper.defer(loop)
+  end
+
   wrap()
   draw()
 
   gfx.update()
 
-  if keyboard() then
-    reaper.defer(loop)
-  end
 end
 
 function useColor(color)
