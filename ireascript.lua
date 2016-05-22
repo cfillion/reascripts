@@ -30,9 +30,15 @@ local ireascript = {
   KEY_CTRLD = 4,
   KEY_CTRLL = 12,
   KEY_CTRLU = 21,
+  KEY_DOWN = 1685026670,
+  KEY_END = 6647396,
   KEY_ENTER = 13,
+  KEY_HOME = 1752132965,
   KEY_INPUTRANGE_FIRST = 32,
   KEY_INPUTRANGE_LAST = 125,
+  KEY_LEFT = 1818584692,
+  KEY_RIGHT = 1919379572,
+  KEY_UP = 30064,
 }
 
 function ireascript.help()
@@ -75,6 +81,7 @@ function ireascript.reset(banner)
   ireascript.wrappedBuffer = {w = 0}
   ireascript.input = ''
   ireascript.lines = 0
+  ireascript.cursor = 0
 
   ireascript.resetFormat()
 
@@ -103,11 +110,20 @@ function ireascript.keyboard()
   -- end
 
   if char == ireascript.KEY_BACKSPACE then
-    ireascript.input = string.sub(ireascript.input, 0, -2)
+    local before = ireascript.input:sub(0, ireascript.cursor)
+    local after = ireascript.input:sub(ireascript.cursor + 1)
+    ireascript.input = string.sub(before, 0, -2) .. after
+    ireascript.cursor = math.max(0, ireascript.cursor - 1)
     ireascript.prompt()
     ireascript.update()
-  elseif char == ireascript.KEY_CLEAR or char == ireascript.KEY_CTRLU then
+  elseif char == ireascript.KEY_CLEAR then
     ireascript.input = ''
+    ireascript.cursor = 0
+    ireascript.prompt()
+    ireascript.update()
+  elseif char == ireascript.KEY_CTRLU then
+    ireascript.input = ireascript.input:sub(ireascript.cursor + 1)
+    ireascript.cursor = 0
     ireascript.prompt()
     ireascript.update()
   elseif char == ireascript.KEY_ENTER then
@@ -116,8 +132,27 @@ function ireascript.keyboard()
     ireascript.clear()
   elseif char == ireascript.KEY_CTRLD then
     ireascript.exit()
+  elseif char == ireascript.KEY_HOME then
+    ireascript.cursor = 0
+    ireascript.prompt()
+    ireascript.update()
+  elseif char == ireascript.KEY_LEFT then
+    ireascript.cursor = math.max(0, ireascript.cursor - 1)
+    ireascript.prompt()
+    ireascript.update()
+  elseif char == ireascript.KEY_RIGHT then
+    ireascript.cursor = math.min(ireascript.input:len(), ireascript.cursor + 1)
+    ireascript.prompt()
+    ireascript.update()
+  elseif char == ireascript.KEY_END then
+    ireascript.cursor = ireascript.input:len()
+    ireascript.prompt()
+    ireascript.update()
   elseif char >= ireascript.KEY_INPUTRANGE_FIRST and char <= ireascript.KEY_INPUTRANGE_LAST then
-    ireascript.input = ireascript.input .. string.char(char)
+    local before = ireascript.input:sub(0, ireascript.cursor)
+    local after = ireascript.input:sub(ireascript.cursor + 1)
+    ireascript.input = before .. string.char(char) .. after
+    ireascript.cursor = ireascript.cursor + 1
     ireascript.prompt()
     ireascript.update()
   end
@@ -132,7 +167,7 @@ function ireascript.draw()
   gfx.x = ireascript.MARGIN
   gfx.y = ireascript.MARGIN
 
-  local height = 0
+  local height, cursor = 0, nil
 
   for i=1,#ireascript.wrappedBuffer do
     local segment = ireascript.wrappedBuffer[i]
@@ -140,9 +175,10 @@ function ireascript.draw()
     if segment == ireascript.SG_NEWLINE then
       gfx.x = ireascript.MARGIN
       gfx.y = gfx.y + height
+      height = 0
     elseif segment == ireascript.SG_CURSOR then
       if os.time() % 2 == 0 then
-        gfx.line(gfx.x, gfx.y, gfx.x, gfx.y + height)
+        cursor = {x=gfx.x, y=gfx.y, h=height}
       end
     else
       gfx.setfont(segment.font)
@@ -155,6 +191,10 @@ function ireascript.draw()
       gfx.drawstr(segment.text)
       height = math.max(height, segment.h)
     end
+  end
+
+  if cursor then
+    gfx.line(cursor.x, cursor.y, cursor.x, cursor.y + cursor.h)
   end
 end
 
@@ -271,8 +311,9 @@ function ireascript.prompt()
   ireascript.resetFormat()
   ireascript.backtrack()
   ireascript.push('> ')
-  ireascript.push(ireascript.input)
+  ireascript.push(ireascript.input:sub(0, ireascript.cursor))
   ireascript.buffer[#ireascript.buffer + 1] = ireascript.SG_CURSOR
+  ireascript.push(ireascript.input:sub(ireascript.cursor + 1))
 end
 
 function ireascript.backtrack()
@@ -295,7 +336,7 @@ function ireascript.removeCursor()
     if segment == ireascript.SG_NEWLINE then
       return
     elseif segment == ireascript.SG_CURSOR then
-      table.remove(ireascript.buffer)
+      table.remove(ireascript.buffer, i)
     end
 
     i = i - 1
@@ -334,6 +375,7 @@ function ireascript.eval()
   end
 
   ireascript.input = ''
+  ireascript.cursor = 0
   ireascript.prompt()
   ireascript.update()
 end
