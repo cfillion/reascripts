@@ -7,7 +7,7 @@ local ireascript = {
   FONT_NORMAL = 1,
   FONT_BOLD = 2,
 
-  COLOR_BLACK = {0, 0, 0},
+  COLOR_BLACK = {12, 12, 12},
   COLOR_BLUE = {88, 124, 212},
   COLOR_DEFAULT = {190, 190, 190},
   COLOR_GREEN = {90, 173, 87},
@@ -122,6 +122,9 @@ function ireascript.keyboard()
 end
 
 function ireascript.draw()
+  ireascript.useColor(ireascript.COLOR_BLACK)
+  gfx.rect(0, 0, gfx.w, gfx.h)
+
   gfx.x = ireascript.MARGIN
   gfx.y = ireascript.MARGIN
 
@@ -422,7 +425,7 @@ function ireascript.formatTable(value)
 
     ireascript.format(k)
     ireascript.resetFormat()
-    ireascript.push(' = ')
+    ireascript.push('=')
     ireascript.format(v)
 
     i = i + 1
