@@ -115,17 +115,14 @@ function ireascript.keyboard()
     ireascript.input = string.sub(before, 0, -2) .. after
     ireascript.cursor = math.max(0, ireascript.cursor - 1)
     ireascript.prompt()
-    ireascript.update()
   elseif char == ireascript.KEY_CLEAR then
     ireascript.input = ''
     ireascript.cursor = 0
     ireascript.prompt()
-    ireascript.update()
   elseif char == ireascript.KEY_CTRLU then
     ireascript.input = ireascript.input:sub(ireascript.cursor + 1)
     ireascript.cursor = 0
     ireascript.prompt()
-    ireascript.update()
   elseif char == ireascript.KEY_ENTER then
     ireascript.eval()
   elseif char == ireascript.KEY_CTRLL then
@@ -135,26 +132,21 @@ function ireascript.keyboard()
   elseif char == ireascript.KEY_HOME then
     ireascript.cursor = 0
     ireascript.prompt()
-    ireascript.update()
   elseif char == ireascript.KEY_LEFT then
     ireascript.cursor = math.max(0, ireascript.cursor - 1)
     ireascript.prompt()
-    ireascript.update()
   elseif char == ireascript.KEY_RIGHT then
     ireascript.cursor = math.min(ireascript.input:len(), ireascript.cursor + 1)
     ireascript.prompt()
-    ireascript.update()
   elseif char == ireascript.KEY_END then
     ireascript.cursor = ireascript.input:len()
     ireascript.prompt()
-    ireascript.update()
   elseif char >= ireascript.KEY_INPUTRANGE_FIRST and char <= ireascript.KEY_INPUTRANGE_LAST then
     local before = ireascript.input:sub(0, ireascript.cursor)
     local after = ireascript.input:sub(ireascript.cursor + 1)
     ireascript.input = before .. string.char(char) .. after
     ireascript.cursor = ireascript.cursor + 1
     ireascript.prompt()
-    ireascript.update()
   end
 
   return true
@@ -199,6 +191,10 @@ function ireascript.draw()
 end
 
 function ireascript.update()
+  if gfx.w < 1 then
+    return -- gui is not ready yet
+  end
+
   ireascript.wrappedBuffer = {}
   ireascript.wrappedBuffer.w = gfx.w
 
@@ -314,6 +310,7 @@ function ireascript.prompt()
   ireascript.push(ireascript.input:sub(0, ireascript.cursor))
   ireascript.buffer[#ireascript.buffer + 1] = ireascript.SG_CURSOR
   ireascript.push(ireascript.input:sub(ireascript.cursor + 1))
+  ireascript.update()
 end
 
 function ireascript.backtrack()
@@ -377,7 +374,6 @@ function ireascript.eval()
   ireascript.input = ''
   ireascript.cursor = 0
   ireascript.prompt()
-  ireascript.update()
 end
 
 function ireascript.makeError(err)
