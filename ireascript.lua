@@ -2,7 +2,7 @@ local ireascript = {
   TITLE = 'Interactive ReaScript',
   BANNER = 'Interactive ReaScript v1.0 by cfillion',
   MARGIN = 3,
-
+  MAXLINES = 512,
 
   FONT_NORMAL = 1,
   FONT_BOLD = 2,
@@ -70,6 +70,7 @@ function ireascript.reset(banner)
   ireascript.buffer = {}
   ireascript.wrappedBuffer = {w = 0}
   ireascript.input = ''
+  ireascript.lines = 0
 
   ireascript.resetFormat()
 
@@ -228,6 +229,22 @@ function ireascript.errorFormat()
 end
 
 function ireascript.nl()
+  if ireascript.lines >= ireascript.MAXLINES then
+    local first = ireascript.buffer[1]
+
+    while first ~= nil do
+      table.remove(ireascript.buffer, 1)
+
+      if first == ireascript.SG_NEWLINE then
+        break
+      end
+
+      first = ireascript.buffer[1]
+    end
+  else
+    ireascript.lines = ireascript.lines + 1
+  end
+
   ireascript.buffer[#ireascript.buffer + 1] = ireascript.SG_NEWLINE
 end
 
