@@ -83,9 +83,8 @@ function ireascript.reset(banner)
   ireascript.lines = 0
   ireascript.cursor = 0
 
-  ireascript.resetFormat()
-
   if banner then
+    ireascript.resetFormat()
     ireascript.push('Interactive ReaScript v0.1 by cfillion')
     ireascript.nl()
     ireascript.push("Type Lua code or .help")
@@ -109,8 +108,7 @@ function ireascript.keyboard()
   -- end
 
   if char == ireascript.KEY_BACKSPACE then
-    local before = ireascript.input:sub(0, ireascript.cursor)
-    local after = ireascript.input:sub(ireascript.cursor + 1)
+    local before, after = ireascript.splitInput()
     ireascript.input = string.sub(before, 0, -2) .. after
     ireascript.cursor = math.max(0, ireascript.cursor - 1)
     ireascript.prompt()
@@ -119,7 +117,8 @@ function ireascript.keyboard()
     ireascript.cursor = 0
     ireascript.prompt()
   elseif char == ireascript.KEY_CTRLU then
-    ireascript.input = ireascript.input:sub(ireascript.cursor + 1)
+    local before, after = ireascript.splitInput()
+    ireascript.input = after
     ireascript.cursor = 0
     ireascript.prompt()
   elseif char == ireascript.KEY_ENTER then
@@ -141,8 +140,7 @@ function ireascript.keyboard()
     ireascript.cursor = ireascript.input:len()
     ireascript.prompt()
   elseif char >= ireascript.KEY_INPUTRANGE_FIRST and char <= ireascript.KEY_INPUTRANGE_LAST then
-    local before = ireascript.input:sub(0, ireascript.cursor)
-    local after = ireascript.input:sub(ireascript.cursor + 1)
+    local before, after = ireascript.splitInput()
     ireascript.input = before .. string.char(char) .. after
     ireascript.cursor = ireascript.cursor + 1
     ireascript.prompt()
@@ -303,12 +301,14 @@ function ireascript.push(contents)
 end
 
 function ireascript.prompt()
+  local before, after = ireascript.splitInput()
+
   ireascript.resetFormat()
   ireascript.backtrack()
   ireascript.push('> ')
-  ireascript.push(ireascript.input:sub(0, ireascript.cursor))
+  ireascript.push(before)
   ireascript.buffer[#ireascript.buffer + 1] = ireascript.SG_CURSOR
-  ireascript.push(ireascript.input:sub(ireascript.cursor + 1))
+  ireascript.push(after)
   ireascript.update()
 end
 
@@ -373,10 +373,6 @@ function ireascript.eval()
   ireascript.input = ''
   ireascript.cursor = 0
   ireascript.prompt()
-end
-
-function ireascript.makeError(err)
-  return err:sub(20)
 end
 
 function ireascript.lua(code)
@@ -497,6 +493,16 @@ function ireascript.formatTable(value, size)
 
   ireascript.resetFormat()
   ireascript.push('}')
+end
+
+function ireascript.splitInput()
+  local before = ireascript.input:sub(0, ireascript.cursor)
+  local after = ireascript.input:sub(ireascript.cursor + 1)
+  return before, after
+end
+
+function ireascript.makeError(err)
+  return err:sub(20)
 end
 
 function ireascript.useColor(color)
