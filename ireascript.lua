@@ -7,11 +7,14 @@ local ireascript = {
   FONT_NORMAL = 1,
   FONT_BOLD = 2,
 
-  COLOR_DEFAULT = {190, 190, 190},
-  COLOR_BLUE = {90, 90, 190},
-  COLOR_RED = {190, 90, 90},
   COLOR_BLACK = {0, 0, 0},
+  COLOR_BLUE = {88, 124, 212},
+  COLOR_DEFAULT = {190, 190, 190},
+  COLOR_GREEN = {90, 173, 87},
+  COLOR_MAGENTA = {175, 95, 95},
+  COLOR_RED = {255, 85, 85},
   COLOR_WHITE = {255, 255, 255},
+  COLOR_YELLOW = {199, 199, 0},
 
   SG_NEWLINE = 1,
   SG_CURSOR = 2,
@@ -36,12 +39,9 @@ function ireascript.help()
   local colWidth = 8
 
   for name,command in pairs(ireascript.BUILTIN) do
-    local spaces = ''
-    for i=1,colWidth-name:len() do
-      spaces = spaces .. ' '
-    end
+    local spaces = string.rep(' ', colWidth - name:len())
 
-    ireascript.highlightFormat()
+    ireascript.foreground = ireascript.COLOR_WHITE
     ireascript.push(string.format('.%s', name))
 
     ireascript.resetFormat()
@@ -223,14 +223,8 @@ end
 
 function ireascript.errorFormat()
   ireascript.font = ireascript.FONT_BOLD
-  ireascript.foreground = ireascript.COLOR_DEFAULT
-  ireascript.background = ireascript.COLOR_RED
-end
-
-function ireascript.highlightFormat()
-  ireascript.font = ireascript.FONT_NORMAL
   ireascript.foreground = ireascript.COLOR_WHITE
-  ireascript.background = ireascript.COLOR_BLACK
+  ireascript.background = ireascript.COLOR_RED
 end
 
 function ireascript.nl()
@@ -363,9 +357,23 @@ function ireascript.format(value)
     else
       ireascript.formatTable(value)
     end
-  else
-    ireascript.push(tostring(value))
+
+    return
+  elseif value == nil then
+    ireascript.foreground = ireascript.COLOR_YELLOW
+  elseif t == 'number' then
+    ireascript.foreground = ireascript.COLOR_BLUE
+  elseif t == 'function' then
+    ireascript.foreground = ireascript.COLOR_MAGENTA
+    value = string.format('<%s>', value)
+  elseif t == 'string' then
+    ireascript.foreground = ireascript.COLOR_GREEN
+    value = string.format('"%s"',
+      value:gsub('\\', '\\\\'):gsub("\n", '\\n'):gsub('"', '\\"')
+    )
   end
+
+  ireascript.push(tostring(value))
 end
 
 function ireascript.formatArray(value)
@@ -374,12 +382,14 @@ function ireascript.formatArray(value)
   ireascript.push('[')
   for k,v in ipairs(value) do
     if i > 1 then
+      ireascript.resetFormat()
       ireascript.push(', ')
     end
 
     ireascript.format(v)
     i = i + 1
   end
+  ireascript.resetFormat()
   ireascript.push(']')
 end
 
@@ -389,15 +399,18 @@ function ireascript.formatTable(value)
   ireascript.push('{')
   for k,v in pairs(value) do
     if i > 1 then
+      ireascript.resetFormat()
       ireascript.push(', ')
     end
 
     ireascript.format(k)
+    ireascript.resetFormat()
     ireascript.push(' = ')
     ireascript.format(v)
 
     i = i + 1
   end
+  ireascript.resetFormat()
   ireascript.push('}')
 end
 
