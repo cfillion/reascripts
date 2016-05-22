@@ -100,7 +100,6 @@ function ireascript.keyboard()
 
   if char < 0 then
     -- bye bye!
-    ireascript.saveDockedState()
     return false
   end
 
@@ -512,27 +511,11 @@ function ireascript.dup(table)
   return copy
 end
 
-function ireascript.restoreDockedState()
-  local docked_state = tonumber(reaper.GetExtState(
-    ireascript.EXT_SECTION, 'docked_state'))
-
-  if docked_state then
-    gfx.dock(docked_state)
-  end
-end
-
-function ireascript.saveDockedState()
-  reaper.SetExtState(ireascript.EXT_SECTION,
-    'docked_state', tostring(dockState), true)
-end
-
 ireascript.reset(true)
 
 gfx.init(ireascript.TITLE, 500, 300)
 gfx.setfont(ireascript.FONT_NORMAL, 'Courier', 14)
 gfx.setfont(ireascript.FONT_BOLD, 'Courier', 14, 'b')
-
-ireascript.restoreDockedState()
 
 -- GO!!
 ireascript.loop()
