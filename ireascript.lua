@@ -1,11 +1,11 @@
 local ireascript = {
+  -- settings
   TITLE = 'Interactive ReaScript',
   BANNER = 'Interactive ReaScript v1.0 by cfillion',
   MARGIN = 3,
   MAXLINES = 512,
-
-  FONT_NORMAL = 1,
-  FONT_BOLD = 2,
+  INDENT = 2,
+  INDENT_THRESHOLD = 10,
 
   COLOR_BLACK = {12, 12, 12},
   COLOR_BLUE = {88, 124, 212},
@@ -16,8 +16,12 @@ local ireascript = {
   COLOR_WHITE = {255, 255, 255},
   COLOR_YELLOW = {199, 199, 0},
 
+  -- internal constants
   SG_NEWLINE = 1,
   SG_CURSOR = 2,
+
+  FONT_NORMAL = 1,
+  FONT_BOLD = 2,
 
   EXT_SECTION = 'cfillion_ireascripts',
 
@@ -366,7 +370,6 @@ function ireascript.format(value)
     for k,v in pairs(value) do
       if k ~= i then
         array = false
-        break
       end
 
       i = i + 1
@@ -375,7 +378,7 @@ function ireascript.format(value)
     if array then
       ireascript.formatArray(value)
     else
-      ireascript.formatTable(value)
+      ireascript.formatTable(value, i)
     end
 
     return
@@ -413,14 +416,32 @@ function ireascript.formatArray(value)
   ireascript.push(']')
 end
 
-function ireascript.formatTable(value)
-  local i = 1
+function ireascript.formatTable(value, size)
+  local i, indent = 1, size > ireascript.INDENT_THRESHOLD
+
+  if indent then
+    if ireascript.ilevel == nil then
+      ireascript.ilevel = 1
+    else
+      ireascript.ilevel = ireascript.ilevel + 1
+    end
+  end
+
+  local doIndent = function()
+    if indent then
+      ireascript.nl()
+      ireascript.push(string.rep(' ', ireascript.INDENT * ireascript.ilevel))
+    end
+  end
 
   ireascript.push('{')
+  doIndent()
+
   for k,v in pairs(value) do
     if i > 1 then
       ireascript.resetFormat()
       ireascript.push(', ')
+      doIndent()
     end
 
     ireascript.format(k)
@@ -430,6 +451,13 @@ function ireascript.formatTable(value)
 
     i = i + 1
   end
+
+  if indent then
+    ireascript.nl()
+    ireascript.ilevel = ireascript.ilevel - 1
+    ireascript.push(string.rep(' ', ireascript.INDENT * ireascript.ilevel))
+  end
+
   ireascript.resetFormat()
   ireascript.push('}')
 end
