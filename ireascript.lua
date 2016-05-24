@@ -85,6 +85,7 @@ function ireascript.reset(banner)
   ireascript.cursor = 0
   ireascript.history = {}
   ireascript.hindex = 0
+  ireascript.scroll = 0
 
   if banner then
     ireascript.resetFormat()
@@ -113,16 +114,16 @@ function ireascript.keyboard()
   if char == ireascript.KEY_BACKSPACE then
     local before, after = ireascript.splitInput()
     ireascript.input = string.sub(before, 0, -2) .. after
-    ireascript.cursor = math.max(0, ireascript.cursor - 1)
+    ireascript.moveCursor(ireascript.cursor - 1)
     ireascript.prompt()
   elseif char == ireascript.KEY_CLEAR then
     ireascript.input = ''
-    ireascript.cursor = 0
+    ireascript.moveCursor(0)
     ireascript.prompt()
   elseif char == ireascript.KEY_CTRLU then
     local before, after = ireascript.splitInput()
     ireascript.input = after
-    ireascript.cursor = 0
+    ireascript.moveCursor(0)
     ireascript.prompt()
   elseif char == ireascript.KEY_ENTER then
     ireascript.removeCursor()
@@ -130,7 +131,7 @@ function ireascript.keyboard()
     if ireascript.input:len() > 0 then
       ireascript.eval()
       ireascript.input = ''
-      ireascript.cursor = 0
+      ireascript.moveCursor(0)
     end
     ireascript.prompt()
   elseif char == ireascript.KEY_CTRLL then
@@ -152,7 +153,7 @@ function ireascript.keyboard()
   elseif char >= ireascript.KEY_INPUTRANGE_FIRST and char <= ireascript.KEY_INPUTRANGE_LAST then
     local before, after = ireascript.splitInput()
     ireascript.input = before .. string.char(char) .. after
-    ireascript.cursor = ireascript.cursor + 1
+    ireascript.moveCursor(ireascript.cursor + 1)
     ireascript.prompt()
   end
 
@@ -164,20 +165,22 @@ function ireascript.draw()
   gfx.rect(0, 0, gfx.w, gfx.h)
 
   gfx.x = ireascript.MARGIN
-  gfx.y = ireascript.MARGIN + ireascript.drawOffset
+  gfx.y = ireascript.MARGIN + (ireascript.drawOffset or 0)
 
-  local height, cursor = 0, nil
+  local lines, lineHeight, cursor = {}, ireascript.MARGIN, nil
 
   for i=1,#ireascript.wrappedBuffer do
     local segment = ireascript.wrappedBuffer[i]
 
     if segment == ireascript.SG_NEWLINE then
       gfx.x = ireascript.MARGIN
-      gfx.y = gfx.y + height
-      height = 0
+      gfx.y = gfx.y + lineHeight
+
+      lines[#lines + 1] = lineHeight
+      lineHeight = 0
     elseif segment == ireascript.SG_CURSOR then
       if os.time() % 2 == 0 then
-        cursor = {x=gfx.x, y=gfx.y, h=height}
+        cursor = {x=gfx.x, y=gfx.y, h=lineHeight}
       end
     else
       gfx.setfont(segment.font)
@@ -188,12 +191,31 @@ function ireascript.draw()
       ireascript.useColor(segment.fg)
 
       gfx.drawstr(segment.text)
-      height = math.max(height, segment.h)
+      lineHeight = math.max(lineHeight, segment.h)
     end
   end
 
+  lines[#lines + 1] = lineHeight -- last line
+
   if cursor then
     gfx.line(cursor.x, cursor.y, cursor.x, cursor.y + cursor.h)
+  end
+
+  local height = ireascript.MARGIN
+  ireascript.scroll = math.max(0, math.min(ireascript.scroll, #lines))
+  for i=1,#lines - ireascript.scroll do
+    height = height + lines[i]
+  end
+
+  ireascript.drawOffset = gfx.h - height
+
+  if ireascript.drawOffset > 0 then
+    -- allow the first line to be completely visible, but not anything above that
+    if ireascript.drawOffset > lines[1] then
+      ireascript.scroll = ireascript.scroll - 1
+    end
+
+    ireascript.drawOffset = 0
   end
 end
 
@@ -207,7 +229,6 @@ function ireascript.update()
 
   local leftmost = ireascript.MARGIN
   local left = leftmost
-  local height, lineHeight = ireascript.MARGIN, 0
 
   for i=1,#ireascript.buffer do
     local segment = ireascript.buffer[i]
@@ -217,8 +238,6 @@ function ireascript.update()
 
       if segment == ireascript.SG_NEWLINE then
         left = leftmost
-        height = height + lineHeight
-        lineHeight = 0
       end
     else
       gfx.setfont(segment.font)
@@ -237,7 +256,6 @@ function ireascript.update()
         end
 
         left = left + w
-        lineHeight = math.max(lineHeight, h)
 
         local newSeg = ireascript.dup(segment)
         newSeg.text = text:sub(0, count)
@@ -247,18 +265,13 @@ function ireascript.update()
 
         if resized then
           ireascript.wrappedBuffer[#ireascript.wrappedBuffer + 1] = ireascript.SG_NEWLINE
-          height = height + lineHeight
           left = leftmost
-          lineHeight = 0
         end
 
         text = text:sub(count + 1)
       end
     end
   end
-
-  height = height + lineHeight -- last line
-  ireascript.drawOffset = math.min(0, gfx.h - height)
 end
 
 function ireascript.loop()
@@ -266,7 +279,20 @@ function ireascript.loop()
     reaper.defer(ireascript.loop)
   end
 
-  if ireascript.wrappedBuffer.w ~= gfx.w then
+  local scrolled = false
+
+  if gfx.mouse_wheel ~= 0 then
+    if gfx.mouse_wheel > 0 then
+      ireascript.scrollTo(ireascript.scroll + 1)
+    else
+      ireascript.scrollTo(ireascript.scroll - 1)
+    end
+
+    scrolled = true
+    gfx.mouse_wheel = 0
+  end
+
+  if ireascript.wrappedBuffer.w ~= gfx.w or scrolled then
     ireascript.update()
   end
 
@@ -359,6 +385,8 @@ function ireascript.removeCursor()
 end
 
 function ireascript.moveCursor(pos)
+  ireascript.scrollTo(0)
+
   if pos >= 0 and pos <= ireascript.input:len() then
     ireascript.cursor = pos
     ireascript.prompt()
@@ -376,6 +404,11 @@ function ireascript.historyJump(pos)
   ireascript.input = ireascript.history[ireascript.hindex]
   ireascript.cursor = ireascript.input:len()
   ireascript.prompt()
+end
+
+function ireascript.scrollTo(pos)
+  ireascript.scroll = pos
+  -- more calculations, bould checking and adjustments done by update()
 end
 
 function ireascript.eval()
