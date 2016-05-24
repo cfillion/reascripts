@@ -6,6 +6,8 @@ local ireascript = {
   MAXLINES = 1024,
   INDENT = 2,
   INDENT_THRESHOLD = 5,
+  PROMPT = '> ',
+  PREFIX = '.',
 
   COLOR_BLACK = {12, 12, 12},
   COLOR_BLUE = {88, 124, 212},
@@ -49,11 +51,11 @@ function ireascript.help()
 
   local colWidth = 8
 
-  for name,command in pairs(ireascript.BUILTIN) do
-    local spaces = string.rep(' ', colWidth - name:len())
+  for i,command in ipairs(ireascript.BUILTIN) do
+    local spaces = string.rep(' ', colWidth - command.name:len())
 
     ireascript.foreground = ireascript.COLOR_WHITE
-    ireascript.push(string.format('.%s', name))
+    ireascript.push(string.format('.%s', command.name))
 
     ireascript.resetFormat()
     ireascript.push(spaces .. command.desc)
@@ -67,14 +69,26 @@ function ireascript.clear()
   ireascript.update()
 end
 
+function ireascript.replay()
+  local line = ireascript.history[1]
+  if line and line ~= ireascript.PREFIX then
+    ireascript.input = line
+    ireascript.eval()
+  else
+    ireascript.errorFormat()
+    ireascript.push('history is empty')
+  end
+end
+
 function ireascript.exit()
   gfx.quit()
 end
 
 ireascript.BUILTIN = {
-  clear = {desc="Clear the line buffer", func=ireascript.clear},
-  exit = {desc="Close iReaScript", func=ireascript.exit},
-  help = {desc="Print this help text", func=ireascript.help},
+  {name='clear', desc="Clear the line buffer", func=ireascript.clear},
+  {name='exit', desc="Close iReaScript", func=ireascript.exit},
+  {name='', desc="Repeat the last command", func=ireascript.replay},
+  {name='help', desc="Print this help text", func=ireascript.help},
 }
 
 function ireascript.reset(banner)
@@ -362,7 +376,7 @@ function ireascript.prompt()
 
   ireascript.resetFormat()
   ireascript.backtrack()
-  ireascript.push('> ')
+  ireascript.push(ireascript.PROMPT)
   ireascript.push(before)
   ireascript.buffer[#ireascript.buffer + 1] = ireascript.SG_CURSOR
   ireascript.push(after)
@@ -424,11 +438,20 @@ function ireascript.scrollTo(pos)
 end
 
 function ireascript.eval()
-  if ireascript.input:sub(0, 1) == '.' then
-    local name = ireascript.input:sub(2)
-    local command = ireascript.BUILTIN[name:lower()]
-    if command then
-      command.func()
+  local prefixLength = ireascript.PREFIX:len()
+  if ireascript.input:sub(0, prefixLength) == ireascript.PREFIX then
+    local name = ireascript.input:sub(prefixLength + 1)
+    local match, lower = nil, name:lower()
+
+    for _,command in ipairs(ireascript.BUILTIN) do
+      if command.name == lower then
+        match = command
+        break
+      end
+    end
+
+    if match then
+      match.func()
 
       if ireascript.input:len() == 0 then
         return -- buffer got reset
