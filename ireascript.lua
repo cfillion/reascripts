@@ -83,6 +83,8 @@ function ireascript.reset(banner)
   ireascript.input = ''
   ireascript.lines = 0
   ireascript.cursor = 0
+  ireascript.history = {}
+  ireascript.hindex = 0
 
   if banner then
     ireascript.resetFormat()
@@ -126,7 +128,7 @@ function ireascript.keyboard()
     ireascript.removeCursor()
     ireascript.nl()
     if ireascript.input:len() > 0 then
-      ireascript.eval(ireascript.input)
+      ireascript.eval()
       ireascript.input = ''
       ireascript.cursor = 0
     end
@@ -136,17 +138,17 @@ function ireascript.keyboard()
   elseif char == ireascript.KEY_CTRLD then
     ireascript.exit()
   elseif char == ireascript.KEY_HOME then
-    ireascript.cursor = 0
-    ireascript.prompt()
+    ireascript.moveCursor(0)
   elseif char == ireascript.KEY_LEFT then
-    ireascript.cursor = math.max(0, ireascript.cursor - 1)
-    ireascript.prompt()
+    ireascript.moveCursor(ireascript.cursor - 1)
   elseif char == ireascript.KEY_RIGHT then
-    ireascript.cursor = math.min(ireascript.input:len(), ireascript.cursor + 1)
-    ireascript.prompt()
+    ireascript.moveCursor(ireascript.cursor + 1)
   elseif char == ireascript.KEY_END then
-    ireascript.cursor = ireascript.input:len()
-    ireascript.prompt()
+    ireascript.moveCursor(ireascript.input:len())
+  elseif char == ireascript.KEY_UP then
+    ireascript.historyJump(ireascript.hindex + 1)
+  elseif char == ireascript.KEY_DOWN then
+    ireascript.historyJump(ireascript.hindex - 1)
   elseif char >= ireascript.KEY_INPUTRANGE_FIRST and char <= ireascript.KEY_INPUTRANGE_LAST then
     local before, after = ireascript.splitInput()
     ireascript.input = before .. string.char(char) .. after
@@ -207,7 +209,7 @@ function ireascript.update()
   local left = leftmost
 
   for i=1,#ireascript.buffer do
-    segment = ireascript.buffer[i]
+    local segment = ireascript.buffer[i]
 
     if type(segment) ~= 'table' then
       ireascript.wrappedBuffer[#ireascript.wrappedBuffer + 1] = segment
@@ -347,6 +349,26 @@ function ireascript.removeCursor()
   end
 end
 
+function ireascript.moveCursor(pos)
+  if pos >= 0 and pos <= ireascript.input:len() then
+    ireascript.cursor = pos
+    ireascript.prompt()
+  end
+end
+
+function ireascript.historyJump(pos)
+  if pos < 0 or pos > #ireascript.history then
+    return
+  elseif ireascript.hindex == 0 then
+    ireascript.history[0] = ireascript.input
+  end
+
+  ireascript.hindex = pos
+  ireascript.input = ireascript.history[ireascript.hindex]
+  ireascript.cursor = ireascript.input:len()
+  ireascript.prompt()
+end
+
 function ireascript.eval()
   if ireascript.input:sub(0, 1) == '.' then
     local name = ireascript.input:sub(2)
@@ -373,6 +395,7 @@ function ireascript.eval()
   end
 
   ireascript.nl()
+  table.insert(ireascript.history, 1, ireascript.input)
 end
 
 function ireascript.lua(code)
