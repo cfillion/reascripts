@@ -3,7 +3,7 @@ local ireascript = {
   TITLE = 'Interactive ReaScript',
   BANNER = 'Interactive ReaScript v1.0 by cfillion',
   MARGIN = 3,
-  MAXLINES = 512,
+  MAXLINES = 2048,
   INDENT = 2,
   INDENT_THRESHOLD = 5,
 
@@ -283,9 +283,9 @@ function ireascript.loop()
 
   if gfx.mouse_wheel ~= 0 then
     if gfx.mouse_wheel > 0 then
-      ireascript.scrollTo(ireascript.scroll + 1)
+      ireascript.scrollTo(ireascript.scroll + (gfx.mouse_wheel / 12))
     else
-      ireascript.scrollTo(ireascript.scroll - 1)
+      ireascript.scrollTo(ireascript.scroll - (-gfx.mouse_wheel / 12))
     end
 
     scrolled = true
