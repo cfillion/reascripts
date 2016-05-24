@@ -18,6 +18,7 @@ local ireascript = {
   COLOR_RED = {255, 85, 85},
   COLOR_WHITE = {255, 255, 255},
   COLOR_YELLOW = {199, 199, 0},
+  COLOR_SCROLL = {190, 190, 190},
 
   -- internal constants
   SG_NEWLINE = 1,
@@ -242,6 +243,35 @@ function ireascript.draw()
 
     ireascript.drawOffset = 0
   end
+
+  local before = math.abs(ireascript.drawOffset)
+  local after = 0
+  for i=(#lines-ireascript.scroll)+1,#lines do
+    if lines[i] then
+      after = after + lines[i]
+    end
+  end
+
+  ireascript.scrollbar(before, after)
+end
+
+function ireascript.scrollbar(before, after)
+  local total = before + gfx.h + after
+  local visible = gfx.h / total
+
+  if visible == 1 then
+    return
+  end
+
+  local width, rawHeight = 4, gfx.h * visible - (ireascript.MARGIN * 2)
+  local height = math.max(20, rawHeight)
+  local scale = 1 - (math.abs(height - rawHeight) / gfx.h)
+
+  local left = gfx.w - ireascript.MARGIN - width
+  local top = ireascript.MARGIN + (before * visible * scale)
+
+  ireascript.useColor(ireascript.COLOR_SCROLL)
+  gfx.rect(left, top, width, height)
 end
 
 function ireascript.update()
