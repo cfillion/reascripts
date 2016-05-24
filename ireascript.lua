@@ -131,6 +131,7 @@ function ireascript.keyboard()
     if ireascript.input:len() > 0 then
       ireascript.eval()
       ireascript.input = ''
+      ireascript.hindex = 0
     end
     ireascript.moveCursor(0)
   elseif char == ireascript.KEY_CTRLL then
@@ -413,7 +414,7 @@ function ireascript.historyJump(pos)
 
   ireascript.hindex = pos
   ireascript.input = ireascript.history[ireascript.hindex]
-  ireascript.cursor = ireascript.input:len()
+  ireascript.moveCursor(ireascript.input:len())
   ireascript.prompt()
 end
 
