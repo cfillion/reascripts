@@ -122,7 +122,14 @@ function ireascript.keyboard()
     ireascript.cursor = 0
     ireascript.prompt()
   elseif char == ireascript.KEY_ENTER then
-    ireascript.eval()
+    ireascript.removeCursor()
+    ireascript.nl()
+    if ireascript.input:len() > 0 then
+      ireascript.eval(ireascript.input)
+      ireascript.input = ''
+      ireascript.cursor = 0
+    end
+    ireascript.prompt()
   elseif char == ireascript.KEY_CTRLL then
     ireascript.clear()
   elseif char == ireascript.KEY_CTRLD then
@@ -340,9 +347,6 @@ function ireascript.removeCursor()
 end
 
 function ireascript.eval()
-  ireascript.removeCursor()
-  ireascript.nl()
-
   if ireascript.input:sub(0, 1) == '.' then
     local name = ireascript.input:sub(2)
     local command = ireascript.BUILTIN[name:lower()]
@@ -355,7 +359,6 @@ function ireascript.eval()
     else
       ireascript.errorFormat()
       ireascript.push('command not found: ' .. name)
-      ireascript.nl()
     end
   elseif ireascript.input:len() > 0 then
     local _, err = pcall(function()
@@ -366,13 +369,9 @@ function ireascript.eval()
       ireascript.errorFormat()
       ireascript.push(ireascript.makeError(err))
     end
-
-    ireascript.nl()
   end
 
-  ireascript.input = ''
-  ireascript.cursor = 0
-  ireascript.prompt()
+  ireascript.nl()
 end
 
 function ireascript.lua(code)
