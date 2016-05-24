@@ -538,20 +538,25 @@ function ireascript.formatTable(value, size)
   end
 
   local doIndent = function()
-    if indent then
-      ireascript.nl()
-      ireascript.push(string.rep(' ', ireascript.INDENT * ireascript.ilevel))
-    end
+    ireascript.nl()
+    ireascript.push(string.rep(' ', ireascript.INDENT * ireascript.ilevel))
   end
 
   ireascript.push('{')
-  doIndent()
+  if indent then
+    doIndent()
+  end
 
   for k,v in pairs(value) do
     if i > 1 then
       ireascript.resetFormat()
-      ireascript.push(', ')
-      doIndent()
+
+      if indent then
+        ireascript.push(',')
+        doIndent()
+      else
+        ireascript.push(', ')
+      end
     end
 
     ireascript.format(k)
@@ -562,13 +567,14 @@ function ireascript.formatTable(value, size)
     i = i + 1
   end
 
+  ireascript.resetFormat()
+
   if indent then
-    ireascript.nl()
+    ireascript.push(',')
     ireascript.ilevel = ireascript.ilevel - 1
-    ireascript.push(string.rep(' ', ireascript.INDENT * ireascript.ilevel))
+    doIndent()
   end
 
-  ireascript.resetFormat()
   ireascript.push('}')
 end
 
