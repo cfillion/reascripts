@@ -228,7 +228,16 @@ function ireascript.draw()
   if ireascript.drawOffset > 0 then
     -- allow the first line to be completely visible, but not anything above that
     if ireascript.drawOffset > lines[1] then
-      ireascript.scroll = ireascript.scroll - 1
+      local extra = lines[1]
+
+      for i=1,#lines do
+        ireascript.scroll = ireascript.scroll - 1
+        extra = extra + lines[i]
+
+        if extra > ireascript.drawOffset then
+          break
+        end
+      end
     end
 
     ireascript.drawOffset = 0
