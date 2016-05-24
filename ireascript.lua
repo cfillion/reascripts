@@ -423,7 +423,7 @@ function ireascript.eval()
       end
     else
       ireascript.errorFormat()
-      ireascript.push('command not found: ' .. name)
+      ireascript.push(string.format("command not found: '%s'", name))
     end
   elseif ireascript.input:len() > 0 then
     local _, err = pcall(function()
