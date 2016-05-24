@@ -5,13 +5,14 @@ local ireascript = {
   MARGIN = 3,
   MAXLINES = 512,
   INDENT = 2,
-  INDENT_THRESHOLD = 10,
+  INDENT_THRESHOLD = 5,
 
   COLOR_BLACK = {12, 12, 12},
   COLOR_BLUE = {88, 124, 212},
   COLOR_DEFAULT = {190, 190, 190},
   COLOR_GREEN = {90, 173, 87},
   COLOR_MAGENTA = {175, 95, 95},
+  COLOR_ORANGE = {255, 93, 40},
   COLOR_RED = {255, 85, 85},
   COLOR_WHITE = {255, 255, 255},
   COLOR_YELLOW = {199, 199, 0},
@@ -416,7 +417,7 @@ function ireascript.format(value)
     return
   elseif value == nil then
     ireascript.foreground = ireascript.COLOR_YELLOW
-  elseif t == 'number' then
+  elseif t == 'number' or t == 'boolean' then
     ireascript.foreground = ireascript.COLOR_BLUE
   elseif t == 'function' then
     ireascript.foreground = ireascript.COLOR_MAGENTA
