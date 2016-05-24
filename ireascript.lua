@@ -3,7 +3,7 @@ local ireascript = {
   TITLE = 'Interactive ReaScript',
   BANNER = 'Interactive ReaScript v1.0 by cfillion',
   MARGIN = 3,
-  MAXLINES = 2048,
+  MAXLINES = 1024,
   INDENT = 2,
   INDENT_THRESHOLD = 5,
 
@@ -131,9 +131,8 @@ function ireascript.keyboard()
     if ireascript.input:len() > 0 then
       ireascript.eval()
       ireascript.input = ''
-      ireascript.moveCursor(0)
     end
-    ireascript.prompt()
+    ireascript.moveCursor(0)
   elseif char == ireascript.KEY_CTRLL then
     ireascript.clear()
   elseif char == ireascript.KEY_CTRLD then
@@ -182,8 +181,10 @@ function ireascript.draw()
       if os.time() % 2 == 0 then
         cursor = {x=gfx.x, y=gfx.y, h=lineHeight}
       end
+    elseif gfx.y < -segment.h or gfx.y > gfx.w then
+      lineHeight = math.max(lineHeight, segment.h)
     else
-      gfx.setfont(segment.font)
+      ireascript.useFont(segment.font)
 
       ireascript.useColor(segment.bg)
       gfx.rect(gfx.x, gfx.y, segment.w, segment.h)
@@ -240,7 +241,7 @@ function ireascript.update()
         left = leftmost
       end
     else
-      gfx.setfont(segment.font)
+      ireascript.useFont(segment.font)
 
       local text = segment.text
 
@@ -249,10 +250,21 @@ function ireascript.update()
         local count = segment.text:len()
         local resized = false
 
-        while w + left > gfx.w do
-          count = count - 1
+        resizeBy = function(chars)
+          count = count - chars
           w, h = gfx.measurestr(segment.text:sub(0, count))
           resized = true
+        end
+
+        -- rough first try for speed
+        local overflow = (w + left) - gfx.w
+        if overflow > 0 then
+          local firstCharWidth, _ = gfx.measurestr(segment.text:sub(0, 1))
+          resizeBy(math.floor(overflow / firstCharWidth))
+        end
+
+        while w + left > gfx.w do
+          resizeBy(1)
         end
 
         left = left + w
@@ -567,6 +579,13 @@ end
 
 function ireascript.makeError(err)
   return err:sub(20)
+end
+
+function ireascript.useFont(font)
+  if ireascript.currentFont ~= font then
+    gfx.setfont(font)
+    ireascript.currentFont = font
+  end
 end
 
 function ireascript.useColor(color)
