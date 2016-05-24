@@ -279,20 +279,19 @@ function ireascript.loop()
     reaper.defer(ireascript.loop)
   end
 
-  local scrolled = false
-
   if gfx.mouse_wheel ~= 0 then
+    local lines = math.ceil(math.abs(gfx.mouse_wheel) / 24)
+
     if gfx.mouse_wheel > 0 then
-      ireascript.scrollTo(ireascript.scroll + (gfx.mouse_wheel / 12))
+      ireascript.scrollTo(ireascript.scroll + lines)
     else
-      ireascript.scrollTo(ireascript.scroll - (-gfx.mouse_wheel / 12))
+      ireascript.scrollTo(ireascript.scroll - lines)
     end
 
-    scrolled = true
     gfx.mouse_wheel = 0
   end
 
-  if ireascript.wrappedBuffer.w ~= gfx.w or scrolled then
+  if ireascript.wrappedBuffer.w ~= gfx.w then
     ireascript.update()
   end
 
