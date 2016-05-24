@@ -164,7 +164,7 @@ function ireascript.draw()
   gfx.rect(0, 0, gfx.w, gfx.h)
 
   gfx.x = ireascript.MARGIN
-  gfx.y = ireascript.MARGIN
+  gfx.y = ireascript.MARGIN + ireascript.drawOffset
 
   local height, cursor = 0, nil
 
@@ -207,6 +207,7 @@ function ireascript.update()
 
   local leftmost = ireascript.MARGIN
   local left = leftmost
+  local height, lineHeight = ireascript.MARGIN, 0
 
   for i=1,#ireascript.buffer do
     local segment = ireascript.buffer[i]
@@ -216,6 +217,8 @@ function ireascript.update()
 
       if segment == ireascript.SG_NEWLINE then
         left = leftmost
+        height = height + lineHeight
+        lineHeight = 0
       end
     else
       gfx.setfont(segment.font)
@@ -229,11 +232,12 @@ function ireascript.update()
 
         while w + left > gfx.w do
           count = count - 1
-          w, _ = gfx.measurestr(segment.text:sub(0, count))
+          w, h = gfx.measurestr(segment.text:sub(0, count))
           resized = true
         end
 
         left = left + w
+        lineHeight = math.max(lineHeight, h)
 
         local newSeg = ireascript.dup(segment)
         newSeg.text = text:sub(0, count)
@@ -243,13 +247,18 @@ function ireascript.update()
 
         if resized then
           ireascript.wrappedBuffer[#ireascript.wrappedBuffer + 1] = ireascript.SG_NEWLINE
+          height = height + lineHeight
           left = leftmost
+          lineHeight = 0
         end
 
         text = text:sub(count + 1)
       end
     end
   end
+
+  height = height + lineHeight -- last line
+  ireascript.drawOffset = math.min(0, gfx.h - height)
 end
 
 function ireascript.loop()
