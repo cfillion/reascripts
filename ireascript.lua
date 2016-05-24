@@ -196,7 +196,7 @@ function ireascript.draw()
       if os.time() % 2 == 0 then
         cursor = {x=gfx.x, y=gfx.y, h=lineHeight}
       end
-    elseif gfx.y < -segment.h or gfx.y > gfx.w then
+    elseif gfx.y < -segment.h or gfx.y > gfx.h then
       lineHeight = math.max(lineHeight, segment.h)
     else
       ireascript.useFont(segment.font)
