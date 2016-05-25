@@ -568,7 +568,7 @@ function ireascript.format(value)
     ireascript.foreground = ireascript.COLOR_YELLOW
   elseif t == 'number' or t == 'boolean' then
     ireascript.foreground = ireascript.COLOR_BLUE
-  elseif t == 'function' then
+  elseif t == 'function' or t == 'userdata' then
     ireascript.foreground = ireascript.COLOR_MAGENTA
     value = string.format('<%s>', value)
   elseif t == 'string' then
