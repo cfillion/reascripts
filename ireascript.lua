@@ -1,3 +1,10 @@
+-- @version 0.1
+-- @author cfillion
+-- @changelog
+--   Initial release
+--
+-- Send patches to the original repository at <https://github.com/cfillion/reascripts>
+
 local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript',
