@@ -3,12 +3,12 @@
 -- @changelog
 --   Initial release
 --
--- Send patches to the original repository at <https://github.com/cfillion/reascripts>
+-- Send patches at <https://github.com/cfillion/reascripts>.
 
 local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript',
-  BANNER = 'Interactive ReaScript v1.0 by cfillion',
+  BANNER = 'Interactive ReaScript v0.1 by cfillion',
   MARGIN = 3,
   MAXLINES = 1024,
   INDENT = 2,
@@ -33,8 +33,6 @@ local ireascript = {
 
   FONT_NORMAL = 1,
   FONT_BOLD = 2,
-
-  EXT_SECTION = 'cfillion_ireascripts',
 
   KEY_BACKSPACE = 8,
   KEY_CLEAR = 144,
@@ -111,7 +109,7 @@ function ireascript.reset(banner)
 
   if banner then
     ireascript.resetFormat()
-    ireascript.push('Interactive ReaScript v0.1 by cfillion')
+    ireascript.push(ireascript.BANNER)
     ireascript.nl()
     ireascript.push("Type Lua code or .help")
     ireascript.nl()
