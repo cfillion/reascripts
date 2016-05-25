@@ -514,6 +514,9 @@ function ireascript.eval()
     if err then
       ireascript.errorFormat()
       ireascript.push(ireascript.makeError(err))
+    else
+      reaper.TrackList_AdjustWindows(false)
+      reaper.UpdateArrange()
     end
   end
 
