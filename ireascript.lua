@@ -5,8 +5,8 @@
 --
 -- Send patches at <https://github.com/cfillion/reascripts>.
 
-local string, table, math, os, load, pcall = string, table, math, os, load, pcall
-local pairs, ipairs, reaper, gfx = pairs, ipairs, reaper, gfx
+local string, table, math, os, reaper, gfx = string, table, math, os, reaper, gfx
+local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs
 
 local ireascript = {
   -- settings
@@ -515,13 +515,11 @@ function ireascript.eval()
       ireascript.push(string.format("command not found: '%s'", name))
     end
   elseif ireascript.input:len() > 0 then
-    local _, err = pcall(function()
-      ireascript.lua(ireascript.input)
-    end)
+    err = ireascript.lua(ireascript.input)
 
     if err then
       ireascript.errorFormat()
-      ireascript.push(ireascript.makeError(err))
+      ireascript.push(err)
     else
       reaper.TrackList_AdjustWindows(false)
       reaper.UpdateArrange()
@@ -533,19 +531,26 @@ function ireascript.eval()
 end
 
 function ireascript.lua(code)
-  local func, err = load(code, 'eval')
+  local ok, values = xpcall(function()
+    local func, err = load(code, 'eval')
 
-  if err then
-    ireascript.errorFormat()
-    ireascript.push(ireascript.makeError(err))
-  else
-    local values = {func()}
+    if func then
+      return {func()}
+    else
+      error(err, 2)
+    end
+  end, function(err)
+    return err
+  end)
 
+  if ok then
     if #values <= 1 then
       ireascript.format(values[1])
     else
       ireascript.format(values)
     end
+  else
+    return values:sub(20)
   end
 end
 
@@ -678,10 +683,6 @@ function ireascript.splitInput()
   local before = ireascript.input:sub(0, ireascript.cursor)
   local after = ireascript.input:sub(ireascript.cursor + 1)
   return before, after
-end
-
-function ireascript.makeError(err)
-  return err:sub(20)
 end
 
 function ireascript.useFont(font)
