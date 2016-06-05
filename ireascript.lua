@@ -14,6 +14,7 @@ local ireascript = {
   BANNER = 'Interactive ReaScript v0.1 by cfillion',
   MARGIN = 3,
   MAXLINES = 1024,
+  MAXDEPTH = 3,
   INDENT = 2,
   INDENT_THRESHOLD = 5,
   PROMPT = '> ',
@@ -558,11 +559,23 @@ function ireascript.format(value)
       i = i + 1
     end
 
+    if ireascript.flevel == nil then
+      ireascript.flevel = 1
+    elseif ireascript.flevel >= ireascript.MAXDEPTH then
+      ireascript.errorFormat()
+      ireascript.push('...')
+      return
+    else
+      ireascript.flevel = ireascript.flevel + 1
+    end
+
     if array then
       ireascript.formatArray(value)
     else
       ireascript.formatTable(value, i)
     end
+
+    ireascript.flevel = ireascript.flevel - 1
 
     return
   elseif value == nil then
