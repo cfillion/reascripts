@@ -43,6 +43,7 @@ local ireascript = {
   KEY_CTRLD = 4,
   KEY_CTRLL = 12,
   KEY_CTRLU = 21,
+  KEY_DELETE = 6579564,
   KEY_DOWN = 1685026670,
   KEY_END = 6647396,
   KEY_ENTER = 13,
@@ -139,6 +140,11 @@ function ireascript.keyboard()
     local before, after = ireascript.splitInput()
     ireascript.input = string.sub(before, 0, -2) .. after
     ireascript.moveCursor(ireascript.cursor - 1)
+    ireascript.prompt()
+  elseif char == ireascript.KEY_DELETE then
+    local before, after = ireascript.splitInput()
+    ireascript.input = before .. string.sub(after, 2)
+    ireascript.scrollTo(0)
     ireascript.prompt()
   elseif char == ireascript.KEY_CLEAR then
     ireascript.input = ''
