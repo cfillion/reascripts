@@ -549,10 +549,13 @@ function ireascript.format(value)
   local t = type(value)
 
   if t == 'table' then
-    local i, array = 1, #value > 0
+    local i, array, last = 0, #value > 0, 0
 
     for k,v in pairs(value) do
-      if k ~= i then
+      if tonumber(k) then
+        i = i + (k - last) - 1
+        last = k
+      else
         array = false
       end
 
@@ -570,7 +573,7 @@ function ireascript.format(value)
     end
 
     if array then
-      ireascript.formatArray(value)
+      ireascript.formatArray(value, i)
     else
       ireascript.formatTable(value, i)
     end
@@ -595,11 +598,11 @@ function ireascript.format(value)
   ireascript.push(tostring(value))
 end
 
-function ireascript.formatArray(value)
-  local i = 1
-
+function ireascript.formatArray(value, size)
   ireascript.push('[')
-  for k,v in ipairs(value) do
+
+  for i=1,size do
+    local v = value[i]
     if i > 1 then
       ireascript.resetFormat()
       ireascript.push(', ')
@@ -608,6 +611,7 @@ function ireascript.formatArray(value)
     ireascript.format(v)
     i = i + 1
   end
+
   ireascript.resetFormat()
   ireascript.push(']')
 end
