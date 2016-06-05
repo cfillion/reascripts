@@ -6,7 +6,7 @@
 -- Send patches at <https://github.com/cfillion/reascripts>.
 
 local string, table, math, os, load, pcall = string, table, math, os, load, pcall
-local pairs, ipairs, reaper, gfx =  pairs, ipairs, reaper, gfx
+local pairs, ipairs, reaper, gfx = pairs, ipairs, reaper, gfx
 
 local ireascript = {
   -- settings
