@@ -515,7 +515,7 @@ function ireascript.eval()
       ireascript.push(string.format("command not found: '%s'", name))
     end
   elseif ireascript.input:len() > 0 then
-    err = ireascript.lua(ireascript.input)
+    local err = ireascript.lua(ireascript.input)
 
     if err then
       ireascript.errorFormat()
@@ -531,8 +531,15 @@ function ireascript.eval()
 end
 
 function ireascript.lua(code)
+  local scope = 'eval' -- arbitrary value to have consistent error messages
+
   local ok, values = xpcall(function()
-    local func, err = load(code, 'eval')
+    local func, err = load('return ' .. code, scope)
+
+    if not func then
+      -- reparse without the implicit return
+      func, err = load(code, scope)
+    end
 
     if func then
       return {func()}
