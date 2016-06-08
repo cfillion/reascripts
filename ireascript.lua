@@ -171,9 +171,28 @@ function ireascript.keyboard()
   elseif char == ireascript.KEY_HOME then
     ireascript.moveCursor(0)
   elseif char == ireascript.KEY_LEFT then
-    ireascript.moveCursor(ireascript.cursor - 1)
+    local pos
+
+    if gfx.mouse_cap & 8 == 8 then
+      local length = ireascript.input:len()
+      pos = length - ireascript.nextBoundary(ireascript.input:reverse(),
+        length - ireascript.cursor + 1)
+      if pos > 0 then pos = pos + 1 end
+    else
+      pos = ireascript.cursor - 1
+    end
+
+    ireascript.moveCursor(pos)
   elseif char == ireascript.KEY_RIGHT then
-    ireascript.moveCursor(ireascript.cursor + 1)
+    local pos
+
+    if gfx.mouse_cap & 8 == 8 then
+      pos = ireascript.nextBoundary(ireascript.input, ireascript.cursor)
+    else
+      pos = ireascript.cursor + 1
+    end
+
+    ireascript.moveCursor(pos)
   elseif char == ireascript.KEY_END then
     ireascript.moveCursor(ireascript.input:len())
   elseif char == ireascript.KEY_UP then
@@ -188,6 +207,16 @@ function ireascript.keyboard()
   end
 
   return true
+end
+
+function ireascript.nextBoundary(input, from)
+  local boundary = input:find('%W%w', from + 1)
+
+  if boundary then
+    return boundary
+  else
+    return input:len()
+  end
 end
 
 function ireascript.draw()
@@ -537,7 +566,7 @@ function ireascript.lua(code)
     local func, err = load('return ' .. code, scope)
 
     if not func then
-      -- reparse without the implicit return
+      -- hack: reparse without the implicit return
       func, err = load(code, scope)
     end
 
