@@ -1,4 +1,4 @@
--- cfillion_Explode track to mono tracks.lua for REAPER v5.16+
+-- Explode selected tracks to mono tracks for REAPER v5.16+
 -- http://forum.cockos.com/showthread.php?p=1647321
 -- @version 1.1
 -- @author cfillion
@@ -33,7 +33,7 @@ for trackIndex=0,tracks-1 do
   end
 end
 
-reaper.Undo_EndBlock("Explode track to mono tracks", 1)
+reaper.Undo_EndBlock("Explode selected tracks to mono tracks", 1)
 
 reaper.PreventUIRefresh(-1)
 reaper.TrackList_AdjustWindows(false)
