@@ -8,6 +8,7 @@
 --   + limit maximum depth when formatting tables
 --   + protect against overriding of built-in variables
 --
+-- http://forum.cockos.com/showthread.php?t=177324
 -- Send patches at <https://github.com/cfillion/reascripts>.
 
 local string, table, math, os, reaper, gfx = string, table, math, os, reaper, gfx
