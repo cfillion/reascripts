@@ -1,7 +1,12 @@
--- @version 0.1
+-- @version 0.2
 -- @author cfillion
 -- @changelog
---   Initial release
+--   + enhance formatting of arrays containing nil values
+--   + implement Delete key
+--   + implement word movement keys (Shift+Left and Shift+Right)
+--   + imply the return statement by default
+--   + limit maximum depth when formatting tables
+--   + protect against overriding of built-in variables
 --
 -- Send patches at <https://github.com/cfillion/reascripts>.
 
@@ -11,7 +16,7 @@ local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs
 local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript',
-  BANNER = 'Interactive ReaScript v0.1 by cfillion',
+  BANNER = 'Interactive ReaScript v0.2 by cfillion',
   MARGIN = 3,
   MAXLINES = 1024,
   MAXDEPTH = 3,
