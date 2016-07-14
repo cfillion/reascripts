@@ -46,9 +46,11 @@ local ireascript = {
 
   KEY_BACKSPACE = 8,
   KEY_CLEAR = 144,
+  KEY_CTRLC = 3,
   KEY_CTRLD = 4,
   KEY_CTRLL = 12,
   KEY_CTRLU = 21,
+  KEY_CTRLV = 22,
   KEY_DELETE = 6579564,
   KEY_DOWN = 1685026670,
   KEY_END = 6647396,
@@ -72,7 +74,7 @@ local ireascript = {
     'mouse_x', 'mouse_y',
     'mouse_wheel', 'mouse_hwheel',
     'mouse_cap',
-  }
+  },
 }
 
 function ireascript.help()
@@ -219,6 +221,10 @@ function ireascript.keyboard()
     ireascript.historyJump(ireascript.hindex + 1)
   elseif char == ireascript.KEY_DOWN then
     ireascript.historyJump(ireascript.hindex - 1)
+  elseif char == ireascript.KEY_CTRLC then
+    ireascript.copy()
+  elseif char == ireascript.KEY_CTRLV then
+    ireascript.paste()
   elseif char >= ireascript.KEY_INPUTRANGE_FIRST and char <= ireascript.KEY_INPUTRANGE_LAST then
     local before, after = ireascript.splitInput()
     ireascript.input = before .. string.char(char) .. after
@@ -752,6 +758,47 @@ function ireascript.useColor(color)
   gfx.r = color[1] / 255
   gfx.g = color[2] / 255
   gfx.b = color[3] / 255
+end
+
+function ireascript.copy()
+  local tool
+
+  if ireascript.isosx() then
+    tool = 'pbcopy'
+  elseif ireascript.iswindows() then
+    tool = 'clip'
+  end
+
+  local proc = io.popen(tool, 'w')
+  proc:write(ireascript.input)
+  proc:close()
+end
+
+function ireascript.paste()
+  local tool
+
+  if ireascript.isosx() then
+    tool = 'pbpaste'
+  elseif ireascript.iswindows() then
+    tool = 'powershell -windowstyle hidden -Command Get-Clipboard'
+  end
+
+  local proc = io.popen(tool, 'r')
+  local contents = proc:read()
+  proc:close()
+
+  local before, after = ireascript.splitInput()
+  ireascript.input = before .. contents .. after
+  ireascript.moveCursor(ireascript.cursor + contents:len())
+  ireascript.prompt()
+end
+
+function ireascript.iswindows()
+  return reaper.GetOS():find('Win') ~= nil
+end
+
+function ireascript.isosx()
+  return reaper.GetOS():find('OSX') ~= nil
 end
 
 function ireascript.dup(table)
