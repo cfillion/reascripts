@@ -62,6 +62,7 @@ local ireascript = {
   KEY_PGDOWN = 1885824110,
   KEY_PGUP = 1885828464,
   KEY_RIGHT = 1919379572,
+  KEY_TAB = 9,
   KEY_UP = 30064,
 
   GFXVARS = {
@@ -231,6 +232,8 @@ function ireascript.keyboard()
     ireascript.copy()
   elseif char == ireascript.KEY_CTRLV then
     ireascript.paste()
+  elseif char == ireascript.KEY_TAB then
+    ireascript.complete()
   elseif char >= ireascript.KEY_INPUTRANGE_FIRST and char <= ireascript.KEY_INPUTRANGE_LAST then
     local before, after = ireascript.splitInput()
     ireascript.input = before .. string.char(char) .. after
@@ -806,6 +809,46 @@ function ireascript.paste()
   ireascript.input = before .. contents .. after
   ireascript.moveCursor(ireascript.cursor + contents:len())
   ireascript.prompt()
+end
+
+function ireascript.complete()
+  local before, after = ireascript.splitInput()
+
+  local matches, source = {}
+  local var, word = before:match("(%a+)%s?%.%s?(%a*)$")
+
+  if word then
+    source = _G[var]
+    if type(source) ~= 'table' then return end
+  else
+    var = before:match("(%a+)$")
+    if not var then return end
+
+    source = _G
+    word = var
+  end
+
+  for k, _ in pairs(source) do
+    if k:sub(1, word:len()) == word then
+      matches[#matches + 1] = k
+    end
+  end
+
+  if #matches == 1 then
+    before = before:sub(1, -(word:len() + 1))
+    ireascript.input = before .. matches[1] .. after
+    ireascript.cursor = ireascript.cursor + (matches[1]:len() - word:len())
+    ireascript.prompt()
+  elseif #matches > 1 then
+    ireascript.nl()
+
+    for i=1,#matches do
+      ireascript.push(matches[i])
+      ireascript.nl()
+    end
+
+    ireascript.prompt()
+  end
 end
 
 function ireascript.iswindows()
