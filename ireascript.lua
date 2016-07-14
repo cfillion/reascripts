@@ -845,6 +845,8 @@ function ireascript.complete()
       table.remove(matches, 1)
     elseif #matches < 1 then
       return
+    else
+      table.sort(matches)
     end
   end
 
