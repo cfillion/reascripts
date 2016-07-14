@@ -814,41 +814,56 @@ end
 function ireascript.complete()
   local before, after = ireascript.splitInput()
 
-  local matches, source = {}
-  local var, word = before:match("(%a+)%s?%.%s?(%a*)$")
+  local matches, exact, source = {}
+  local var, word = before:match("([%a$d_]+)%s?%.%s?([%a%d_]*)$")
 
   if word then
     source = _G[var]
     if type(source) ~= 'table' then return end
   else
-    var = before:match("(%a+)$")
+    var = before:match("([%a%d_]+)$")
     if not var then return end
 
     source = _G
     word = var
   end
 
+  word = word:lower()
+
   for k, _ in pairs(source) do
-    if k:sub(1, word:len()) == word then
+    test = k:lower()
+    if test == word then
+      exact = k
+    elseif test:sub(1, word:len()) == word then
       matches[#matches + 1] = k
     end
   end
 
-  if #matches == 1 then
+  if not exact then
+    if #matches == 1 then
+      exact = matches[1]
+      table.remove(matches, 1)
+    elseif #matches < 1 then
+      return
+    end
+  end
+
+  if exact then
     before = before:sub(1, -(word:len() + 1))
-    ireascript.input = before .. matches[1] .. after
-    ireascript.cursor = ireascript.cursor + (matches[1]:len() - word:len())
-    ireascript.prompt()
-  elseif #matches > 1 then
+    ireascript.input = before .. exact .. after
+    ireascript.cursor = ireascript.cursor + (exact:len() - word:len())
+  end
+
+  if #matches > 0 then
     ireascript.nl()
 
     for i=1,#matches do
       ireascript.push(matches[i])
       ireascript.nl()
     end
-
-    ireascript.prompt()
   end
+
+  ireascript.prompt()
 end
 
 function ireascript.iswindows()
