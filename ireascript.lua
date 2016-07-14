@@ -59,6 +59,8 @@ local ireascript = {
   KEY_INPUTRANGE_FIRST = 32,
   KEY_INPUTRANGE_LAST = 125,
   KEY_LEFT = 1818584692,
+  KEY_PGDOWN = 1885824110,
+  KEY_PGUP = 1885828464,
   KEY_RIGHT = 1919379572,
   KEY_UP = 30064,
 
@@ -221,6 +223,10 @@ function ireascript.keyboard()
     ireascript.historyJump(ireascript.hindex + 1)
   elseif char == ireascript.KEY_DOWN then
     ireascript.historyJump(ireascript.hindex - 1)
+  elseif char == ireascript.KEY_PGUP then
+    ireascript.scrollTo(ireascript.scroll + ireascript.page)
+  elseif char == ireascript.KEY_PGDOWN then
+    ireascript.scrollTo(ireascript.scroll - ireascript.page)
   elseif char == ireascript.KEY_CTRLC then
     ireascript.copy()
   elseif char == ireascript.KEY_CTRLV then
@@ -323,6 +329,8 @@ function ireascript.draw()
   end
 
   ireascript.scrollbar(before, after)
+
+  ireascript.page = math.floor(#lines * (1 - (before+after) / (height+after)))
 end
 
 function ireascript.scrollbar(before, after)
