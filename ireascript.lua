@@ -473,11 +473,18 @@ function ireascript.push(contents)
     error('content is nil')
   end
 
-  ireascript.buffer[#ireascript.buffer + 1] = {
-    font=ireascript.font,
-    fg=ireascript.foreground, bg=ireascript.background,
-    text=contents,
-  }
+  local index = 0
+
+  for line in contents:gmatch("[^\r\n]+") do
+    if index > 0 then ireascript.nl() end
+    index = index + 1
+
+    ireascript.buffer[#ireascript.buffer + 1] = {
+      font=ireascript.font,
+      fg=ireascript.foreground, bg=ireascript.background,
+      text=line,
+    }
+  end
 end
 
 function ireascript.prompt()
