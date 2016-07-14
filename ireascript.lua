@@ -11,7 +11,7 @@
 -- http://forum.cockos.com/showthread.php?t=177324
 -- Send patches at <https://github.com/cfillion/reascripts>.
 
-local string, table, math, os, reaper, gfx = string, table, math, os, reaper, gfx
+local string, table, math, os = string, table, math, os
 local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs
 
 local ireascript = {
@@ -59,6 +59,20 @@ local ireascript = {
   KEY_LEFT = 1818584692,
   KEY_RIGHT = 1919379572,
   KEY_UP = 30064,
+
+  GFXVARS = {
+    'r', 'g', 'b', 'a',
+    'w', 'h',
+    'x', 'y',
+    'mode',
+    'clear',
+    'dest',
+    'texth',
+    'ext_retina',
+    'mouse_x', 'mouse_y',
+    'mouse_wheel', 'mouse_hwheel',
+    'mouse_cap',
+  }
 }
 
 function ireascript.help()
@@ -746,6 +760,40 @@ function ireascript.dup(table)
   return copy
 end
 
+function ireascript.contains(table, val)
+  for i=1,#table do
+    if table[i] == val then
+      return true
+    end
+  end
+
+  return false
+end
+
+function ireascript.proxify()
+  -- hack to workaround http://forum.cockos.com/showthread.php?t=177319
+  if ireascript.reaper then return end
+
+  ireascript.reaper, reaper = reaper, {}
+  for k,v in pairs(ireascript.reaper) do reaper[k] = v end
+
+  ireascript.gfx, gfx = gfx, {}
+  for k,v in pairs(ireascript.gfx) do gfx[k] = v end
+
+  setmetatable(gfx, {
+    __index = function(t, k)
+      if ireascript.contains(ireascript.GFXVARS, k) then
+        return ireascript.gfx[k]
+      end
+    end,
+    __newindex = function(t, k, v)
+      if ireascript.contains(ireascript.GFXVARS, k) then
+        ireascript.gfx[k] = v
+      end
+    end
+  })
+end
+
 ireascript.reset(true)
 
 gfx.init(ireascript.TITLE, 550, 350)
@@ -753,4 +801,5 @@ gfx.setfont(ireascript.FONT_NORMAL, 'Courier', 14)
 gfx.setfont(ireascript.FONT_BOLD, 'Courier', 14, 'b')
 
 -- GO!!
+ireascript.proxify()
 ireascript.loop()
