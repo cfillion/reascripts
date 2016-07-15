@@ -127,15 +127,23 @@ ireascript.BUILTIN = {
   {name='help', desc="Print this help text", func=ireascript.help},
 }
 
-function ireascript.reset(banner)
-  ireascript.buffer = {}
-  ireascript.wrappedBuffer = {w = 0}
+function ireascript.run()
   ireascript.input = ''
-  ireascript.lines = 0
   ireascript.cursor = 0
   ireascript.history = {}
   ireascript.hindex = 0
+
+  ireascript.reset(true)
+  ireascript.proxify()
+  ireascript.loop()
+end
+
+function ireascript.reset(banner)
+  ireascript.buffer = {}
+  ireascript.lines = 0
+  ireascript.page = 0
   ireascript.scroll = 0
+  ireascript.wrappedBuffer = {w = 0}
 
   if banner then
     ireascript.resetFormat()
@@ -916,12 +924,9 @@ function ireascript.proxify()
   })
 end
 
-ireascript.reset(true)
-
 gfx.init(ireascript.TITLE, 550, 350)
 gfx.setfont(ireascript.FONT_NORMAL, 'Courier', 14)
 gfx.setfont(ireascript.FONT_BOLD, 'Courier', 14, 'b')
 
 -- GO!!
-ireascript.proxify()
-ireascript.loop()
+ireascript.run()
