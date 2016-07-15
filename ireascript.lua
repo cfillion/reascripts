@@ -1,15 +1,43 @@
--- @version 0.2
+-- @version 0.3
 -- @author cfillion
 -- @changelog
---   + enhance formatting of arrays containing nil values
---   + implement Delete key
---   + implement word movement keys (Shift+Left and Shift+Right)
---   + imply the return statement by default
---   + limit maximum depth when formatting tables
---   + protect against overriding of built-in variables
+--   + added autocompletion with Tab key
+--   + added PageUp/PageDown keys to scroll fater
+--   + fix formatting of multiline text chunks
+--   + implement clipboard read/write with Ctrl+C and Ctrl+V (works best on OS X)
+--   + preserve current input and history on .clear
+--   + protect against invalid access on reaper/gfx tables (thanks to X-Raym)
+-- @description Interactive ReaScript (iReaScript)
+-- @website
+--   Forum Thread http://forum.cockos.com/showthread.php?t=177324
+-- @screenshot http://i.imgur.com/RrGfulR.gif
+-- @about
+--   # Interactive ReaScript (iReaScript)
 --
--- http://forum.cockos.com/showthread.php?t=177324
--- Send patches at <https://github.com/cfillion/reascripts>.
+--   This script simulates a REPL shell for Lua ReaScript inside of REAPER, for quickly experimenting code and API functions.
+--
+--   ## Screenshot
+--
+--   http://i.imgur.com/IGuD0Xh.gif
+--
+--   ## Main Features
+--
+--   - Autocompletion
+--   - Code history
+--   - Colored output
+--   - Copy/Paste from clipboard
+--   - Error catching
+--   - Pretty print return values
+--   - Scrolling
+--   - Text wrapping
+--
+--   ## Known Issues/Limitations
+--
+--   - This tool cannot be used to open a new GFX window
+--
+--   ## Contributing
+--
+--   Send patches at <https://github.com/cfillion/reascripts>.
 
 local string, table, math, os = string, table, math, os
 local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs
@@ -17,7 +45,7 @@ local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs
 local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript',
-  BANNER = 'Interactive ReaScript v0.2 by cfillion',
+  BANNER = 'Interactive ReaScript v0.3 by cfillion',
   MARGIN = 3,
   MAXLINES = 1024,
   MAXDEPTH = 3,
