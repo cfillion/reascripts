@@ -97,6 +97,7 @@ local ireascript = {
   KEY_TAB = 9,
   KEY_UP = 30064,
 
+  -- these aren't listed by pairs(gfx)
   GFXVARS = {
     'r', 'g', 'b', 'a',
     'w', 'h',
