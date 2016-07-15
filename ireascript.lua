@@ -848,7 +848,7 @@ function ireascript.copy()
   end
 
   local proc = assert(io.popen(tool, 'w'))
-  proc:write(ireascript.input)
+  proc:write(ireascript.code())
   proc:close()
 end
 
