@@ -683,6 +683,7 @@ function ireascript.lua(code)
   else
     if values:sub(-5) == '<eof>' then
       ireascript.prepend = ireascript.code()
+      return
     else
       ireascript.prepend = ''
     end
