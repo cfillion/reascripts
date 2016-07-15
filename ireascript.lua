@@ -7,6 +7,7 @@
 --   + implement clipboard read/write with Ctrl+C and Ctrl+V (works best on OS X)
 --   + preserve current input and history on .clear
 --   + protect against invalid access on reaper/gfx tables (thanks to X-Raym)
+--   + set global `_` variable to the first return value of last statement
 --   + support multi-line statements
 -- @description Interactive ReaScript (iReaScript)
 -- @website
@@ -674,6 +675,8 @@ function ireascript.lua(code)
   end)
 
   if ok then
+    _ = values[1]
+
     if #values <= 1 then
       ireascript.format(values[1])
     else
