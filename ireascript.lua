@@ -52,6 +52,7 @@ local ireascript = {
   INDENT = 2,
   INDENT_THRESHOLD = 5,
   PROMPT = '> ',
+  PROMPT_CONTINUE = '*> ',
   PREFIX = '.',
 
   COLOR_BLACK = {12, 12, 12},
@@ -157,6 +158,7 @@ ireascript.BUILTIN = {
 
 function ireascript.run()
   ireascript.input = ''
+  ireascript.prepend = ''
   ireascript.cursor = 0
   ireascript.history = {}
   ireascript.hindex = 0
@@ -223,7 +225,10 @@ function ireascript.keyboard()
       ireascript.eval()
       ireascript.input = ''
       ireascript.hindex = 0
+    else
+      ireascript.prepend = ''
     end
+
     ireascript.moveCursor(0)
   elseif char == ireascript.KEY_CTRLL then
     ireascript.clear()
@@ -539,7 +544,11 @@ function ireascript.prompt()
 
   ireascript.resetFormat()
   ireascript.backtrack()
-  ireascript.push(ireascript.PROMPT)
+  if ireascript.prepend:len() == 0 then
+    ireascript.push(ireascript.PROMPT)
+  else
+    ireascript.push(ireascript.PROMPT_CONTINUE)
+  end
   ireascript.push(before)
   ireascript.buffer[#ireascript.buffer + 1] = ireascript.SG_CURSOR
   ireascript.push(after)
@@ -624,7 +633,7 @@ function ireascript.eval()
       ireascript.push(string.format("command not found: '%s'", name))
     end
   elseif ireascript.input:len() > 0 then
-    local err = ireascript.lua(ireascript.input)
+    local err = ireascript.lua(ireascript.code())
 
     if err then
       ireascript.errorFormat()
@@ -637,6 +646,10 @@ function ireascript.eval()
 
   ireascript.nl()
   table.insert(ireascript.history, 1, ireascript.input)
+end
+
+function ireascript.code()
+  return ireascript.prepend .. "\n" .. ireascript.input
 end
 
 function ireascript.lua(code)
@@ -665,7 +678,15 @@ function ireascript.lua(code)
     else
       ireascript.format(values)
     end
+
+    ireascript.prepend = ''
   else
+    if values:sub(-5) == '<eof>' then
+      ireascript.prepend = ireascript.code()
+    else
+      ireascript.prepend = ''
+    end
+
     return values:sub(20)
   end
 end
@@ -823,7 +844,7 @@ function ireascript.copy()
     tool = 'clip'
   end
 
-  local proc = io.popen(tool, 'w')
+  local proc = assert(io.popen(tool, 'w'))
   proc:write(ireascript.input)
   proc:close()
 end
@@ -837,14 +858,24 @@ function ireascript.paste()
     tool = 'powershell -windowstyle hidden -Command Get-Clipboard'
   end
 
-  local proc = io.popen(tool, 'r')
-  local contents = proc:read()
-  proc:close()
+  local proc, first = assert(io.popen(tool, 'r')), true
+  for line in proc:lines() do
+    if first then
+      first = false
+    else
+      ireascript.nl()
+      ireascript.eval()
+      ireascript.input = ''
+      ireascript.moveCursor(0)
+    end
 
-  local before, after = ireascript.splitInput()
-  ireascript.input = before .. contents .. after
-  ireascript.moveCursor(ireascript.cursor + contents:len())
-  ireascript.prompt()
+    local before, after = ireascript.splitInput()
+    ireascript.input = before .. line .. after
+    ireascript.moveCursor(ireascript.cursor + line:len())
+    ireascript.prompt()
+  end
+
+  proc:close()
 end
 
 function ireascript.complete()
