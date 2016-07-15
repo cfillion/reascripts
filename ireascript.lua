@@ -20,7 +20,7 @@
 --
 --   ## Screenshot
 --
---   http://i.imgur.com/IGuD0Xh.gif
+--   http://i.imgur.com/RrGfulR.gif
 --
 --   ## Main Features
 --
