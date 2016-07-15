@@ -862,19 +862,21 @@ function ireascript.paste()
 
   local proc, first = assert(io.popen(tool, 'r')), true
   for line in proc:lines() do
-    if first then
-      first = false
-    else
-      ireascript.nl()
-      ireascript.eval()
-      ireascript.input = ''
-      ireascript.moveCursor(0)
-    end
+    if line:len() > 0 then
+      if first then
+        first = false
+      else
+        ireascript.nl()
+        ireascript.eval()
+        ireascript.input = ''
+        ireascript.moveCursor(0)
+      end
 
-    local before, after = ireascript.splitInput()
-    ireascript.input = before .. line .. after
-    ireascript.moveCursor(ireascript.cursor + line:len())
-    ireascript.prompt()
+      local before, after = ireascript.splitInput()
+      ireascript.input = before .. line .. after
+      ireascript.moveCursor(ireascript.cursor + line:len())
+      ireascript.prompt()
+    end
   end
 
   proc:close()
