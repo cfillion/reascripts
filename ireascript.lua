@@ -884,8 +884,9 @@ end
 function ireascript.complete()
   local before, after = ireascript.splitInput()
 
+  local code = ireascript.prepend .. "\x20" .. before
   local matches, exact, source = {}
-  local var, word = before:match("([%a$d_]+)%s?%.%s?([%a%d_]*)$")
+  local var, word = code:match("([%a$d_]+)%s?%.%s?([%a%d_]*)$")
 
   if word then
     source = _G[var]
