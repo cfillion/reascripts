@@ -7,6 +7,7 @@
 --   + implement clipboard read/write with Ctrl+C and Ctrl+V (works best on OS X)
 --   + preserve current input and history on .clear
 --   + protect against invalid access on reaper/gfx tables (thanks to X-Raym)
+--   + support multi-line statements
 -- @description Interactive ReaScript (iReaScript)
 -- @website
 --   Forum Thread http://forum.cockos.com/showthread.php?t=177324
@@ -33,6 +34,7 @@
 --
 --   ## Known Issues/Limitations
 --
+--   - Some errors cannot be caught (see http://forum.cockos.com/showthread.php?t=177319)
 --   - This tool cannot be used to open a new GFX window
 --
 --   ## Contributing
