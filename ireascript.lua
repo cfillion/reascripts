@@ -223,14 +223,9 @@ function ireascript.keyboard()
   elseif char == ireascript.KEY_ENTER then
     ireascript.removeCursor()
     ireascript.nl()
-    if ireascript.input:len() > 0 then
-      ireascript.eval()
-      ireascript.input = ''
-      ireascript.hindex = 0
-    else
-      ireascript.prepend = ''
-    end
-
+    ireascript.eval()
+    ireascript.input = ''
+    ireascript.hindex = 0
     ireascript.moveCursor(0)
   elseif char == ireascript.KEY_CTRLL then
     ireascript.clear()
@@ -634,7 +629,7 @@ function ireascript.eval()
       ireascript.errorFormat()
       ireascript.push(string.format("command not found: '%s'", name))
     end
-  elseif ireascript.input:len() > 0 then
+  else
     local err = ireascript.lua(ireascript.code())
 
     if err then
@@ -651,7 +646,11 @@ function ireascript.eval()
 end
 
 function ireascript.code()
-  return ireascript.prepend .. "\n" .. ireascript.input
+  if ireascript.prepend:len() > 0 then
+    return ireascript.prepend .. "\n" .. ireascript.input
+  else
+    return ireascript.input
+  end
 end
 
 function ireascript.lua(code)
@@ -683,7 +682,7 @@ function ireascript.lua(code)
 
     ireascript.prepend = ''
   else
-    if values:sub(-5) == '<eof>' then
+    if values:sub(-5) == '<eof>' and ireascript.input:len() > 0 then
       ireascript.prepend = ireascript.code()
       return
     else
