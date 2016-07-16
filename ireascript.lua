@@ -96,21 +96,6 @@ local ireascript = {
   KEY_RIGHT = 1919379572,
   KEY_TAB = 9,
   KEY_UP = 30064,
-
-  -- these aren't listed by pairs(gfx)
-  GFXVARS = {
-    'r', 'g', 'b', 'a',
-    'w', 'h',
-    'x', 'y',
-    'mode',
-    'clear',
-    'dest',
-    'texth',
-    'ext_retina',
-    'mouse_x', 'mouse_y',
-    'mouse_wheel', 'mouse_hwheel',
-    'mouse_cap',
-  },
 }
 
 function ireascript.help()
@@ -169,7 +154,6 @@ function ireascript.run()
   ireascript.hindex = 0
 
   ireascript.reset(true)
-  ireascript.proxify()
   ireascript.loop()
 end
 
@@ -967,30 +951,6 @@ function ireascript.contains(table, val)
   end
 
   return false
-end
-
-function ireascript.proxify()
-  -- hack to workaround http://forum.cockos.com/showthread.php?t=177319
-  if ireascript.reaper then return end
-
-  ireascript.reaper, reaper = reaper, {}
-  for k,v in pairs(ireascript.reaper) do reaper[k] = v end
-
-  ireascript.gfx, gfx = gfx, {}
-  for k,v in pairs(ireascript.gfx) do gfx[k] = v end
-
-  setmetatable(gfx, {
-    __index = function(t, k)
-      if ireascript.contains(ireascript.GFXVARS, k) then
-        return ireascript.gfx[k]
-      end
-    end,
-    __newindex = function(t, k, v)
-      if ireascript.contains(ireascript.GFXVARS, k) then
-        ireascript.gfx[k] = v
-      end
-    end
-  })
 end
 
 gfx.init(ireascript.TITLE, 550, 350)
