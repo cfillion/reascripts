@@ -875,7 +875,7 @@ function ireascript.complete()
   local before, after = ireascript.splitInput()
 
   local code = ireascript.prepend .. "\x20" .. before
-  local matches, exact, source = {}
+  local matches, source = {}
   local var, word = code:match("([%a$d_]+)%s?%.%s?([%a%d_]*)$")
 
   if word then
@@ -893,21 +893,34 @@ function ireascript.complete()
 
   for k, _ in pairs(source) do
     test = k:lower()
-    if test == word then
-      exact = k
-    elseif test:sub(1, word:len()) == word then
+    if test:sub(1, word:len()) == word then
       matches[#matches + 1] = k
     end
   end
 
-  if not exact then
-    if #matches == 1 then
-      exact = matches[1]
-      table.remove(matches, 1)
-    elseif #matches < 1 then
-      return
-    else
-      table.sort(matches)
+  local exact
+
+  if #matches == 1 then
+    exact = matches[1]
+    table.remove(matches, 1)
+  elseif #matches < 1 then
+    return
+  else
+    table.sort(matches)
+
+    len = matches[1]:len()
+    for i=1,#matches-1 do
+      while len > word:len() do
+        if matches[i]:sub(1, len) == matches[i + 1]:sub(1, len) then
+          break
+        else
+          len = len - 1
+        end
+      end
+    end
+
+    if len > word:len() then
+      exact = matches[1]:sub(1, len)
     end
   end
 
