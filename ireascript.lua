@@ -10,8 +10,7 @@
 --   + set global `_` variable to the first return value of last statement
 --   + support multi-line statements
 -- @description Interactive ReaScript (iReaScript)
--- @website
---   Forum Thread http://forum.cockos.com/showthread.php?t=177324
+-- @link Forum Thread http://forum.cockos.com/showthread.php?t=177324
 -- @screenshot http://i.imgur.com/RrGfulR.gif
 -- @about
 --   # Interactive ReaScript (iReaScript)
