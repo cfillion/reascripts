@@ -728,9 +728,10 @@ function ireascript.format(value)
     value = string.format('<%s>', value)
   elseif t == 'string' then
     ireascript.foreground = ireascript.COLOR_GREEN
-    value = string.format('"%s"',
-      value:gsub('\\', '\\\\'):gsub("\n", '\\n'):gsub('"', '\\"')
-    )
+    value = string.format('%q', value):
+      gsub("\\\n", '\\n'):
+      gsub('\\13', '\\r'):
+      gsub("\\9", '\\t')
   end
 
   ireascript.push(tostring(value))
