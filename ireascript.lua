@@ -640,6 +640,8 @@ function ireascript.code()
 end
 
 function ireascript.lua(code)
+  if code:len() < 1 then return end
+
   local scope = 'eval' -- arbitrary value to have consistent error messages
 
   local ok, values = xpcall(function()
