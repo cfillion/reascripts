@@ -118,8 +118,12 @@ function ireascript.help()
   end
 end
 
-function ireascript.clear()
-  ireascript.input = ''
+function ireascript.clear(keepInput)
+  if not keepInput then
+    ireascript.input = ''
+    ireascript.cursor = 0
+  end
+
   ireascript.reset(false)
   ireascript.update()
 end
@@ -212,7 +216,7 @@ function ireascript.keyboard()
     ireascript.hindex = 0
     ireascript.moveCursor(0)
   elseif char == ireascript.KEY_CTRLL then
-    ireascript.clear()
+    ireascript.clear(true)
   elseif char == ireascript.KEY_CTRLD then
     ireascript.exit()
   elseif char == ireascript.KEY_HOME then
