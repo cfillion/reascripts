@@ -191,7 +191,6 @@ function ireascript.keyboard()
     local before, after = ireascript.splitInput()
     ireascript.input = string.sub(before, 0, -2) .. after
     ireascript.moveCursor(ireascript.cursor - 1)
-    ireascript.prompt()
   elseif char == ireascript.KEY_DELETE then
     local before, after = ireascript.splitInput()
     ireascript.input = before .. string.sub(after, 2)
@@ -200,12 +199,10 @@ function ireascript.keyboard()
   elseif char == ireascript.KEY_CLEAR then
     ireascript.input = ''
     ireascript.moveCursor(0)
-    ireascript.prompt()
   elseif char == ireascript.KEY_CTRLU then
     local before, after = ireascript.splitInput()
     ireascript.input = after
     ireascript.moveCursor(0)
-    ireascript.prompt()
   elseif char == ireascript.KEY_ENTER then
     ireascript.removeCursor()
     ireascript.nl()
@@ -262,7 +259,6 @@ function ireascript.keyboard()
     local before, after = ireascript.splitInput()
     ireascript.input = before .. string.char(char) .. after
     ireascript.moveCursor(ireascript.cursor + 1)
-    ireascript.prompt()
   end
 
   return true
@@ -866,7 +862,6 @@ function ireascript.paste()
       local before, after = ireascript.splitInput()
       ireascript.input = before .. line .. after
       ireascript.moveCursor(ireascript.cursor + line:len())
-      ireascript.prompt()
     end
   end
 
