@@ -72,6 +72,7 @@ local ireascript = {
   -- internal constants
   SG_NEWLINE = 1,
   SG_CURSOR = 2,
+  SG_BUFNEWLINE = 3,
 
   FONT_NORMAL = 1,
   FONT_BOLD = 2,
@@ -291,15 +292,17 @@ function ireascript.draw()
   for i=1,#ireascript.wrappedBuffer do
     local segment = ireascript.wrappedBuffer[i]
 
-    if segment == ireascript.SG_NEWLINE then
-      gfx.x = ireascript.MARGIN
-      gfx.y = gfx.y + lineHeight
+    if type(segment) ~= 'table' then
+      if segment == ireascript.SG_NEWLINE then
+        gfx.x = ireascript.MARGIN
+        gfx.y = gfx.y + lineHeight
 
-      lines[#lines + 1] = lineHeight
-      lineHeight = 0
-    elseif segment == ireascript.SG_CURSOR then
-      if os.time() % 2 == 0 then
-        cursor = {x=gfx.x, y=gfx.y, h=lineHeight}
+        lines[#lines + 1] = lineHeight
+        lineHeight = 0
+      elseif segment == ireascript.SG_CURSOR then
+        if os.time() % 2 == 0 then
+          cursor = {x=gfx.x, y=gfx.y, h=lineHeight}
+        end
       end
     elseif gfx.y < -segment.h or gfx.y > gfx.h then
       lineHeight = math.max(lineHeight, segment.h)
@@ -406,6 +409,7 @@ function ireascript.update()
       ireascript.wrappedBuffer[#ireascript.wrappedBuffer + 1] = segment
 
       if segment == ireascript.SG_NEWLINE then
+        ireascript.wrappedBuffer[#ireascript.wrappedBuffer + 1] = ireascript.SG_BUFNEWLINE
         left = leftmost
       end
     else
@@ -478,6 +482,7 @@ function ireascript.loop()
     ireascript.update()
   end
 
+  ireascript.collectGarbage()
   ireascript.draw()
 
   gfx.update()
@@ -496,22 +501,7 @@ function ireascript.errorFormat()
 end
 
 function ireascript.nl()
-  if ireascript.lines >= ireascript.MAXLINES then
-    local first = ireascript.buffer[1]
-
-    while first ~= nil do
-      table.remove(ireascript.buffer, 1)
-
-      if first == ireascript.SG_NEWLINE then
-        break
-      end
-
-      first = ireascript.buffer[1]
-    end
-  else
-    ireascript.lines = ireascript.lines + 1
-  end
-
+  ireascript.lines = ireascript.lines + 1
   ireascript.buffer[#ireascript.buffer + 1] = ireascript.SG_NEWLINE
 end
 
@@ -594,6 +584,38 @@ function ireascript.removeCursor()
     i = i - 1
   end
 end
+
+function ireascript.collectGarbage()
+  while ireascript.lines >= ireascript.MAXLINES do
+    local buf = ireascript.rmuntil(ireascript.buffer, ireascript.SG_NEWLINE)
+    local wrap = ireascript.rmuntil(ireascript.wrappedBuffer, ireascript.SG_BUFNEWLINE)
+
+    if ireascript.from then
+      ireascript.from.buffer = ireascript.from.buffer - buf
+      ireascript.from.wrapped = ireascript.from.wrapped - wrap
+    end
+
+    ireascript.lines = ireascript.lines - 1
+  end
+end
+
+function ireascript.rmuntil(buf, sep)
+  local first, count = buf[1], 0
+
+  while first ~= nil do
+    table.remove(buf, 1)
+    count = count + 1
+
+    if first == sep then
+      break
+    end
+
+    first = buf[1]
+  end
+
+  return count
+end
+
 
 function ireascript.moveCursor(pos)
   ireascript.scrollTo(0)
