@@ -167,6 +167,7 @@ function ireascript.reset(banner)
   ireascript.page = 0
   ireascript.scroll = 0
   ireascript.wrappedBuffer = {w = 0}
+  ireascript.from = nil
 
   if banner then
     ireascript.resetFormat()
@@ -209,7 +210,6 @@ function ireascript.keyboard()
     ireascript.input = after
     ireascript.moveCursor(0)
   elseif char == ireascript.KEY_ENTER then
-    ireascript.removeCursor()
     ireascript.nl()
     ireascript.eval()
     ireascript.input = ''
@@ -385,13 +385,21 @@ function ireascript.update()
     return -- gui is not ready yet
   end
 
-  ireascript.wrappedBuffer = {}
+  if not ireascript.from or ireascript.from.wrapped <= 1 then
+    ireascript.wrappedBuffer = {}
+    ireascript.from = {buffer=1}
+  else
+    while #ireascript.wrappedBuffer >= ireascript.from.wrapped do
+      table.remove(ireascript.wrappedBuffer)
+    end
+  end
+
   ireascript.wrappedBuffer.w = gfx.w
 
   local leftmost = ireascript.MARGIN
   local left = leftmost
 
-  for i=1,#ireascript.buffer do
+  for i=ireascript.from.buffer,#ireascript.buffer do
     local segment = ireascript.buffer[i]
 
     if type(segment) ~= 'table' then
@@ -444,6 +452,8 @@ function ireascript.update()
       end
     end
   end
+
+  ireascript.from = {buffer=#ireascript.buffer, wrapped=#ireascript.wrappedBuffer}
 end
 
 function ireascript.loop()
@@ -464,6 +474,7 @@ function ireascript.loop()
   end
 
   if ireascript.wrappedBuffer.w ~= gfx.w then
+    ireascript.from = nil -- full reflow
     ireascript.update()
   end
 
@@ -540,14 +551,29 @@ function ireascript.prompt()
 end
 
 function ireascript.backtrack()
-  local i = #ireascript.buffer
-  while i >= 1 do
-    if ireascript.buffer[i] == ireascript.SG_NEWLINE then
-      return
+  local bi = #ireascript.buffer
+  while bi >= 1 do
+    if ireascript.buffer[bi] == ireascript.SG_NEWLINE then
+      break
     end
 
     table.remove(ireascript.buffer)
-    i = i - 1
+    bi = bi - 1
+  end
+
+  if ireascript.from and ireascript.from.buffer > bi then
+    ireascript.from.buffer = bi
+
+    wi = #ireascript.wrappedBuffer
+    while wi >= 1 do
+      if ireascript.wrappedBuffer[wi] == ireascript.SG_NEWLINE then
+        break
+      end
+
+      wi = wi - 1
+    end
+
+    ireascript.from.wrapped = wi
   end
 end
 
@@ -560,6 +586,9 @@ function ireascript.removeCursor()
       return
     elseif segment == ireascript.SG_CURSOR then
       table.remove(ireascript.buffer, i)
+      ireascript.from.buffer = ireascript.from.buffer - 1
+      ireascript.from.wrapped = ireascript.from.wrapped - 1
+      return
     end
 
     i = i - 1
