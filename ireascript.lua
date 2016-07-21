@@ -50,7 +50,8 @@ local ireascript = {
   BANNER = 'Interactive ReaScript v0.3 by cfillion',
   MARGIN = 3,
   MAXLINES = 1024,
-  MAXDEPTH = 3,
+  MAXDEPTH = 3, -- maximum array depth
+  MAXLEN = 1024, -- maximum array length
   INDENT = 2,
   INDENT_THRESHOLD = 5,
   PROMPT = '> ',
@@ -745,8 +746,14 @@ function ireascript.formatArray(value, size)
       ireascript.push(', ')
     end
 
-    ireascript.format(v)
-    i = i + 1
+    if i > ireascript.MAXLEN then
+      ireascript.errorFormat()
+      ireascript.push(string.format('%d more...', size - i))
+      break
+    else
+      ireascript.format(v)
+      i = i + 1
+    end
   end
 
   ireascript.resetFormat()
@@ -786,12 +793,18 @@ function ireascript.formatTable(value, size)
       end
     end
 
-    ireascript.format(k)
-    ireascript.resetFormat()
-    ireascript.push('=')
-    ireascript.format(v)
+    if i > ireascript.MAXLEN then
+      ireascript.errorFormat()
+      ireascript.push(string.format('%d more...', size - i))
+      break
+    else
+      ireascript.format(k)
+      ireascript.resetFormat()
+      ireascript.push('=')
+      ireascript.format(v)
 
-    i = i + 1
+      i = i + 1
+    end
   end
 
   ireascript.resetFormat()
