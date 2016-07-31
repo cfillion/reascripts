@@ -1,4 +1,5 @@
 -- send_track_audio.lua v0.1 by Christian Fillion (cfillion)
+-- http://forum.cockos.com/showthread.php?p=1576038
 
 local selectionSize = reaper.CountSelectedTracks(0)
 
