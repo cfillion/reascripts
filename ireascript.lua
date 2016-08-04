@@ -556,7 +556,7 @@ function ireascript.backtrack()
 
     wi = #ireascript.wrappedBuffer
     while wi >= 1 do
-      if ireascript.wrappedBuffer[wi] == ireascript.SG_NEWLINE then
+      if ireascript.wrappedBuffer[wi] == ireascript.SG_BUFNEWLINE then
         break
       end
 
