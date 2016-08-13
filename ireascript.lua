@@ -482,7 +482,6 @@ function ireascript.loop()
     ireascript.update()
   end
 
-  ireascript.collectGarbage()
   ireascript.draw()
 
   gfx.update()
@@ -501,7 +500,22 @@ function ireascript.errorFormat()
 end
 
 function ireascript.nl()
-  ireascript.lines = ireascript.lines + 1
+  if ireascript.lines >= ireascript.MAXLINES then
+    local first = ireascript.buffer[1]
+
+    while first ~= nil do
+      table.remove(ireascript.buffer, 1)
+
+      if first == ireascript.SG_NEWLINE then
+        break
+      end
+
+      first = ireascript.buffer[1]
+    end
+  else
+    ireascript.lines = ireascript.lines + 1
+  end
+
   ireascript.buffer[#ireascript.buffer + 1] = ireascript.SG_NEWLINE
 end
 
@@ -584,38 +598,6 @@ function ireascript.removeCursor()
     i = i - 1
   end
 end
-
-function ireascript.collectGarbage()
-  while ireascript.lines >= ireascript.MAXLINES do
-    local buf = ireascript.rmuntil(ireascript.buffer, ireascript.SG_NEWLINE)
-    local wrap = ireascript.rmuntil(ireascript.wrappedBuffer, ireascript.SG_BUFNEWLINE)
-
-    if ireascript.from then
-      ireascript.from.buffer = ireascript.from.buffer - buf
-      ireascript.from.wrapped = ireascript.from.wrapped - wrap
-    end
-
-    ireascript.lines = ireascript.lines - 1
-  end
-end
-
-function ireascript.rmuntil(buf, sep)
-  local first, count = buf[1], 0
-
-  while first ~= nil do
-    table.remove(buf, 1)
-    count = count + 1
-
-    if first == sep then
-      break
-    end
-
-    first = buf[1]
-  end
-
-  return count
-end
-
 
 function ireascript.moveCursor(pos)
   ireascript.scrollTo(0)
