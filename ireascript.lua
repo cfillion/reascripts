@@ -1,21 +1,22 @@
--- @version 0.3
+-- @version 0.4
 -- @author cfillion
 -- @changelog
---   + added autocompletion with Tab key
---   + added PageUp/PageDown keys to scroll faster
---   + fix formatting of multiline text chunks
---   + implement clipboard read/write with Ctrl+C and Ctrl+V (works best on OS X)
---   + preserve current input and history on .clear
---   + protect against invalid access on reaper/gfx tables (thanks to X-Raym)
---   + set global `_` variable to the first return value of last statement
---   + support multi-line statements
+--   + autocomplete partial matches
+--   + don't execute empty code input (v0.3 regression)
+--   + enhance formatting of string values
+--   + fix input of tildes
+--   + limit maximum size of tables values when formatting
+--   + optimize layout by only computing new or modified text segments
+--   + preserve current input when using Ctrl+L shortcut
+--   + remove reaper/gfx proxy variable workaround, fixed in REAPER v5.23 [t=177319]
 -- @description Interactive ReaScript (iReaScript)
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=177324
 -- @screenshot http://i.imgur.com/RrGfulR.gif
 -- @about
 --   # Interactive ReaScript (iReaScript)
 --
---   This script simulates a REPL shell for Lua ReaScript inside of REAPER, for quickly experimenting code and API functions.
+--   This script simulates a [REPL](https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop)
+--   shell for Lua ReaScript inside of REAPER, for quickly experimenting code and API functions.
 --
 --   ## Screenshot
 --
@@ -47,11 +48,11 @@ local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs
 local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript',
-  BANNER = 'Interactive ReaScript v0.3 by cfillion',
+  BANNER = 'Interactive ReaScript v0.4 by cfillion',
   MARGIN = 3,
   MAXLINES = 1024,
   MAXDEPTH = 3, -- maximum array depth
-  MAXLEN = 1024, -- maximum array length
+  MAXLEN = 1024, -- maximum array size
   INDENT = 2,
   INDENT_THRESHOLD = 5,
   PROMPT = '> ',
