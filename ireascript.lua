@@ -502,16 +502,12 @@ end
 
 function ireascript.nl()
   if ireascript.lines >= ireascript.MAXLINES then
-    local first = ireascript.buffer[1]
+    local buf = ireascript.removeUntil(ireascript.buffer, ireascript.SG_NEWLINE)
+    local wrap = ireascript.removeUntil(ireascript.wrappedBuffer, ireascript.SG_BUFNEWLINE)
 
-    while first ~= nil do
-      table.remove(ireascript.buffer, 1)
-
-      if first == ireascript.SG_NEWLINE then
-        break
-      end
-
-      first = ireascript.buffer[1]
+    if ireascript.from then
+      ireascript.from.buffer = ireascript.from.buffer - buf
+      ireascript.from.wrapped = ireascript.from.wrapped - wrap
     end
   else
     ireascript.lines = ireascript.lines + 1
@@ -598,6 +594,23 @@ function ireascript.removeCursor()
 
     i = i - 1
   end
+end
+
+function ireascript.removeUntil(buf, sep)
+  local first, count = buf[1], 0
+
+  while first ~= nil do
+    table.remove(buf, 1)
+    count = count + 1
+
+    if first == sep then
+      break
+    end
+
+    first = buf[1]
+  end
+
+  return count
 end
 
 function ireascript.moveCursor(pos)
