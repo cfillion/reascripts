@@ -9,6 +9,7 @@
 --   + optimize layout by only computing new or modified text segments
 --   + preserve current input when using Ctrl+L shortcut
 --   + remove reaper/gfx proxy variable workaround, fixed in REAPER v5.23 [t=177319]
+--   + rewrite drawing & scrolling code
 -- @description Interactive ReaScript (iReaScript)
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=177324
 -- @screenshot http://i.imgur.com/RrGfulR.gif
@@ -212,6 +213,7 @@ function ireascript.keyboard()
     ireascript.input = after
     ireascript.moveCursor(0)
   elseif char == ireascript.KEY_ENTER then
+    ireascript.removeCursor()
     ireascript.nl()
     ireascript.eval()
     ireascript.input = ''
@@ -281,32 +283,94 @@ function ireascript.nextBoundary(input, from)
   end
 end
 
-function ireascript.draw()
+function ireascript.draw(offset)
   ireascript.useColor(ireascript.COLOR_BLACK)
   gfx.rect(0, 0, gfx.w, gfx.h)
 
   gfx.x = ireascript.MARGIN
-  gfx.y = ireascript.MARGIN + (ireascript.drawOffset or 0)
+  gfx.y = gfx.h - (offset or 0)
 
-  local lines, lineHeight, cursor = {}, ireascript.MARGIN, nil
+  test = ireascript.wrappedBuffer
+  local lineEnd = #ireascript.wrappedBuffer
+  local nl = lineEnd + 1 -- past the end of the buffer
+  local lines, lineHeight = 0, 0
+  local lastSkipped, before, after = nil, 0, 0
 
-  for i=1,#ireascript.wrappedBuffer do
+  ireascript.page = 0
+
+  while nl > 0 do
+    while nl > 0 and ireascript.wrappedBuffer[nl] ~= ireascript.SG_NEWLINE do
+      nl = nl - 1
+    end
+
+    local lineStart = nl + 1
+
+    lines = lines + 1
+
+    lineHeight = ireascript.lineHeight(lineStart, lineEnd)
+
+    if lines > ireascript.scroll then
+      gfx.x, gfx.y = ireascript.MARGIN, gfx.y - lineHeight
+
+      if gfx.y > -lineHeight then
+        ireascript.drawLine(lineStart, lineEnd, lineHeight)
+      else
+        before = before + lineHeight
+      end
+
+      if gfx.y > 0 then
+        ireascript.page = ireascript.page + 1
+      end
+    else
+      after = after + lineHeight
+      lastSkipped = {lineStart, lineEnd, lineHeight}
+    end
+
+    lineEnd = nl - 1
+    nl = lineEnd
+  end
+
+  if offset then
+    if lastSkipped then
+      lineStart, lineEnd = lastSkipped[1], lastSkipped[2]
+      gfx.x, gfx.y = ireascript.MARGIN, gfx.h - offset
+      after = after - lastSkipped[3]
+      ireascript.drawLine(lineStart, lineEnd, lastSkipped[3])
+    end
+
+    ireascript.page = ireascript.page + math.floor(offset / lineHeight)
+  elseif gfx.y > ireascript.MARGIN then
+    return ireascript.draw(gfx.y - ireascript.MARGIN)
+  end
+
+  ireascript.scrollbar(before, after)
+end
+
+function ireascript.lineHeight(lineStart, lineEnd)
+  local height = 0
+
+  for i=lineStart,lineEnd do
+    local segment = ireascript.wrappedBuffer[i]
+    if type(segment) == 'table' then
+      height = math.max(height, segment.h)
+    end
+  end
+
+  return height
+end
+
+function ireascript.drawLine(lineStart, lineEnd, lineHeight)
+  local cursor = nil
+
+  for i=lineStart,lineEnd do
     local segment = ireascript.wrappedBuffer[i]
 
     if type(segment) ~= 'table' then
-      if segment == ireascript.SG_NEWLINE then
-        gfx.x = ireascript.MARGIN
-        gfx.y = gfx.y + lineHeight
-
-        lines[#lines + 1] = lineHeight
-        lineHeight = 0
-      elseif segment == ireascript.SG_CURSOR then
+      if segment == ireascript.SG_CURSOR then
         if os.time() % 2 == 0 then
           cursor = {x=gfx.x, y=gfx.y, h=lineHeight}
         end
       end
-    elseif gfx.y < -segment.h or gfx.y > gfx.h then
-      lineHeight = math.max(lineHeight, segment.h)
     else
       ireascript.useFont(segment.font)
 
@@ -316,60 +380,19 @@ function ireascript.draw()
       ireascript.useColor(segment.fg)
 
       gfx.drawstr(segment.text)
-      lineHeight = math.max(lineHeight, segment.h)
     end
   end
-
-  lines[#lines + 1] = lineHeight -- last line
 
   if cursor then
     gfx.line(cursor.x, cursor.y, cursor.x, cursor.y + cursor.h)
   end
-
-  local height = ireascript.MARGIN
-  ireascript.scroll = math.max(0, math.min(ireascript.scroll, #lines))
-  for i=1,#lines - ireascript.scroll do
-    height = height + lines[i]
-  end
-
-  ireascript.drawOffset = gfx.h - height
-
-  if ireascript.drawOffset > 0 then
-    -- allow the first line to be completely visible, but not anything above that
-    if ireascript.drawOffset > lines[1] then
-      local extra = lines[1]
-
-      for i=1,#lines do
-        ireascript.scroll = ireascript.scroll - 1
-        extra = extra + lines[i]
-
-        if extra > ireascript.drawOffset then
-          break
-        end
-      end
-    end
-
-    ireascript.drawOffset = 0
-  end
-
-  local before = math.abs(ireascript.drawOffset)
-  local after = 0
-  for i=(#lines-ireascript.scroll)+1,#lines do
-    if lines[i] then
-      after = after + lines[i]
-    end
-  end
-
-  ireascript.scrollbar(before, after)
-
-  ireascript.page = math.floor(#lines * (1 - (before+after) / (height+after)))
 end
 
 function ireascript.scrollbar(before, after)
   local total = before + gfx.h + after
   local visible = gfx.h / total
 
-  if visible == 1 then
+  if visible >= 1 then
     return
   end
 
@@ -390,10 +413,14 @@ function ireascript.update()
   end
 
   if not ireascript.from or ireascript.from.wrapped <= 1 then
-    ireascript.wrappedBuffer = {}
+    ireascript.wrappedBuffer = {lines=0}
     ireascript.from = {buffer=1}
   else
     while #ireascript.wrappedBuffer >= ireascript.from.wrapped do
+      if ireascript.wrappedBuffer[#ireascript.wrappedBuffer] == ireascript.SG_NEWLINE then
+        ireascript.wrappedBuffer.lines = ireascript.wrappedBuffer.lines - 1
+      end
+
       table.remove(ireascript.wrappedBuffer)
     end
   end
@@ -411,6 +438,7 @@ function ireascript.update()
 
       if segment == ireascript.SG_NEWLINE then
         ireascript.wrappedBuffer[#ireascript.wrappedBuffer + 1] = ireascript.SG_BUFNEWLINE
+        ireascript.wrappedBuffer.lines = ireascript.wrappedBuffer.lines + 1
         left = leftmost
       end
     else
@@ -450,6 +478,7 @@ function ireascript.update()
 
         if resized then
           ireascript.wrappedBuffer[#ireascript.wrappedBuffer + 1] = ireascript.SG_NEWLINE
+          ireascript.wrappedBuffer.lines = ireascript.wrappedBuffer.lines + 1
           left = leftmost
         end
 
@@ -484,6 +513,7 @@ function ireascript.loop()
   end
 
   ireascript.draw()
+  ireascript.scrollTo(ireascript.scroll) -- refreshed bound check
 
   gfx.update()
 end
@@ -503,7 +533,9 @@ end
 function ireascript.nl()
   if ireascript.lines >= ireascript.MAXLINES then
     local buf = ireascript.removeUntil(ireascript.buffer, ireascript.SG_NEWLINE)
-    local wrap = ireascript.removeUntil(ireascript.wrappedBuffer, ireascript.SG_BUFNEWLINE)
+    local wrap, nlCount = ireascript.removeUntil(ireascript.wrappedBuffer, ireascript.SG_BUFNEWLINE)
+
+    ireascript.wrappedBuffer.lines = ireascript.wrappedBuffer.lines - nlCount
 
     if ireascript.from then
       ireascript.from.buffer = ireascript.from.buffer - buf
@@ -553,7 +585,7 @@ end
 
 function ireascript.backtrack()
   local bi = #ireascript.buffer
-  while bi >= 1 do
+  while bi > 0 do
     if ireascript.buffer[bi] == ireascript.SG_NEWLINE then
       break
     end
@@ -566,7 +598,7 @@ function ireascript.backtrack()
     ireascript.from.buffer = bi
 
     wi = #ireascript.wrappedBuffer
-    while wi >= 1 do
+    while wi > 0 do
       if ireascript.wrappedBuffer[wi] == ireascript.SG_BUFNEWLINE then
         break
       end
@@ -574,7 +606,7 @@ function ireascript.backtrack()
       wi = wi - 1
     end
 
-    ireascript.from.wrapped = wi
+    ireascript.from.wrapped = wi - 1
   end
 end
 
@@ -587,8 +619,20 @@ function ireascript.removeCursor()
       return
     elseif segment == ireascript.SG_CURSOR then
       table.remove(ireascript.buffer, i)
-      ireascript.from.buffer = ireascript.from.buffer - 1
-      ireascript.from.wrapped = ireascript.from.wrapped - 1
+      return
+    end
+
+    i = i - 1
+  end
+
+  local i = #ireascript.wrappedBuffer
+  while i >= 1 do
+    local segment = ireascript.wrappedBuffer[i]
+
+    if segment == ireascript.SG_BUFNEWLINE then
+      return
+    elseif segment == ireascript.SG_CURSOR then
+      table.remove(ireascript.wrappedBuffer, i)
       return
     end
 
@@ -597,11 +641,15 @@ function ireascript.removeCursor()
 end
 
 function ireascript.removeUntil(buf, sep)
-  local first, count = buf[1], 0
+  local first, count, nl = buf[1], 0, 0
 
   while first ~= nil do
     table.remove(buf, 1)
     count = count + 1
+
+    if first == ireascript.SG_NEWLINE then
+      nl = nl + 1
+    end
 
     if first == sep then
       break
@@ -610,7 +658,7 @@ function ireascript.removeUntil(buf, sep)
     first = buf[1]
   end
 
-  return count
+  return count, nl
 end
 
 function ireascript.moveCursor(pos)
@@ -636,8 +684,8 @@ function ireascript.historyJump(pos)
 end
 
 function ireascript.scrollTo(pos)
-  ireascript.scroll = pos
-  -- more calculations, bould checking and adjustments done by update()
+  local max = ireascript.wrappedBuffer.lines - (ireascript.page - 1)
+  ireascript.scroll = math.max(0, math.min(pos, max))
 end
 
 function ireascript.eval()
