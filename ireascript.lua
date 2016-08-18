@@ -327,12 +327,14 @@ function ireascript.draw(offset)
       gfx.x, gfx.y = ireascript.MARGIN, gfx.y - lineHeight
 
       if gfx.y > -lineHeight then
+        -- draw visible lines + partially visible first line
         ireascript.drawLine(lineStart, lineEnd, lineHeight)
       else
         before = before + lineHeight
       end
 
       if gfx.y > 0 then
+        -- only count 100% visible lines
         ireascript.page = ireascript.page + 1
       end
     else
@@ -346,14 +348,17 @@ function ireascript.draw(offset)
 
   if offset then
     if lastSkipped then
+      -- draw incomplete line below scrolling
       lineStart, lineEnd = lastSkipped[1], lastSkipped[2]
       gfx.x, gfx.y = ireascript.MARGIN, gfx.h - offset
       after = after - lastSkipped[3]
       ireascript.drawLine(lineStart, lineEnd, lastSkipped[3])
     end
 
+    -- simulate how many lines would be needed to fill the window
     ireascript.page = ireascript.page + math.floor(offset / lineHeight)
   elseif gfx.y > ireascript.MARGIN then
+    -- the window is not full, redraw aligned to the top
     return ireascript.draw(gfx.y - ireascript.MARGIN)
   end
 
