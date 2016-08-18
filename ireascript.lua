@@ -305,15 +305,23 @@ function ireascript.draw(offset)
   ireascript.page = 0
 
   while nl > 0 do
-    while nl > 0 and ireascript.wrappedBuffer[nl] ~= ireascript.SG_NEWLINE do
+    lineHeight = 0
+
+    while nl > 0 do
+      local segment = ireascript.wrappedBuffer[nl]
+
+      if type(segment) == 'table' then
+        lineHeight = math.max(lineHeight, segment.h)
+      elseif segment == ireascript.SG_NEWLINE then
+        break
+      end
+
       nl = nl - 1
     end
 
     local lineStart = nl + 1
 
     lines = lines + 1
-
-    lineHeight = ireascript.lineHeight(lineStart, lineEnd)
 
     if lines > ireascript.scroll then
       gfx.x, gfx.y = ireascript.MARGIN, gfx.y - lineHeight
@@ -350,19 +358,6 @@ function ireascript.draw(offset)
   end
 
   ireascript.scrollbar(before, after)
-end
-
-function ireascript.lineHeight(lineStart, lineEnd)
-  local height = 0
-
-  for i=lineStart,lineEnd do
-    local segment = ireascript.wrappedBuffer[i]
-    if type(segment) == 'table' then
-      height = math.max(height, segment.h)
-    end
-  end
-
-  return height
 end
 
 function ireascript.drawLine(lineStart, lineEnd, lineHeight)
