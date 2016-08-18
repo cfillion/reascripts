@@ -5,6 +5,7 @@
 --   + don't execute empty code input (v0.3 regression)
 --   + enhance formatting of string values
 --   + fix input of tildes
+--   + increase maximum buffer size to 2048 lines
 --   + limit maximum size of tables values when formatting
 --   + optimize layout by only computing new or modified text segments
 --   + preserve current input when using Ctrl+L shortcut
@@ -53,7 +54,7 @@ local ireascript = {
   TITLE = 'Interactive ReaScript',
   BANNER = 'Interactive ReaScript v0.4 by cfillion',
   MARGIN = 3,
-  MAXLINES = 1024,
+  MAXLINES = 2048,
   MAXDEPTH = 3, -- maximum array depth
   MAXLEN = 1024, -- maximum array size
   INDENT = 2,
