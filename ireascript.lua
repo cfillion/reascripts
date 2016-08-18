@@ -326,16 +326,16 @@ function ireascript.draw(offset)
     if lines > ireascript.scroll then
       gfx.x, gfx.y = ireascript.MARGIN, gfx.y - lineHeight
 
-      if gfx.y > -lineHeight then
-        -- draw visible lines + partially visible first line
-        ireascript.drawLine(lineStart, lineEnd, lineHeight)
-      else
-        before = before + lineHeight
-      end
-
       if gfx.y > 0 then
         -- only count 100% visible lines
         ireascript.page = ireascript.page + 1
+        ireascript.drawLine(lineStart, lineEnd, lineHeight)
+      elseif gfx.y > -lineHeight then
+        -- partially visible line at the top
+        before = before + math.abs(gfx.y)
+        ireascript.drawLine(lineStart, lineEnd, lineHeight)
+      else
+        before = before + lineHeight
       end
     else
       after = after + lineHeight
@@ -351,7 +351,7 @@ function ireascript.draw(offset)
       -- draw incomplete line below scrolling
       lineStart, lineEnd = lastSkipped[1], lastSkipped[2]
       gfx.x, gfx.y = ireascript.MARGIN, gfx.h - offset
-      after = after - lastSkipped[3]
+      after = after - (lastSkipped[3] - offset)
       ireascript.drawLine(lineStart, lineEnd, lastSkipped[3])
     end
 
