@@ -10,7 +10,7 @@
 --   + optimize layout by only computing new or modified text segments
 --   + preserve current input when using Ctrl+L shortcut
 --   + prevent cursor positon from affecting text position
---   + remove reaper/gfx proxy variable workaround, fixed in REAPER v5.23 [t=177319]
+--   + remove reaper/gfx proxy variable workaround (requires REAPER v5.23 [t=177319])
 --   + rewrite drawing & scrolling code
 --   + wait at least one second before blinking the cursor
 -- @description Interactive ReaScript (iReaScript)
