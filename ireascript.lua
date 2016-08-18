@@ -293,7 +293,6 @@ function ireascript.draw(offset)
   gfx.x = ireascript.MARGIN
   gfx.y = gfx.h - (offset or 0)
 
-  test = ireascript.wrappedBuffer
   local lineEnd = #ireascript.wrappedBuffer
   local nl = lineEnd + 1 -- past the end of the buffer
   local lines, lineHeight = 0, 0
