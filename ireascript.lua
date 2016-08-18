@@ -1009,7 +1009,7 @@ function ireascript.complete()
       end
     end
 
-    if len > word:len() then
+    if len >= word:len() then
       exact = matches[1]:sub(1, len)
     end
   end
