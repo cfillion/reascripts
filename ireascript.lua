@@ -8,6 +8,7 @@
 --   + limit maximum size of tables values when formatting
 --   + optimize layout by only computing new or modified text segments
 --   + preserve current input when using Ctrl+L shortcut
+--   + prevent cursor positon from affecting text position
 --   + remove reaper/gfx proxy variable workaround, fixed in REAPER v5.23 [t=177319]
 --   + rewrite drawing & scrolling code
 -- @description Interactive ReaScript (iReaScript)
@@ -73,8 +74,7 @@ local ireascript = {
 
   -- internal constants
   SG_NEWLINE = 1,
-  SG_CURSOR = 2,
-  SG_BUFNEWLINE = 3,
+  SG_BUFNEWLINE = 2,
 
   FONT_NORMAL = 1,
   FONT_BOLD = 2,
@@ -365,13 +365,7 @@ function ireascript.drawLine(lineStart, lineEnd, lineHeight)
   for i=lineStart,lineEnd do
     local segment = ireascript.wrappedBuffer[i]
 
-    if type(segment) ~= 'table' then
-      if segment == ireascript.SG_CURSOR then
-        if os.time() % 2 == 0 then
-          cursor = {x=gfx.x, y=gfx.y, h=lineHeight}
-        end
-      end
-    else
+    if type(segment) == 'table' then
       ireascript.useFont(segment.font)
 
       ireascript.useColor(segment.bg)
@@ -379,13 +373,18 @@ function ireascript.drawLine(lineStart, lineEnd, lineHeight)
 
       ireascript.useColor(segment.fg)
 
+      if segment.cursor and os.time() % 2 == 0 then
+        local w, _ = gfx.measurestr(segment.text:sub(0, segment.cursor))
+        ireascript.drawCursor(gfx.x + w, gfx.y, lineHeight)
+      end
+
       gfx.drawstr(segment.text)
     end
   end
+end
 
-  if cursor then
-    gfx.line(cursor.x, cursor.y, cursor.x, cursor.y + cursor.h)
-  end
+function ireascript.drawCursor(x, y, h)
+  gfx.line(x, y, x, y + h)
 end
 
 function ireascript.scrollbar(before, after)
@@ -568,8 +567,6 @@ function ireascript.push(contents)
 end
 
 function ireascript.prompt()
-  local before, after = ireascript.splitInput()
-
   ireascript.resetFormat()
   ireascript.backtrack()
   if ireascript.prepend:len() == 0 then
@@ -577,9 +574,15 @@ function ireascript.prompt()
   else
     ireascript.push(ireascript.PROMPT_CONTINUE)
   end
-  ireascript.push(before)
-  ireascript.buffer[#ireascript.buffer + 1] = ireascript.SG_CURSOR
-  ireascript.push(after)
+
+  if ireascript.input:len() > 0 then
+    ireascript.push(ireascript.input)
+    ireascript.buffer[#ireascript.buffer].cursor = ireascript.cursor
+  else
+    local promptLen = ireascript.buffer[#ireascript.buffer].text:len()
+    ireascript.buffer[#ireascript.buffer].cursor = promptLen
+  end
+
   ireascript.update()
 end
 
@@ -611,33 +614,7 @@ function ireascript.backtrack()
 end
 
 function ireascript.removeCursor()
-  local i = #ireascript.buffer
-  while i >= 1 do
-    local segment = ireascript.buffer[i]
-
-    if segment == ireascript.SG_NEWLINE then
-      return
-    elseif segment == ireascript.SG_CURSOR then
-      table.remove(ireascript.buffer, i)
-      return
-    end
-
-    i = i - 1
-  end
-
-  local i = #ireascript.wrappedBuffer
-  while i >= 1 do
-    local segment = ireascript.wrappedBuffer[i]
-
-    if segment == ireascript.SG_BUFNEWLINE then
-      return
-    elseif segment == ireascript.SG_CURSOR then
-      table.remove(ireascript.wrappedBuffer, i)
-      return
-    end
-
-    i = i - 1
-  end
+  ireascript.buffer[#ireascript.buffer].cursor = nil
 end
 
 function ireascript.removeUntil(buf, sep)
@@ -965,6 +942,7 @@ function ireascript.paste()
       if first then
         first = false
       else
+        ireascript.removeCursor()
         ireascript.nl()
         ireascript.eval()
         ireascript.input = ''
