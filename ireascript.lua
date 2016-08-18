@@ -101,6 +101,8 @@ local ireascript = {
   KEY_RIGHT = 1919379572,
   KEY_TAB = 9,
   KEY_UP = 30064,
+
+  EXT_SECTION = 'cfillion_ireascript',
 }
 
 function ireascript.help()
@@ -164,6 +166,7 @@ function ireascript.run()
   ireascript.lastMove = os.time()
 
   ireascript.reset(true)
+  ireascript.restoreDockedState()
   ireascript.loop()
 end
 
@@ -191,6 +194,7 @@ function ireascript.keyboard()
 
   if char < 0 then
     -- bye bye!
+    ireascript.saveDockedState()
     return false
   end
 
@@ -1055,6 +1059,21 @@ function ireascript.contains(table, val)
   end
 
   return false
+end
+
+function ireascript.restoreDockedState()
+  local docked_state = tonumber(reaper.GetExtState(
+    ireascript.EXT_SECTION, 'docked_state'))
+
+  if docked_state then
+    gfx.dock(docked_state)
+  end
+end
+
+function ireascript.saveDockedState()
+  local docked_state = gfx.dock(-1)
+  reaper.SetExtState(ireascript.EXT_SECTION,
+    'docked_state', tostring(docked_state), true)
 end
 
 gfx.init(ireascript.TITLE, 550, 350)
