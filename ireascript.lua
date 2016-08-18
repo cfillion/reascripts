@@ -11,6 +11,7 @@
 --   + prevent cursor positon from affecting text position
 --   + remove reaper/gfx proxy variable workaround, fixed in REAPER v5.23 [t=177319]
 --   + rewrite drawing & scrolling code
+--   + wait at least one second before blinking the cursor
 -- @description Interactive ReaScript (iReaScript)
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=177324
 -- @screenshot http://i.imgur.com/RrGfulR.gif
@@ -159,6 +160,7 @@ function ireascript.run()
   ireascript.cursor = 0
   ireascript.history = {}
   ireascript.hindex = 0
+  ireascript.lastMove = os.time()
 
   ireascript.reset(true)
   ireascript.loop()
@@ -360,7 +362,7 @@ function ireascript.lineHeight(lineStart, lineEnd)
 end
 
 function ireascript.drawLine(lineStart, lineEnd, lineHeight)
-  local cursor = nil
+  local now = os.time()
 
   for i=lineStart,lineEnd do
     local segment = ireascript.wrappedBuffer[i]
@@ -373,7 +375,7 @@ function ireascript.drawLine(lineStart, lineEnd, lineHeight)
 
       ireascript.useColor(segment.fg)
 
-      if segment.cursor and os.time() % 2 == 0 then
+      if segment.cursor and (now % 2 == 0 or now - ireascript.lastMove < 1) then
         local w, _ = gfx.measurestr(segment.text:sub(0, segment.cursor))
         ireascript.drawCursor(gfx.x + w, gfx.y, lineHeight)
       end
@@ -643,6 +645,7 @@ function ireascript.moveCursor(pos)
 
   if pos >= 0 and pos <= ireascript.input:len() then
     ireascript.cursor = pos
+    ireascript.lastMove = os.time()
     ireascript.prompt()
   end
 end
@@ -1018,6 +1021,7 @@ function ireascript.complete()
   end
 
   if #matches > 0 then
+    ireascript.removeCursor()
     ireascript.nl()
 
     for i=1,#matches do
