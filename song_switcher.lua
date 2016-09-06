@@ -525,14 +525,7 @@ end
 function loop()
   local listStart = 50
 
-  if reaper.HasExtState(EXT_SECTION, EXT_REL_MOVE) then
-    local move = tonumber(reaper.GetExtState(EXT_SECTION, EXT_REL_MOVE))
-    reaper.DeleteExtState(EXT_SECTION, EXT_REL_MOVE, false);
-
-    if move ~= 0 then
-      trySetCurrentIndex(currentIndex + move)
-    end
-  end
+  execRemoteActions()
 
   local fullUI = gfx.h > listStart + MARGIN
 
@@ -576,6 +569,22 @@ function loop()
   mouse()
 end
 
+function execRemoteActions()
+  if reaper.HasExtState(EXT_SECTION, EXT_REL_MOVE) then
+    local move = tonumber(reaper.GetExtState(EXT_SECTION, EXT_REL_MOVE))
+    reaper.DeleteExtState(EXT_SECTION, EXT_REL_MOVE, false);
+
+    if move ~= 0 then
+      trySetCurrentIndex(currentIndex + move)
+    end
+  end
+
+  if reaper.HasExtState(EXT_SECTION, EXT_RESET) then
+    reaper.DeleteExtState(EXT_SECTION, EXT_RESET, false);
+    reset()
+  end
+end
+
 function reset()
   songs = loadTracks()
 
@@ -613,6 +622,7 @@ function reset()
   filterBuffer = ''
 
   reaper.DeleteExtState(EXT_SECTION, EXT_REL_MOVE, false)
+  reaper.DeleteExtState(EXT_SECTION, EXT_RESET, false)
 
   if activeCount == 1 then
     if visibleCount == 0 then
@@ -687,6 +697,7 @@ HALF_MARGIN = 5
 EXT_SECTION = 'cfillion_song_switcher'
 EXT_DOCKED_STATE = 'docked_state'
 EXT_REL_MOVE = 'relative_move'
+EXT_RESET = 'reset'
 
 mouseState = 0
 mouseClick = false
