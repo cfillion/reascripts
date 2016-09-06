@@ -301,9 +301,7 @@ function dockButton()
 
   if button(btn, dockState ~= 0, false, false) then
     if dockState == 0 then
-      if reaper.HasExtState(EXT_SECTION, EXT_DOCKED_STATE) then
-        restoreDockedState()
-      else
+      if tonumber(restoreDockedState()) == 0 then
         gfx.dock(1)
       end
     else
@@ -527,6 +525,12 @@ function loop()
 
   execRemoteActions()
 
+  if gfx.dock(-1) > 0 then
+    -- workaround: REAPER does not seem to properly set getchar to -1
+    -- when closing a docked window
+    saveDockedState()
+  end
+
   local fullUI = gfx.h > listStart + MARGIN
 
   if fullUI then
@@ -640,6 +644,7 @@ function restoreDockedState()
 
   if docked_state then
     gfx.dock(docked_state)
+    return docked_state
   end
 end
 
