@@ -301,7 +301,7 @@ function dockButton()
 
   if button(btn, dockState ~= 0, false, false) then
     if dockState == 0 then
-      if reaper.HasExtState(EXT_SECTION, 'docked_state') then
+      if reaper.HasExtState(EXT_SECTION, EXT_DOCKED_STATE) then
         restoreDockedState()
       else
         gfx.dock(1)
@@ -525,6 +525,15 @@ end
 function loop()
   local listStart = 50
 
+  if reaper.HasExtState(EXT_SECTION, EXT_REL_MOVE) then
+    local move = tonumber(reaper.GetExtState(EXT_SECTION, EXT_REL_MOVE))
+    reaper.DeleteExtState(EXT_SECTION, EXT_REL_MOVE, false);
+
+    if move ~= 0 then
+      trySetCurrentIndex(currentIndex + move)
+    end
+  end
+
   local fullUI = gfx.h > listStart + MARGIN
 
   if fullUI then
@@ -603,6 +612,8 @@ function reset()
   filterPrompt = false
   filterBuffer = ''
 
+  reaper.DeleteExtState(EXT_SECTION, EXT_REL_MOVE, false)
+
   if activeCount == 1 then
     if visibleCount == 0 then
       currentIndex = activeIndex
@@ -615,7 +626,7 @@ function reset()
 end
 
 function restoreDockedState()
-  local docked_state = tonumber(reaper.GetExtState(EXT_SECTION, 'docked_state'))
+  local docked_state = tonumber(reaper.GetExtState(EXT_SECTION, EXT_DOCKED_STATE))
 
   if docked_state then
     gfx.dock(docked_state)
@@ -623,7 +634,7 @@ function restoreDockedState()
 end
 
 function saveDockedState()
-  reaper.SetExtState(EXT_SECTION, 'docked_state', tostring(dockState), true)
+  reaper.SetExtState(EXT_SECTION, EXT_DOCKED_STATE, tostring(dockState), true)
 end
 
 -- graphic initialization
@@ -674,6 +685,8 @@ MARGIN = 10
 HALF_MARGIN = 5
 
 EXT_SECTION = 'cfillion_song_switcher'
+EXT_DOCKED_STATE = 'docked_state'
+EXT_REL_MOVE = 'relative_move'
 
 mouseState = 0
 mouseClick = false
