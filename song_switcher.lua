@@ -2,6 +2,7 @@ function loadTracks()
   local size = reaper.GetNumTracks()
   local songs, sIndex = {}, 0
   local depth = 0
+  local isSong = false
 
   for index=0,size-1 do
     local track = reaper.GetTrack(0, index)
@@ -9,16 +10,17 @@ function loadTracks()
     local track_depth = reaper.GetMediaTrackInfo_Value(track, 'I_FOLDERDEPTH')
 
     if depth == 0 and track_depth == 1 then
-      sIndex = sIndex + 1
-
       local _, name = reaper.GetSetMediaTrackInfo_String(track, 'P_NAME', '', false)
 
-      if string.len(name) == 0 then
-        name = string.format("%02d. No Name", sIndex)
-      end
+      if name:find("%d+%.") then
+        sIndex = sIndex + 1
+        isSong = true
 
-      songs[sIndex] = {name=name, folder=track, tracks={track}, tracks_size=1}
-    elseif depth >= 1 then
+        songs[sIndex] = {name=name, folder=track, tracks={track}, tracks_size=1}
+      else
+        isSong = false
+      end
+    elseif depth >= 1 and isSong then
       songs[sIndex].tracks_size = songs[sIndex].tracks_size + 1
       songs[sIndex].tracks[songs[sIndex].tracks_size] = track
     end
