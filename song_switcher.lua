@@ -1,3 +1,35 @@
+-- @description Song Switcher
+-- @version 1.0
+-- @author cfillion
+-- @provides [main] cfillion_Song Switcher ({next,previous,reset}).lua
+-- @link Forum Thread http://forum.cockos.com/showthread.php?t=181159
+-- @screenshot
+--   Docked Mode http://i.imgur.com/4xPMV9J.gif
+--   Windowed Mode https://i.imgur.com/KOP2yK3.png
+-- @donation https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=T3DEWBQJAV7WL&lc=CA&item_name=ReaScript:%20Song%20Switcher&no_note=0&cn=Custom%20message&no_shipping=1&currency_code=CAD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted
+-- @about
+--   # Song Switcher
+--
+--   The purpose of this script is to quickly switch between songs in a single
+--   project during live shows. It is a replacement for the slow
+--   SWS Snapshots (visibility + mute).
+--
+--   ## Usage
+--
+--   Each song must be in a top-level folder track named "#. Song Name".
+--   This script will mute and hide all songs except for the current one.
+--   Other tracks/folders are left untouched.  
+--   This script works best with REAPER settings "Do not process muted tracks" and
+--   "Track mute fade" enabled.
+--
+--   The following actions are included:
+--
+--   - **cfillion_Song Switcher.lua**:
+--     This is the main script. It must be open to use the others.
+--   - **cfillion_Song Switcher (previous).lua**: Goes to the previous song
+--   - **cfillion_Song Switcher (next).lua**: Goes to the next song
+--   - **cfillion_Song Switcher (reset).lua**: Rebuilds the song list
+
 function loadTracks()
   local size = reaper.GetNumTracks()
   local songs, sIndex = {}, 0
