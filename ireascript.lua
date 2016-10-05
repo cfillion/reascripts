@@ -450,6 +450,8 @@ function ireascript.update()
       ireascript.useFont(segment.font)
 
       local text = segment.text
+      local cursor = segment.cursor
+      local startpos = 0
 
       while text:len() > 0 do
         local w, h = gfx.measurestr(text)
@@ -479,6 +481,14 @@ function ireascript.update()
         newSeg.text = text:sub(0, count)
         newSeg.w = w
         newSeg.h = h
+
+        if cursor and cursor >= startpos and
+            (cursor < startpos + count or not resized) then
+          newSeg.cursor = cursor - startpos
+        else
+          newSeg.cursor = nil
+        end
+
         ireascript.wrappedBuffer[#ireascript.wrappedBuffer + 1] = newSeg
 
         if resized then
@@ -488,6 +498,7 @@ function ireascript.update()
         end
 
         text = text:sub(count + 1)
+        startpos = startpos + count
       end
     end
   end
