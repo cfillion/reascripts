@@ -9,10 +9,10 @@
 --   + limit maximum size of tables values when formatting
 --   + optimize layout by only computing new or modified text segments
 --   + preserve current input when using Ctrl+L shortcut
---   + prevent cursor positon from affecting text position
+--   + prevent caret positon from affecting text position
 --   + remove reaper/gfx proxy variable workaround (requires REAPER v5.23 [t=177319])
 --   + rewrite drawing & scrolling code
---   + wait at least one second before blinking the cursor
+--   + wait at least one second before blinking the caret
 -- @description Interactive ReaScript (iReaScript)
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=177324
 -- @screenshot http://i.imgur.com/RrGfulR.gif
@@ -128,7 +128,7 @@ end
 function ireascript.clear(keepInput)
   if not keepInput then
     ireascript.input = ''
-    ireascript.cursor = 0
+    ireascript.caret = 0
   end
 
   ireascript.reset(false)
@@ -160,7 +160,7 @@ ireascript.BUILTIN = {
 function ireascript.run()
   ireascript.input = ''
   ireascript.prepend = ''
-  ireascript.cursor = 0
+  ireascript.caret = 0
   ireascript.history = {}
   ireascript.hindex = 0
   ireascript.lastMove = os.time()
@@ -206,7 +206,7 @@ function ireascript.keyboard()
   if char == ireascript.KEY_BACKSPACE then
     local before, after = ireascript.splitInput()
     ireascript.input = string.sub(before, 0, -2) .. after
-    ireascript.moveCursor(ireascript.cursor - 1)
+    ireascript.moveCaret(ireascript.caret - 1)
   elseif char == ireascript.KEY_DELETE then
     local before, after = ireascript.splitInput()
     ireascript.input = before .. string.sub(after, 2)
@@ -214,49 +214,49 @@ function ireascript.keyboard()
     ireascript.prompt()
   elseif char == ireascript.KEY_CLEAR then
     ireascript.input = ''
-    ireascript.moveCursor(0)
+    ireascript.moveCaret(0)
   elseif char == ireascript.KEY_CTRLU then
     local before, after = ireascript.splitInput()
     ireascript.input = after
-    ireascript.moveCursor(0)
+    ireascript.moveCaret(0)
   elseif char == ireascript.KEY_ENTER then
-    ireascript.removeCursor()
+    ireascript.removeCaret()
     ireascript.nl()
     ireascript.eval()
     ireascript.input = ''
     ireascript.hindex = 0
-    ireascript.moveCursor(0)
+    ireascript.moveCaret(0)
   elseif char == ireascript.KEY_CTRLL then
     ireascript.clear(true)
   elseif char == ireascript.KEY_CTRLD then
     ireascript.exit()
   elseif char == ireascript.KEY_HOME then
-    ireascript.moveCursor(0)
+    ireascript.moveCaret(0)
   elseif char == ireascript.KEY_LEFT then
     local pos
 
     if gfx.mouse_cap & 8 == 8 then
       local length = ireascript.input:len()
       pos = length - ireascript.nextBoundary(ireascript.input:reverse(),
-        length - ireascript.cursor + 1)
+        length - ireascript.caret + 1)
       if pos > 0 then pos = pos + 1 end
     else
-      pos = ireascript.cursor - 1
+      pos = ireascript.caret - 1
     end
 
-    ireascript.moveCursor(pos)
+    ireascript.moveCaret(pos)
   elseif char == ireascript.KEY_RIGHT then
     local pos
 
     if gfx.mouse_cap & 8 == 8 then
-      pos = ireascript.nextBoundary(ireascript.input, ireascript.cursor)
+      pos = ireascript.nextBoundary(ireascript.input, ireascript.caret)
     else
-      pos = ireascript.cursor + 1
+      pos = ireascript.caret + 1
     end
 
-    ireascript.moveCursor(pos)
+    ireascript.moveCaret(pos)
   elseif char == ireascript.KEY_END then
-    ireascript.moveCursor(ireascript.input:len())
+    ireascript.moveCaret(ireascript.input:len())
   elseif char == ireascript.KEY_UP then
     ireascript.historyJump(ireascript.hindex + 1)
   elseif char == ireascript.KEY_DOWN then
@@ -274,7 +274,7 @@ function ireascript.keyboard()
   elseif char >= ireascript.KEY_INPUTRANGE_FIRST and char <= ireascript.KEY_INPUTRANGE_LAST then
     local before, after = ireascript.splitInput()
     ireascript.input = before .. string.char(char) .. after
-    ireascript.moveCursor(ireascript.cursor + 1)
+    ireascript.moveCaret(ireascript.caret + 1)
   end
 
   return true
@@ -379,9 +379,9 @@ function ireascript.drawLine(lineStart, lineEnd, lineHeight)
 
       ireascript.useColor(segment.fg)
 
-      if segment.cursor and (now % 2 == 0 or now - ireascript.lastMove < 1) then
-        local w, _ = gfx.measurestr(segment.text:sub(0, segment.cursor))
-        ireascript.drawCursor(gfx.x + w, gfx.y, lineHeight)
+      if segment.caret and (now % 2 == 0 or now - ireascript.lastMove < 1) then
+        local w, _ = gfx.measurestr(segment.text:sub(0, segment.caret))
+        ireascript.drawCaret(gfx.x + w, gfx.y, lineHeight)
       end
 
       gfx.drawstr(segment.text)
@@ -389,7 +389,7 @@ function ireascript.drawLine(lineStart, lineEnd, lineHeight)
   end
 end
 
-function ireascript.drawCursor(x, y, h)
+function ireascript.drawCaret(x, y, h)
   gfx.line(x, y, x, y + h)
 end
 
@@ -450,7 +450,7 @@ function ireascript.update()
       ireascript.useFont(segment.font)
 
       local text = segment.text
-      local cursor = segment.cursor
+      local caret = segment.caret
       local startpos = 0
 
       while text:len() > 0 do
@@ -482,11 +482,11 @@ function ireascript.update()
         newSeg.w = w
         newSeg.h = h
 
-        if cursor and cursor >= startpos and
-            (cursor < startpos + count or not resized) then
-          newSeg.cursor = cursor - startpos
+        if caret and caret >= startpos and
+            (caret < startpos + count or not resized) then
+          newSeg.caret = caret - startpos
         else
-          newSeg.cursor = nil
+          newSeg.caret = nil
         end
 
         ireascript.wrappedBuffer[#ireascript.wrappedBuffer + 1] = newSeg
@@ -594,10 +594,10 @@ function ireascript.prompt()
 
   if ireascript.input:len() > 0 then
     ireascript.push(ireascript.input)
-    ireascript.buffer[#ireascript.buffer].cursor = ireascript.cursor
+    ireascript.buffer[#ireascript.buffer].caret = ireascript.caret
   else
     local promptLen = ireascript.buffer[#ireascript.buffer].text:len()
-    ireascript.buffer[#ireascript.buffer].cursor = promptLen
+    ireascript.buffer[#ireascript.buffer].caret = promptLen
   end
 
   ireascript.update()
@@ -630,8 +630,8 @@ function ireascript.backtrack()
   end
 end
 
-function ireascript.removeCursor()
-  ireascript.buffer[#ireascript.buffer].cursor = nil
+function ireascript.removeCaret()
+  ireascript.buffer[#ireascript.buffer].caret = nil
 end
 
 function ireascript.removeUntil(buf, sep)
@@ -655,11 +655,11 @@ function ireascript.removeUntil(buf, sep)
   return count, nl
 end
 
-function ireascript.moveCursor(pos)
+function ireascript.moveCaret(pos)
   ireascript.scrollTo(0)
 
   if pos >= 0 and pos <= ireascript.input:len() then
-    ireascript.cursor = pos
+    ireascript.caret = pos
     ireascript.lastMove = os.time()
     ireascript.prompt()
   end
@@ -674,7 +674,7 @@ function ireascript.historyJump(pos)
 
   ireascript.hindex = pos
   ireascript.input = ireascript.history[ireascript.hindex]
-  ireascript.moveCursor(ireascript.input:len())
+  ireascript.moveCaret(ireascript.input:len())
   ireascript.prompt()
 end
 
@@ -913,8 +913,8 @@ function ireascript.formatTable(value, size)
 end
 
 function ireascript.splitInput()
-  local before = ireascript.input:sub(0, ireascript.cursor)
-  local after = ireascript.input:sub(ireascript.cursor + 1)
+  local before = ireascript.input:sub(0, ireascript.caret)
+  local after = ireascript.input:sub(ireascript.caret + 1)
   return before, after
 end
 
@@ -960,16 +960,16 @@ function ireascript.paste()
       if first then
         first = false
       else
-        ireascript.removeCursor()
+        ireascript.removeCaret()
         ireascript.nl()
         ireascript.eval()
         ireascript.input = ''
-        ireascript.moveCursor(0)
+        ireascript.moveCaret(0)
       end
 
       local before, after = ireascript.splitInput()
       ireascript.input = before .. line .. after
-      ireascript.moveCursor(ireascript.cursor + line:len())
+      ireascript.moveCaret(ireascript.caret + line:len())
     end
   end
 
@@ -1032,11 +1032,11 @@ function ireascript.complete()
   if exact then
     before = before:sub(1, -(word:len() + 1))
     ireascript.input = before .. exact .. after
-    ireascript.cursor = ireascript.cursor + (exact:len() - word:len())
+    ireascript.caret = ireascript.caret + (exact:len() - word:len())
   end
 
   if #matches > 0 then
-    ireascript.removeCursor()
+    ireascript.removeCaret()
     ireascript.nl()
 
     for i=1,#matches do
