@@ -775,7 +775,7 @@ function ireascript.format(value)
     local i, array, last = 0, #value > 0, 0
 
     for k,v in pairs(value) do
-      if tonumber(k) then
+      if type(k) == 'number' and k > 0 then
         i = i + (k - last) - 1
         last = k
       else
