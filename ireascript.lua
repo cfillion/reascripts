@@ -772,7 +772,7 @@ function ireascript.format(value)
   local t = type(value)
 
   if t == 'table' then
-    local i, array, last = 0, #value > 0, 0
+    local i, array, last = 0, true, 0
 
     for k,v in pairs(value) do
       if type(k) == 'number' and k > 0 then
