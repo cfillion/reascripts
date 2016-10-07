@@ -1,18 +1,10 @@
--- @version 0.4
+-- @version 0.4.1
 -- @author cfillion
 -- @changelog
---   + autocomplete partial matches
---   + don't execute empty code input (v0.3 regression)
---   + enhance formatting of string values
---   + fix input of tildes
---   + increase maximum buffer size to 2048 lines
---   + limit maximum size of tables values when formatting
---   + optimize layout by only computing new or modified text segments
---   + preserve current input when using Ctrl+L shortcut
---   + prevent caret positon from affecting text position
---   + remove reaper/gfx proxy variable workaround (requires REAPER v5.23 [t=177319])
---   + rewrite drawing & scrolling code
---   + wait at least one second before blinking the caret
+--   + fix auto-completion of exact matches
+--   + fix caret display in multiline input
+--   + improve how partially visible lines affect the scrollbar
+--   + remember docked state (use `gfx.dock(N)` to put in dock)
 -- @description Interactive ReaScript (iReaScript)
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=177324
 -- @screenshot http://i.imgur.com/RrGfulR.gif
