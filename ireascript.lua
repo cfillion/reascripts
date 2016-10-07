@@ -39,12 +39,12 @@
 --   Send patches at <https://github.com/cfillion/reascripts>.
 
 local string, table, math, os = string, table, math, os
-local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs
+local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs, select
 
 local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript',
-  BANNER = 'Interactive ReaScript v0.4 by cfillion',
+  BANNER = 'Interactive ReaScript v0.4.1 by cfillion',
   MARGIN = 3,
   MAXLINES = 2048,
   MAXDEPTH = 3, -- maximum array depth
@@ -96,6 +96,14 @@ local ireascript = {
 
   EXT_SECTION = 'cfillion_ireascript',
 }
+
+print = function(...)
+  for i=1,select('#', ...) do
+    if i > 1 then ireascript.push("\t") end
+    ireascript.format(select(i, ...))
+  end
+  ireascript.nl()
+end
 
 function ireascript.help()
   ireascript.resetFormat()
