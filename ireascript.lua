@@ -1,10 +1,10 @@
--- @version 0.4.1
+-- @version 0.4.2
 -- @author cfillion
 -- @changelog
---   + fix auto-completion of exact matches
---   + fix caret display in multiline input
---   + improve how partially visible lines affect the scrollbar
---   + remember docked state (use `gfx.dock(N)` to put in dock)
+--   + fix formatting of zero-indexed table
+--   + fix formatting of zero-sized (yet non-empty) tables
+--   + override global 'print' function
+--   + use braces instead of non-lua brackets for tables with numeric indexes
 -- @description Interactive ReaScript (iReaScript)
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=177324
 -- @screenshot http://i.imgur.com/RrGfulR.gif
@@ -44,7 +44,7 @@ local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs, select
 local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript',
-  BANNER = 'Interactive ReaScript v0.4.1 by cfillion',
+  BANNER = 'Interactive ReaScript v0.4.2 by cfillion',
   MARGIN = 3,
   MAXLINES = 2048,
   MAXDEPTH = 3, -- maximum array depth
