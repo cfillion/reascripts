@@ -831,7 +831,7 @@ function ireascript.format(value)
 end
 
 function ireascript.formatArray(value, size)
-  ireascript.push('[')
+  ireascript.push('{')
 
   for i=1,size do
     local v = value[i]
@@ -851,7 +851,7 @@ function ireascript.formatArray(value, size)
   end
 
   ireascript.resetFormat()
-  ireascript.push(']')
+  ireascript.push('}')
 end
 
 function ireascript.formatTable(value, size)
