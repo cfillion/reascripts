@@ -421,7 +421,7 @@ function ireascript.update()
     ireascript.wrappedBuffer = {lines=0}
     ireascript.from = {buffer=1}
   else
-    while #ireascript.wrappedBuffer >= ireascript.from.wrapped do
+    while #ireascript.wrappedBuffer > ireascript.from.wrapped do
       if ireascript.wrappedBuffer[#ireascript.wrappedBuffer] == ireascript.SG_NEWLINE then
         ireascript.wrappedBuffer.lines = ireascript.wrappedBuffer.lines - 1
       end
@@ -503,7 +503,7 @@ function ireascript.update()
     end
   end
 
-  ireascript.from = {buffer=#ireascript.buffer, wrapped=#ireascript.wrappedBuffer}
+  ireascript.from = {buffer=#ireascript.buffer + 1, wrapped=#ireascript.wrappedBuffer + 1}
 end
 
 function ireascript.loop()
@@ -617,7 +617,7 @@ function ireascript.backtrack()
   if ireascript.from and ireascript.from.buffer > bi then
     ireascript.from.buffer = bi
 
-    wi = #ireascript.wrappedBuffer
+    local wi = #ireascript.wrappedBuffer
     while wi > 0 do
       if ireascript.wrappedBuffer[wi] == ireascript.SG_BUFNEWLINE then
         break
@@ -632,6 +632,19 @@ end
 
 function ireascript.removeCaret()
   ireascript.buffer[#ireascript.buffer].caret = nil
+
+  local wi = #ireascript.wrappedBuffer
+  while wi > 0 do
+    local segment = ireascript.wrappedBuffer[wi]
+
+    if segment == ireascript.SG_BUFNEWLINE then
+      break
+    elseif type(segment) == 'table' then
+      segment.caret = nil
+    end
+
+    wi = wi - 1
+  end
 end
 
 function ireascript.removeUntil(buf, sep)
@@ -997,7 +1010,7 @@ function ireascript.complete()
   word = word:lower()
 
   for k, _ in pairs(source) do
-    test = k:lower()
+    local test = k:lower()
     if test:sub(1, word:len()) == word then
       matches[#matches + 1] = k
     end
