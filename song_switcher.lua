@@ -295,9 +295,8 @@ function songList(y)
     scrollbar(y, gfx.h - y)
   end
 
-  if newScrollOffset then
-    scrollOffset = math.max(0, math.min(newScrollOffset, maxScrollOffset))
-  end
+  scrollOffset = math.max(0,
+    math.min(newScrollOffset or scrollOffset, maxScrollOffset))
 end
 
 function scrollbar(top, height)
