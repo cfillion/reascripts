@@ -91,16 +91,14 @@ end
 function setSongEnabled(song, enabled)
   if song == nil then return end
 
-  local on, off, isValid = 1, 0, isSongValid(song)
-
   invalid = not isSongValid(song)
+  if invalid then return false end
+
+  local on, off = 1, 0
 
   if not enabled then
-    on = 0
-    off = 1
+    on, off = 0, 1
   end
-
-  if invalid then return false end
 
   reaper.SetMediaTrackInfo_Value(song.folder, 'B_MUTE', off)
 
@@ -129,6 +127,14 @@ function setCurrentIndex(index)
   if enableOk or disableOk then
     currentIndex = index
     setNextIndex(index)
+
+    local mode = getSwitchMode()
+    if mode == SWITCH_SEEKSTOP then
+      reaper.CSurf_OnStop()
+    end
+    if mode == SWITCH_SEEK or mode == SWITCH_SEEKSTOP then
+      reaper.CSurf_GoStart()
+    end
   end
 
   reaper.PreventUIRefresh(-1)
@@ -318,6 +324,33 @@ function resetButton()
 
   if button(btn, false, false, true) then
     reset()
+  end
+end
+
+function switchModeButton()
+  gfx.setfont(FONT_DEFAULT)
+  gfx.x = 0
+  gfx.y = LIST_START - (MARGIN / 2)
+
+  local mode, action = getSwitchMode()
+
+  if mode == SWITCH_SEEK then
+    action = 'seek'
+  elseif mode == SWITCH_SEEKSTOP then
+    action = 'seek+stop'
+  else
+    action = 'onswitch'
+  end
+
+  btn = textLine(action)
+  btn.tx = btn.rect.w - btn.tw
+  btn.ty = btn.ty - btn.rect.h
+  btn.rect.w = btn.tw
+  btn.rect.x = btn.tx
+  btn.rect.y = btn.ty
+
+  if button(btn, mode > SWITCH_NOACTION, false, false) then
+    setSwitchMode((mode + 1) % (SWITCH_SEEKSTOP + 1))
   end
 end
 
@@ -553,8 +586,6 @@ function mouse()
 end
 
 function loop()
-  local listStart = 50
-
   execRemoteActions()
 
   if gfx.dock(-1) > 0 then
@@ -563,23 +594,25 @@ function loop()
     saveDockedState()
   end
 
-  local fullUI = gfx.h > listStart + MARGIN
+  local fullUI = gfx.h > LIST_START + MARGIN
 
   if fullUI then
-    songList(listStart)
+    songList(LIST_START)
 
     -- solid header background, to hide scrolled list items
     gfx.y = MARGIN
     useColor(COLOR_BLACK)
-    gfx.rect(0, 0, gfx.w, listStart)
+    gfx.rect(0, 0, gfx.w, LIST_START)
 
     -- separator line
-    gfx.y = listStart - HALF_MARGIN
+    gfx.y = LIST_START - HALF_MARGIN
     useColor(COLOR_BORDER)
     gfx.line(0, gfx.y, gfx.w, gfx.y)
 
     dockButton()
+    switchModeButton()
     resetButton()
+
     gfx.setfont(FONT_LARGE)
   else
     gfx.y = MARGIN + PADDING
@@ -684,6 +717,20 @@ function saveDockedState()
   reaper.SetExtState(EXT_SECTION, EXT_DOCKED_STATE, tostring(dockState), true)
 end
 
+function getSwitchMode()
+  local mode = tonumber(reaper.GetExtState(EXT_SECTION, EXT_SWITCH_MODE))
+
+  if mode and mode <= SWITCH_SEEKSTOP then
+    return mode
+  else
+    return SWITCH_NOACTION
+  end
+end
+
+function setSwitchMode(mode)
+  reaper.SetExtState(EXT_SECTION, EXT_SWITCH_MODE, tostring(mode), true)
+end
+
 -- graphic initialization
 FONT_DEFAULT = 0
 FONT_LARGE = 1
@@ -730,11 +777,17 @@ KEY_F3 = 26163
 PADDING = 3
 MARGIN = 10
 HALF_MARGIN = 5
+LIST_START = 50
 
 EXT_SECTION = 'cfillion_song_switcher'
+EXT_SWITCH_MODE = 'onswitch'
 EXT_DOCKED_STATE = 'docked_state'
 EXT_REL_MOVE = 'relative_move'
 EXT_RESET = 'reset'
+
+SWITCH_NOACTION = 0
+SWITCH_SEEK = 1
+SWITCH_SEEKSTOP = 2
 
 mouseState = 0
 mouseClick = false
