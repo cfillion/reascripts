@@ -478,7 +478,11 @@ end
 
 function filterKey(input)
   if input == KEY_BACKSPACE then
-    filterBuffer = string.sub(filterBuffer, 0, -2)
+    if filterBuffer:len() == 0 then
+      filterPrompt = false
+    else
+      filterBuffer = string.sub(filterBuffer, 0, -2)
+    end
   elseif input == KEY_CLEAR or input == KEY_CTRLU then
     filterBuffer = ''
   elseif input == KEY_ESCAPE then
