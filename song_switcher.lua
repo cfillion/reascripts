@@ -1,5 +1,9 @@
 -- @description Song Switcher
--- @version 1.0
+-- @version 1.1
+-- @changelog
+--   + add onswitch setting (no action, seek, seek+stop) [p=1742908]
+--   + exit filter mode if empty when pressing backspace
+--   + reduce scrolling when there is enough space
 -- @author cfillion
 -- @provides [main] cfillion_Song Switcher ({next,previous,reset}).lua
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=181159
