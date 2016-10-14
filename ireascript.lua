@@ -1,10 +1,7 @@
--- @version 0.4.2
+-- @version 0.4.3
 -- @author cfillion
 -- @changelog
---   + fix formatting of zero-indexed table
---   + fix formatting of zero-sized (yet non-empty) tables
---   + override global 'print' function
---   + use braces instead of non-lua brackets for tables with numeric indexes
+--   fix drawing of multiline input after code execution
 -- @description Interactive ReaScript (iReaScript)
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=177324
 -- @screenshot http://i.imgur.com/RrGfulR.gif
@@ -44,7 +41,7 @@ local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs, select
 local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript',
-  BANNER = 'Interactive ReaScript v0.4.2 by cfillion',
+  BANNER = 'Interactive ReaScript v0.4.3 by cfillion',
   MARGIN = 3,
   MAXLINES = 2048,
   MAXDEPTH = 3, -- maximum array depth
