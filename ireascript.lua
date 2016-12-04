@@ -833,8 +833,8 @@ function ireascript.format(value)
     ireascript.foreground = ireascript.COLOR_GREEN
     value = string.format('%q', value):
       gsub("\\\n", '\\n'):
-      gsub('\\13', '\\r'):
-      gsub("\\9", '\\t')
+      gsub('\\0*13', '\\r'):
+      gsub("\\0*9", '\\t')
   end
 
   ireascript.push(tostring(value))
