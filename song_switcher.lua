@@ -34,6 +34,8 @@
 --   - **cfillion_Song Switcher (next).lua**: Goes to the next song
 --   - **cfillion_Song Switcher (reset).lua**: Rebuilds the song list
 
+WINDOW_TITLE = 'Song Switcher'
+
 FONT_DEFAULT = 0
 FONT_LARGE = 1
 FONT_SMALL = 2
@@ -808,16 +810,20 @@ scrollTo = 0
 lastClick = 0
 isDoubleClick = false
 
--- other variable initializations in reset()
-reset()
-
 local w, h, dockState, x, y = previousWindowState()
-if not w then w, h = 500, 300 end
 
-gfx.init('Song Switcher', w, h, dockState, x, y)
+if w then
+  gfx.init(WINDOW_TITLE, w, h, dockState, x, y)
+else
+  gfx.init(WINDOW_TITLE, 500, 300)
+end
+
 gfx.setfont(FONT_HUGE, 'sans-serif', 36, 'b')
 gfx.setfont(FONT_LARGE, 'sans-serif', 28, 'b')
 gfx.setfont(FONT_SMALL, 'sans-serif', 13)
+
+-- other variable initializations in reset()
+reset()
 
 -- GO!!
 loop()
