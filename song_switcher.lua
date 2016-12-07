@@ -365,14 +365,18 @@ function dockButton()
   btn = textLine('dock', 0)
   btn.rect.w = btn.tw
 
-  dockState = gfx.dock(-1)
+  local dockState = gfx.dock(-1)
 
   if button(btn, dockState ~= 0, false, false) then
     if dockState == 0 then
-      if tonumber(restoreDockedState()) == 0 then
-        gfx.dock(1)
-      end
+      local lastDock = tonumber(reaper.GetExtState(EXT_SECTION,
+        EXT_LAST_DOCKED_STATE))
+      if not lastDock or lastDock < 1 then lastDock = 1 end
+
+      gfx.dock(lastDock)
     else
+      reaper.SetExtState(EXT_SECTION, EXT_LAST_DOCKED_STATE,
+        tostring(dockState), true)
       gfx.dock(0)
     end
   end
@@ -714,7 +718,7 @@ function restoreDockedState()
 end
 
 function saveDockedState()
-  reaper.SetExtState(EXT_SECTION, EXT_DOCKED_STATE, tostring(dockState), true)
+  reaper.SetExtState(EXT_SECTION, EXT_DOCKED_STATE, tostring(gfx.dock(-1)), true)
 end
 
 function getSwitchMode()
@@ -782,6 +786,7 @@ LIST_START = 50
 EXT_SECTION = 'cfillion_song_switcher'
 EXT_SWITCH_MODE = 'onswitch'
 EXT_DOCKED_STATE = 'docked_state'
+EXT_LAST_DOCKED_STATE = 'last_docked_state'
 EXT_REL_MOVE = 'relative_move'
 EXT_RESET = 'reset'
 
@@ -793,7 +798,6 @@ mouseState = 0
 mouseClick = false
 highlightTime = 0
 scrollTo = 0
-dockState = 0
 lastClick = 0
 isDoubleClick = false
 
