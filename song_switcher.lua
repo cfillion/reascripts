@@ -370,12 +370,12 @@ function dockButton()
   if button(btn, dockState ~= 0, false, false) then
     if dockState == 0 then
       local lastDock = tonumber(reaper.GetExtState(EXT_SECTION,
-        EXT_LAST_DOCKED_STATE))
+        EXT_LAST_DOCK))
       if not lastDock or lastDock < 1 then lastDock = 1 end
 
       gfx.dock(lastDock)
     else
-      reaper.SetExtState(EXT_SECTION, EXT_LAST_DOCKED_STATE,
+      reaper.SetExtState(EXT_SECTION, EXT_LAST_DOCK,
         tostring(dockState), true)
       gfx.dock(0)
     end
@@ -708,17 +708,20 @@ function reset()
   end
 end
 
-function restoreDockedState()
-  local docked_state = tonumber(reaper.GetExtState(EXT_SECTION, EXT_DOCKED_STATE))
-
-  if docked_state then
-    gfx.dock(docked_state)
-    return docked_state
-  end
+function previousWindowState()
+  local state = tostring(reaper.GetExtState(EXT_SECTION, EXT_WINDOW_STATE))
+  return state:match("(%d+) (%d+) (%d+) (-?%d+) (-?%d+)")
 end
 
-function saveDockedState()
-  reaper.SetExtState(EXT_SECTION, EXT_DOCKED_STATE, tostring(gfx.dock(-1)), true)
+function saveWindowState()
+  local dockState, xpos, ypos = gfx.dock(-1, 0, 0, 0, 0)
+  local w, h = gfx.w, gfx.h
+  if dockState > 0 then
+    w, h = previousWindowState()
+  end
+
+  reaper.SetExtState(EXT_SECTION, EXT_WINDOW_STATE,
+    string.format("%d %d %d %d %d", w, h, dockState, xpos, ypos), true)
 end
 
 function getSwitchMode()
@@ -785,8 +788,8 @@ LIST_START = 50
 
 EXT_SECTION = 'cfillion_song_switcher'
 EXT_SWITCH_MODE = 'onswitch'
-EXT_DOCKED_STATE = 'docked_state'
-EXT_LAST_DOCKED_STATE = 'last_docked_state'
+EXT_WINDOW_STATE = 'window_state'
+EXT_LAST_DOCK = 'last_dock'
 EXT_REL_MOVE = 'relative_move'
 EXT_RESET = 'reset'
 
@@ -804,16 +807,17 @@ isDoubleClick = false
 -- other variable initializations in reset()
 reset()
 
-gfx.init('Song Switcher', 500, 300)
+local w, h, dockState, x, y = previousWindowState()
+if not w then w, h = 500, 300 end
+
+gfx.init('Song Switcher', w, h, dockState, x, y)
 gfx.setfont(FONT_HUGE, 'sans-serif', 36, 'b')
 gfx.setfont(FONT_LARGE, 'sans-serif', 28, 'b')
 gfx.setfont(FONT_SMALL, 'sans-serif', 13)
-
-restoreDockedState()
 
 -- GO!!
 loop()
 
 reaper.atexit(function()
-  saveDockedState()
+  saveWindowState()
 end)
