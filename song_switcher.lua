@@ -462,7 +462,6 @@ function keyboard()
 
   if input < 0 then
     -- bye bye!
-    saveDockedState()
     return false
   end
 
@@ -594,12 +593,6 @@ end
 
 function loop()
   execRemoteActions()
-
-  if gfx.dock(-1) > 0 then
-    -- workaround: REAPER does not seem to properly set getchar to -1
-    -- when closing a docked window
-    saveDockedState()
-  end
 
   local fullUI = gfx.h > LIST_START + MARGIN
 
@@ -816,3 +809,7 @@ restoreDockedState()
 
 -- GO!!
 loop()
+
+reaper.atexit(function()
+  saveDockedState()
+end)
