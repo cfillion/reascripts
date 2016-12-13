@@ -824,8 +824,8 @@ else
   gfx.init(WINDOW_TITLE, 500, 300)
 end
 
-gfx.setfont(FONT_HUGE, 'sans-serif', 36, 'b')
-gfx.setfont(FONT_LARGE, 'sans-serif', 28, 'b')
+gfx.setfont(FONT_HUGE, 'sans-serif', 36)
+gfx.setfont(FONT_LARGE, 'sans-serif', 28)
 gfx.setfont(FONT_SMALL, 'sans-serif', 13)
 
 -- other variable initializations in reset()
