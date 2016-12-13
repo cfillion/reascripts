@@ -756,23 +756,29 @@ function reset()
   filterPrompt = false
   filterBuffer = ''
 
+  -- clear previous pending external commands
   reaper.DeleteExtState(EXT_SECTION, EXT_REL_MOVE, false)
   reaper.DeleteExtState(EXT_SECTION, EXT_RESET, false)
+  reaper.DeleteExtState(EXT_SECTION, EXT_FILTER, false)
 
   if activeCount == 1 then
     if visibleCount == 0 then
       currentIndex = activeIndex
       nextIndex = activeIndex
       scrollTo = activeIndex
+
+      updateState();
     else
       setCurrentIndex(activeIndex)
     end
+  else
+    updateState();
   end
 end
 
 function previousWindowState()
   local state = tostring(reaper.GetExtState(EXT_SECTION, EXT_WINDOW_STATE))
-  return state:match("(%d+) (%d+) (%d+) (-?%d+) (-?%d+)")
+  return state:match("^(%d+) (%d+) (%d+) (-?%d+) (-?%d+)$")
 end
 
 function saveWindowState()
