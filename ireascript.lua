@@ -514,7 +514,7 @@ function ireascript.update()
 end
 
 function ireascript.contextMenu()
-  local menu = ''
+  local menu = 'Copy|Paste||'
 
   local dockState = gfx.dock(-1)
   if dockState > 0 then menu = menu .. '!' end
@@ -524,6 +524,10 @@ function ireascript.contextMenu()
   local choice = gfx.showmenu(menu)
 
   if choice == 1 then
+    ireascript.copy()
+  elseif choice == 2 then
+    ireascript.paste()
+  elseif choice == 3 then
     if dockState == 0 then
       local lastDock = tonumber(reaper.GetExtState(ireascript.EXT_SECTION,
         ireascript.EXT_LAST_DOCK))
