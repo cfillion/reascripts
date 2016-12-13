@@ -94,6 +94,7 @@ local ireascript = {
   KEY_UP = 30064,
 
   EXT_SECTION = 'cfillion_ireascript',
+  EXT_WINDOW_STATE = 'window_state',
 }
 
 print = function(...)
@@ -169,7 +170,6 @@ function ireascript.run()
   ireascript.lastMove = os.time()
 
   ireascript.reset(true)
-  ireascript.restoreDockedState()
   ireascript.loop()
 end
 
@@ -197,7 +197,6 @@ function ireascript.keyboard()
 
   if char < 0 then
     -- bye bye!
-    ireascript.saveDockedState()
     return false
   end
 
@@ -1101,24 +1100,35 @@ function ireascript.contains(table, val)
   return false
 end
 
-function ireascript.restoreDockedState()
-  local docked_state = tonumber(reaper.GetExtState(
-    ireascript.EXT_SECTION, 'docked_state'))
+function previousWindowState()
+  local state = tostring(reaper.GetExtState(
+    ireascript.EXT_SECTION, ireascript.EXT_WINDOW_STATE))
+  return state:match("^(%d+) (%d+) (%d+) (-?%d+) (-?%d+)$")
+end
 
-  if docked_state then
-    gfx.dock(docked_state)
+function saveWindowState()
+  local dockState, xpos, ypos = gfx.dock(-1, 0, 0, 0, 0)
+  local w, h = gfx.w, gfx.h
+  if dockState > 0 then
+    w, h = previousWindowState()
   end
+
+  reaper.SetExtState(ireascript.EXT_SECTION, ireascript.EXT_WINDOW_STATE,
+    string.format("%d %d %d %d %d", w, h, dockState, xpos, ypos), true)
 end
 
-function ireascript.saveDockedState()
-  local docked_state = gfx.dock(-1)
-  reaper.SetExtState(ireascript.EXT_SECTION,
-    'docked_state', tostring(docked_state), true)
+local w, h, dockState, x, y = previousWindowState()
+
+if w then
+  gfx.init(ireascript.TITLE, w, h, dockState, x, y)
+else
+  gfx.init(ireascript.TITLE, 550, 350)
 end
 
-gfx.init(ireascript.TITLE, 550, 350)
 gfx.setfont(ireascript.FONT_NORMAL, 'Courier', 14)
 gfx.setfont(ireascript.FONT_BOLD, 'Courier', 14, string.byte('b'))
 
 -- GO!!
 ireascript.run()
+
+reaper.atexit(saveWindowState)
