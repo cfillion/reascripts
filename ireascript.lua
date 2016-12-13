@@ -103,23 +103,28 @@ print = function(...)
 end
 
 function ireascript.help()
+  function printLine(name, desc, colWidth)
+    local spaces = string.rep(' ', (colWidth - name:len()) + 1)
+    ireascript.highlightFormat()
+    ireascript.push(name)
+    ireascript.resetFormat()
+    ireascript.push(spaces .. desc)
+    ireascript.nl()
+  end
+
   ireascript.resetFormat()
   ireascript.push('Built-in commands:')
   ireascript.nl()
 
-  local colWidth = 8
-
   for i,command in ipairs(ireascript.BUILTIN) do
-    local spaces = string.rep(' ', colWidth - command.name:len())
-
-    ireascript.foreground = ireascript.COLOR_WHITE
-    ireascript.push(string.format('.%s', command.name))
-
-    ireascript.resetFormat()
-    ireascript.push(spaces .. command.desc)
-
-    ireascript.nl()
+    printLine(string.format('.%s', command.name), command.desc, 7)
   end
+
+  ireascript.nl()
+  ireascript.push('Built-in functions:')
+  ireascript.nl()
+  printLine("_", "Last return value", 11)
+  printLine("print(...)", "Print any number of values", 11)
 end
 
 function ireascript.clear(keepInput)
@@ -541,6 +546,12 @@ function ireascript.errorFormat()
   ireascript.font = ireascript.FONT_BOLD
   ireascript.foreground = ireascript.COLOR_WHITE
   ireascript.background = ireascript.COLOR_RED
+end
+
+function ireascript.highlightFormat()
+  ireascript.font = ireascript.FONT_BOLD
+  ireascript.foreground = ireascript.COLOR_WHITE
+  ireascript.background = ireascript.COLOR_BLACK
 end
 
 function ireascript.nl()
