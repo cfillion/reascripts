@@ -774,11 +774,11 @@ function ireascript.lua(code)
   end)
 
   if ok then
-    _ = values[1]
-
     if #values <= 1 then
+      _ = values[1]
       ireascript.format(values[1])
     else
+      _ = values
       ireascript.format(values)
     end
 
