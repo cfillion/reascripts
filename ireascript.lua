@@ -1,7 +1,13 @@
--- @version 0.4.3
+-- @version 0.5
 -- @author cfillion
 -- @changelog
---   fix drawing of multiline input after code execution
+--   add Copy/Paste/Clear/Dock/Close actions to the right click context menu
+--   display errors using bold font
+--   document the built-in functions and variables in .help
+--   fix formatting of \t and \r when they are followed by numbers
+--   implement (fix) display of empty lines
+--   remember window position, size and docked state
+--   store every return values in _ global variable
 -- @description Interactive ReaScript (iReaScript)
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=177324
 -- @screenshot http://i.imgur.com/RrGfulR.gif
@@ -41,7 +47,7 @@ local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs, select
 local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript',
-  BANNER = 'Interactive ReaScript v0.4.3 by cfillion',
+  BANNER = 'Interactive ReaScript v0.5 by cfillion',
   MARGIN = 3,
   MAXLINES = 2048,
   MAXDEPTH = 3, -- maximum array depth
