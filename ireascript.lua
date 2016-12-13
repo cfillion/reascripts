@@ -70,6 +70,8 @@ local ireascript = {
   FONT_NORMAL = 1,
   FONT_BOLD = 2,
 
+  EMPTY_LINE_HEIGHT = 14,
+
   KEY_BACKSPACE = 8,
   KEY_CLEAR = 144,
   KEY_CTRLC = 3,
@@ -103,28 +105,27 @@ print = function(...)
 end
 
 function ireascript.help()
-  function printLine(name, desc, colWidth)
+  function helpLine(name, desc, colWidth)
     local spaces = string.rep(' ', (colWidth - name:len()) + 1)
+    ireascript.nl()
     ireascript.highlightFormat()
     ireascript.push(name)
     ireascript.resetFormat()
     ireascript.push(spaces .. desc)
-    ireascript.nl()
   end
 
   ireascript.resetFormat()
   ireascript.push('Built-in commands:')
-  ireascript.nl()
 
   for i,command in ipairs(ireascript.BUILTIN) do
-    printLine(string.format('.%s', command.name), command.desc, 7)
+    helpLine(string.format('.%s', command.name), command.desc, 7)
   end
 
   ireascript.nl()
-  ireascript.push('Built-in functions:')
   ireascript.nl()
-  printLine("_", "Last return value", 11)
-  printLine("print(...)", "Print any number of values", 11)
+  ireascript.push('Built-in functions and variables:')
+  helpLine("print(...)", "Print any number of values", 11)
+  helpLine("_", "Last return value", 11)
 end
 
 function ireascript.clear(keepInput)
@@ -225,8 +226,6 @@ function ireascript.keyboard()
     ireascript.removeCaret()
     ireascript.nl()
     ireascript.eval()
-    ireascript.input = ''
-    ireascript.hindex = 0
     ireascript.moveCaret(0)
   elseif char == ireascript.KEY_CTRLL then
     ireascript.clear(true)
@@ -315,6 +314,9 @@ function ireascript.draw(offset)
       if type(segment) == 'table' then
         lineHeight = math.max(lineHeight, segment.h)
       elseif segment == ireascript.SG_NEWLINE then
+        if lineHeight == 0 then
+          lineHeight = ireascript.EMPTY_LINE_HEIGHT
+        end
         break
       end
 
@@ -444,7 +446,9 @@ function ireascript.update()
       ireascript.wrappedBuffer[#ireascript.wrappedBuffer + 1] = segment
 
       if segment == ireascript.SG_NEWLINE then
-        ireascript.wrappedBuffer[#ireascript.wrappedBuffer + 1] = ireascript.SG_BUFNEWLINE
+        -- insert buffer newline marker before the display newline
+        table.insert(ireascript.wrappedBuffer,
+          #ireascript.wrappedBuffer, ireascript.SG_BUFNEWLINE)
         ireascript.wrappedBuffer.lines = ireascript.wrappedBuffer.lines + 1
         left = leftmost
       end
@@ -739,8 +743,13 @@ function ireascript.eval()
     end
   end
 
-  ireascript.nl()
   table.insert(ireascript.history, 1, ireascript.input)
+  ireascript.hindex = 0
+  ireascript.input = ''
+
+  if ireascript.prepend:len() == 0 then
+    ireascript.nl()
+  end
 end
 
 function ireascript.code()
@@ -984,7 +993,6 @@ function ireascript.paste()
         ireascript.removeCaret()
         ireascript.nl()
         ireascript.eval()
-        ireascript.input = ''
         ireascript.moveCaret(0)
       end
 
