@@ -1099,7 +1099,7 @@ end
 
 gfx.init(ireascript.TITLE, 550, 350)
 gfx.setfont(ireascript.FONT_NORMAL, 'Courier', 14)
-gfx.setfont(ireascript.FONT_BOLD, 'Courier', 14, 'b')
+gfx.setfont(ireascript.FONT_BOLD, 'Courier', 14, string.byte('b'))
 
 -- GO!!
 ireascript.run()
