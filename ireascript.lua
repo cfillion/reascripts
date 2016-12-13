@@ -529,30 +529,28 @@ function ireascript.contextMenu()
     dockFlag
   )
 
+  local actions = {
+    ireascript.copy, ireascript.paste,
+    function() ireascript.clear(true) end,
+    function()
+      if dockState == 0 then
+        local lastDock = tonumber(reaper.GetExtState(
+          ireascript.EXT_SECTION, ireascript.EXT_LAST_DOCK))
+        if not lastDock or lastDock < 1 then lastDock = 1 end
+
+        gfx.dock(lastDock)
+      else
+        reaper.SetExtState(ireascript.EXT_SECTION, ireascript.EXT_LAST_DOCK,
+          tostring(dockState), true)
+        gfx.dock(0)
+      end
+    end,
+    ireascript.exit,
+  }
+
   gfx.x, gfx.y = gfx.mouse_x, gfx.mouse_y
-  local choice = gfx.showmenu(menu)
-
-  if choice == 1 then
-    ireascript.copy()
-  elseif choice == 2 then
-    ireascript.paste()
-  elseif choice == 3 then
-    ireascript.clear(true)
-  elseif choice == 4 then
-    if dockState == 0 then
-      local lastDock = tonumber(reaper.GetExtState(
-        ireascript.EXT_SECTION, ireascript.EXT_LAST_DOCK))
-      if not lastDock or lastDock < 1 then lastDock = 1 end
-
-      gfx.dock(lastDock)
-    else
-      reaper.SetExtState(ireascript.EXT_SECTION, ireascript.EXT_LAST_DOCK,
-        tostring(dockState), true)
-      gfx.dock(0)
-    end
-  elseif choice == 5 then
-    ireascript.exit()
-  end
+  local index = gfx.showmenu(menu)
+  if actions[index] then actions[index]() end
 end
 
 function ireascript.loop()
