@@ -4,7 +4,7 @@
 --   add Copy/Paste/Clear/Dock/Close actions to the right click context menu
 --   display errors using bold font
 --   document the built-in functions and variables in .help
---   fix formatting of \t and \r when they are followed by numbers
+--   fix formatting of \t and \r in strings when they are followed by numbers
 --   implement (fix) display of empty lines
 --   remember window position, size and docked state
 --   store every return values in _ global variable
