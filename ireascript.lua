@@ -95,6 +95,7 @@ local ireascript = {
 
   EXT_SECTION = 'cfillion_ireascript',
   EXT_WINDOW_STATE = 'window_state',
+  EXT_LAST_DOCK = 'last_dock',
 }
 
 print = function(...)
@@ -168,6 +169,7 @@ function ireascript.run()
   ireascript.history = {}
   ireascript.hindex = 0
   ireascript.lastMove = os.time()
+  ireascript.mouse_cap = 0
 
   ireascript.reset(true)
   ireascript.loop()
@@ -511,6 +513,31 @@ function ireascript.update()
   ireascript.from = {buffer=#ireascript.buffer + 1, wrapped=#ireascript.wrappedBuffer + 1}
 end
 
+function ireascript.contextMenu()
+  local menu = ''
+
+  local dockState = gfx.dock(-1)
+  if dockState > 0 then menu = menu .. '!' end
+  menu = menu .. 'Dock window'
+
+  gfx.x, gfx.y = gfx.mouse_x, gfx.mouse_y
+  local choice = gfx.showmenu(menu)
+
+  if choice == 1 then
+    if dockState == 0 then
+      local lastDock = tonumber(reaper.GetExtState(ireascript.EXT_SECTION,
+        ireascript.EXT_LAST_DOCK))
+      if not lastDock or lastDock < 1 then lastDock = 1 end
+
+      gfx.dock(lastDock)
+    else
+      reaper.SetExtState(ireascript.EXT_SECTION, ireascript.EXT_LAST_DOCK,
+        tostring(dockState), true)
+      gfx.dock(0)
+    end
+  end
+end
+
 function ireascript.loop()
   if ireascript.keyboard() then
     reaper.defer(ireascript.loop)
@@ -526,6 +553,14 @@ function ireascript.loop()
     end
 
     gfx.mouse_wheel = 0
+  end
+
+  if gfx.mouse_cap ~= ireascript.mouse_cap then
+    if gfx.mouse_cap & 2 == 0 and ireascript.mouse_cap & 2 == 2 then
+      ireascript.contextMenu()
+    end
+
+    ireascript.mouse_cap = gfx.mouse_cap
   end
 
   if ireascript.wrappedBuffer.w ~= gfx.w then
