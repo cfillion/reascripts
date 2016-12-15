@@ -210,6 +210,7 @@ function setCurrentIndex(index)
 
   filterPrompt = false
   filterBuffer = ''
+  updateState();
 end
 
 function trySetCurrentIndex(index)
@@ -718,6 +719,17 @@ function execRemoteActions()
     reaper.DeleteExtState(EXT_SECTION, EXT_RESET, false);
     reset()
   end
+
+  if reaper.HasExtState(EXT_SECTION, EXT_FILTER) then
+    local filter = reaper.GetExtState(EXT_SECTION, EXT_FILTER)
+    reaper.DeleteExtState(EXT_SECTION, EXT_FILTER, false);
+
+    local index, _ = findSong(filter)
+
+    if index then
+      setCurrentIndex(index)
+    end
+  end
 end
 
 function reset()
@@ -806,7 +818,19 @@ function setSwitchMode(mode)
   reaper.SetExtState(EXT_SECTION, EXT_SWITCH_MODE, tostring(mode), true)
 end
 
+function updateState()
+  local currentName
+  if songs[currentIndex] then
+    currentName = songs[currentIndex].name
+  else
+    currentName = ''
+  end
 
+  local state = string.format("%d\t%d\t%s\t%s",
+    currentIndex, #songs, currentName, tostring(invalid)
+  )
+  reaper.SetExtState(EXT_SECTION, EXT_STATE, state, false)
+end
 
 -- graphics initialization
 mouseState = 0
@@ -836,4 +860,5 @@ loop()
 
 reaper.atexit(function()
   saveWindowState()
+  reaper.DeleteExtState(EXT_SECTION, EXT_STATE, false)
 end)
