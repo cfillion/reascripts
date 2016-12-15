@@ -28,6 +28,7 @@
 --   - Colored output
 --   - Copy/Paste from clipboard
 --   - Error catching
+--   - Multiline input (functions, conditions...)
 --   - Pretty print return values
 --   - Scrolling
 --   - Text wrapping
