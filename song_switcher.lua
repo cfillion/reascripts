@@ -97,12 +97,11 @@ SWITCH_SEEK = 1
 SWITCH_SEEKSTOP = 2
 
 function loadTracks()
-  local size = reaper.GetNumTracks()
-  local songs, sIndex = {}, 0
+  local songs = {}
   local depth = 0
   local isSong = false
 
-  for index=0,size-1 do
+  for index=0,reaper.GetNumTracks()-1 do
     local track = reaper.GetTrack(0, index)
 
     local track_depth = reaper.GetMediaTrackInfo_Value(track, 'I_FOLDERDEPTH')
@@ -111,16 +110,23 @@ function loadTracks()
       local _, name = reaper.GetSetMediaTrackInfo_String(track, 'P_NAME', '', false)
 
       if name:find("%d+%.") then
-        sIndex = sIndex + 1
         isSong = true
 
-        songs[sIndex] = {name=name, folder=track, tracks={track}, tracks_size=1}
+        songs[#songs + 1] = {name=name, folder=track, tracks={track}, start=0}
       else
         isSong = false
       end
     elseif depth >= 1 and isSong then
-      songs[sIndex].tracks_size = songs[sIndex].tracks_size + 1
-      songs[sIndex].tracks[songs[sIndex].tracks_size] = track
+      local song = songs[#songs]
+      song.tracks[#song.tracks + 1] = track
+
+      local firstItem = reaper.GetTrackMediaItem(track, 0)
+      if firstItem then
+        local pos = reaper.GetMediaItemInfo_Value(firstItem, 'D_POSITION')
+        if song.start == 0 or song.start > pos then
+          song.start = pos
+        end
+      end
     end
 
     depth = depth + track_depth
@@ -187,8 +193,9 @@ function setCurrentIndex(index)
     setSongEnabled(songs[currentIndex], false)
   end
 
+  local song = songs[index]
   local disableOk = not invalid
-  local enableOk = setSongEnabled(songs[index], true)
+  local enableOk = setSongEnabled(song, true)
 
   if enableOk or disableOk then
     currentIndex = index
@@ -199,7 +206,7 @@ function setCurrentIndex(index)
       reaper.CSurf_OnStop()
     end
     if mode == SWITCH_SEEK or mode == SWITCH_SEEKSTOP then
-      reaper.CSurf_GoStart()
+      reaper.SetEditCurPos(song.start, true, true)
     end
   end
 
