@@ -1,16 +1,20 @@
 -- @description Song Switcher
--- @version 1.1
+-- @version 1.2
 -- @changelog
---   + add onswitch setting (no action, seek, seek+stop) [p=1742908]
---   + exit filter mode if empty when pressing backspace
---   + reduce scrolling when there is enough space
+--   create a new web browser interface (requires REAPER v5.30+)
+--   improve how the previous docking state is saved
+--   remember window size and position
+--   seek to the first item in the song's children tracks [p=1743149]
 -- @author cfillion
--- @provides [main] cfillion_Song Switcher ({next,previous,reset}).lua
+-- @provides
+--   [main] cfillion_Song Switcher ({next,previous,reset}).lua
+--   [webinterface] song_switcher.html
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=181159
+-- @donation https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=T3DEWBQJAV7WL&lc=CA&item_name=ReaScript:%20Song%20Switcher&no_note=0&cn=Custom%20message&no_shipping=1&currency_code=CAD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted
 -- @screenshot
 --   Docked Mode http://i.imgur.com/4xPMV9J.gif
 --   Windowed Mode https://i.imgur.com/KOP2yK3.png
--- @donation https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=T3DEWBQJAV7WL&lc=CA&item_name=ReaScript:%20Song%20Switcher&no_note=0&cn=Custom%20message&no_shipping=1&currency_code=CAD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted
+--   Web Interface https://i.imgur.com/8NOddMK.png
 -- @about
 --   # Song Switcher
 --
@@ -23,8 +27,8 @@
 --   Each song must be in a top-level folder track named "#. Song Name".
 --   This script will mute and hide all songs except for the current one.
 --   Other tracks/folders are left untouched.  
---   This script works best with REAPER settings "Do not process muted tracks" and
---   "Track mute fade" enabled.
+--   This script works best with REAPER settings "**Do not process muted tracks**"
+--   and "**Track mute fade**" enabled.
 --
 --   The following actions are included:
 --
@@ -33,6 +37,9 @@
 --   - **cfillion_Song Switcher (previous).lua**: Goes to the previous song
 --   - **cfillion_Song Switcher (next).lua**: Goes to the next song
 --   - **cfillion_Song Switcher (reset).lua**: Rebuilds the song list
+--
+--   A web browser interface is also installed as **song_switcher.html** for
+--   remote use (this feature requires REAPER v5.30+ and ReaPack v1.1+).
 
 WINDOW_TITLE = 'Song Switcher'
 
