@@ -1,4 +1,4 @@
--- Explode selected tracks to mono tracks for REAPER v5.16+
+-- Explode selected tracks to mono tracks
 -- http://forum.cockos.com/showthread.php?p=1647321
 -- @version 1.1
 -- @author cfillion
