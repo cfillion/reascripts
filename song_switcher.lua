@@ -724,7 +724,7 @@ function execRemoteActions()
     local move = tonumber(reaper.GetExtState(EXT_SECTION, EXT_REL_MOVE))
     reaper.DeleteExtState(EXT_SECTION, EXT_REL_MOVE, false);
 
-    if move ~= 0 then
+    if move then
       trySetCurrentIndex(currentIndex + move)
     end
   end
