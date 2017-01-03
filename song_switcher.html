@@ -136,6 +136,7 @@
       const CMD_PLAY = 40044; // Transport: Play/stop
       const CMD_PREV = makeSetExtState(EXT_REL_MOVE, '-1');
       const CMD_NEXT = makeSetExtState(EXT_REL_MOVE, '1');
+      const CMD_UPDATE = ';TRANSPORT;GET/EXTSTATE/' + EXT_SECTION + '/' + EXT_STATE;
 
       function setText(node, text) {
         var textNode = node.lastChild;
@@ -167,6 +168,21 @@
           encodeURIComponent(value);
       }
 
+      function send(cmd) {
+        req = new XMLHttpRequest;
+        req.onreadystatechange = function() {
+          if(req.readyState != XMLHttpRequest.DONE)
+            return;
+          else if(req.status == 200)
+            callback(req.responseText);
+          else
+            callback('EXTSTATE\t' + EXT_SECTION + '\t' + EXT_STATE + '\t\n');
+        }
+
+        req.open('GET', '/_/' + cmd + CMD_UPDATE, true);
+        req.send(null);
+      }
+
       var ctrlBar = document.getElementById('controls');
       var prevBtn = document.getElementById('prev');
       var nextBtn = document.getElementById('next');
@@ -178,9 +194,9 @@
       var lastTransport;
       var lastState;
 
-      prevBtn.addEventListener('click', function() { wwr_req(CMD_PREV); });
-      nextBtn.addEventListener('click', function() { wwr_req(CMD_NEXT); });
-      playBtn.addEventListener('click', function() { wwr_req(CMD_PLAY); });
+      prevBtn.addEventListener('click', function() { send(CMD_PREV); });
+      nextBtn.addEventListener('click', function() { send(CMD_NEXT); });
+      playBtn.addEventListener('click', function() { send(CMD_PLAY); });
       songName.addEventListener('click', function() {
         setClass(songBox, 'edit', true);
         filter.focus();
@@ -193,17 +209,18 @@
           return;
 
         if(filter.value.length > 0)
-          wwr_req(makeSetExtState(EXT_FILTER, filter.value));
+          send(makeSetExtState(EXT_FILTER, filter.value));
 
         closeFilter();
       });
 
-      g_wwr_timer_freq = 500;
-      wwr_start();
-      wwr_req_recur('TRANSPORT;GET/EXTSTATE/' + EXT_SECTION + '/' + EXT_STATE, 1000);
+      (function fetch_loop() {
+        send('');
+        setTimeout(fetch_loop, 1000);
+      })();
 
-      function wwr_onreply(results) {
-        var lines = results.split("\n");
+      function callback(response) {
+        var lines = response.split("\n");
         for(var l = 0; l < lines.length - 1; l++) {
           var tok = lines[l].split("\t");
 
