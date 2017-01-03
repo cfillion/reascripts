@@ -211,11 +211,7 @@
           case 'TRANSPORT':
             if(tok[1] != lastTransport) {
               lastTransport = tok[1];
-
-              if(tok[1] == '1')
-                playBtn.className = 'button active';
-              else
-                playBtn.className = 'button';
+              setClass(playBtn, 'active', tok[1] == '1');
             }
             break;
           case 'EXTSTATE':
