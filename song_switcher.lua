@@ -7,10 +7,10 @@
 --   seek to the first item in the song's children tracks [p=1743149]
 -- @author cfillion
 -- @provides
---   [main] cfillion_Song Switcher ({next,previous,reset}).lua
---   [webinterface] song_switcher.html
+--   [main] cfillion_Song Switcher/*.lua
+--   [webinterface] cfillion_Song Switcher/song_switcher.html > song_switcher.html
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=181159
--- @donation https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=T3DEWBQJAV7WL&lc=CA&item_name=ReaScript:%20Song%20Switcher&no_note=0&cn=Custom%20message&no_shipping=1&currency_code=CAD&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted
+-- @donation https://www.paypal.me/cfillion
 -- @screenshot
 --   Docked Mode http://i.imgur.com/4xPMV9J.gif
 --   Windowed Mode https://i.imgur.com/KOP2yK3.png
