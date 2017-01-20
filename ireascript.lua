@@ -1,15 +1,14 @@
--- @version 0.5
+-- @version 0.6
 -- @author cfillion
 -- @changelog
---   add Copy/Paste/Clear/Dock/Close actions to the right click context menu
---   display errors using bold font
---   document the built-in functions and variables in .help
---   fix formatting of \t and \r in strings when they are followed by numbers
---   implement (fix) display of empty lines
---   remember window position, size and docked state
---   store every return values in _ global variable
+--   allow .clear to be recorded in the history
+--   do not crash on clipboard read/write failure (eg. 32-bit windows)
+--   don't evaluate command/actions while in a lua block
+--   implement !ACTION for Main actions, !!ACTION for MIDI Editor actions
+--   remove extra newline inserted when executing an empty command since v0.5
 -- @description Interactive ReaScript (iReaScript)
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=177324
+-- @donation https://www.paypal.me/cfillion
 -- @screenshot http://i.imgur.com/RrGfulR.gif
 -- @about
 --   # Interactive ReaScript (iReaScript)
@@ -32,6 +31,7 @@
 --   - Pretty print return values
 --   - Scrolling
 --   - Text wrapping
+--   - Run actions (!command_id, !!midi_editor_action)
 --
 --   ## Known Issues/Limitations
 --
@@ -48,7 +48,7 @@ local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs, select
 local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript',
-  BANNER = 'Interactive ReaScript v0.5 by cfillion',
+  BANNER = 'Interactive ReaScript v0.6 by cfillion',
   MARGIN = 3,
   MAXLINES = 2048,
   MAXDEPTH = 3, -- maximum array depth
