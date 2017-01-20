@@ -142,7 +142,7 @@ function ireascript.replay()
   local line = ireascript.history[1]
   if line and line ~= ireascript.CMD_PREFIX then
     ireascript.input = line
-    ireascript.eval()
+    ireascript.eval(true)
   else
     ireascript.errorFormat()
     ireascript.push('history is empty')
@@ -749,8 +749,8 @@ function ireascript.scrollTo(pos)
   ireascript.scroll = math.max(0, math.min(pos, max))
 end
 
-function ireascript.eval()
-  if ireascript.input:len() < 1 then return end
+function ireascript.eval(nested)
+  if ireascript.code():len() < 1 then return end
 
   if ireascript.input:sub(0, 1) == ireascript.CMD_PREFIX then
     ireascript.execCommand()
@@ -768,8 +768,7 @@ function ireascript.eval()
     end
   end
 
-  -- nested eval: stop here
-  if ireascript.input:len() < 1 then return end
+  if nested then return end
 
   table.insert(ireascript.history, 1, ireascript.input)
   ireascript.hindex = 0
