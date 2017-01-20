@@ -1020,7 +1020,18 @@ function ireascript.copy()
     tool = 'clip'
   end
 
-  local proc = assert(io.popen(tool, 'w'))
+  local proc, error = io.popen(tool, 'w')
+
+  if not proc then
+    ireascript.removeCaret()
+    ireascript.nl()
+    ireascript.errorFormat()
+    ireascript.push(error)
+    ireascript.nl()
+    ireascript.prompt()
+    return
+  end
+
   proc:write(ireascript.code())
   proc:close()
 end
@@ -1034,7 +1045,19 @@ function ireascript.paste()
     tool = 'powershell -windowstyle hidden -Command Get-Clipboard'
   end
 
-  local proc, first = assert(io.popen(tool, 'r')), true
+  local first = true
+  local proc, error = io.popen(tool, 'r')
+
+  if not proc then
+    ireascript.removeCaret()
+    ireascript.nl()
+    ireascript.errorFormat()
+    ireascript.push(error)
+    ireascript.nl()
+    ireascript.prompt()
+    return
+  end
+
   for line in proc:lines() do
     if line:len() > 0 then
       if first then
