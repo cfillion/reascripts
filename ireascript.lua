@@ -138,16 +138,6 @@ function ireascript.help()
   helpLine("_", "Last return value", 11)
 end
 
-function ireascript.clear(keepInput)
-  if not keepInput then
-    ireascript.input = ''
-    ireascript.caret = 0
-  end
-
-  ireascript.reset(false)
-  ireascript.update()
-end
-
 function ireascript.replay()
   local line = ireascript.history[1]
   if line and line ~= ireascript.CMD_PREFIX then
@@ -161,26 +151,6 @@ end
 
 function ireascript.exit()
   gfx.quit()
-end
-
-ireascript.BUILTIN = {
-  {name='clear', desc="Clear the line buffer", func=ireascript.clear},
-  {name='exit', desc="Close iReaScript", func=ireascript.exit},
-  {name='', desc="Repeat the last command", func=ireascript.replay},
-  {name='help', desc="Print this help text", func=ireascript.help},
-}
-
-function ireascript.run()
-  ireascript.input = ''
-  ireascript.prepend = ''
-  ireascript.caret = 0
-  ireascript.history = {}
-  ireascript.hindex = 0
-  ireascript.lastMove = os.time()
-  ireascript.mouse_cap = 0
-
-  ireascript.reset(true)
-  ireascript.loop()
 end
 
 function ireascript.reset(banner)
@@ -200,6 +170,26 @@ function ireascript.reset(banner)
   end
 
   ireascript.prompt()
+end
+
+ireascript.BUILTIN = {
+  {name='clear', desc="Clear the line buffer", func=ireascript.reset},
+  {name='exit', desc="Close iReaScript", func=ireascript.exit},
+  {name='', desc="Repeat the last command", func=ireascript.replay},
+  {name='help', desc="Print this help text", func=ireascript.help},
+}
+
+function ireascript.run()
+  ireascript.input = ''
+  ireascript.prepend = ''
+  ireascript.caret = 0
+  ireascript.history = {}
+  ireascript.hindex = 0
+  ireascript.lastMove = os.time()
+  ireascript.mouse_cap = 0
+
+  ireascript.reset(true)
+  ireascript.loop()
 end
 
 function ireascript.keyboard()
@@ -237,7 +227,7 @@ function ireascript.keyboard()
     ireascript.eval()
     ireascript.moveCaret(0)
   elseif char == ireascript.KEY_CTRLL then
-    ireascript.clear(true)
+    ireascript.reset()
   elseif char == ireascript.KEY_CTRLD then
     ireascript.exit()
   elseif char == ireascript.KEY_HOME then
@@ -533,7 +523,7 @@ function ireascript.contextMenu()
 
   local actions = {
     ireascript.copy, ireascript.paste,
-    function() ireascript.clear(true) end,
+    function() ireascript.reset() end,
     function()
       if dockState == 0 then
         local lastDock = tonumber(reaper.GetExtState(
@@ -778,15 +768,17 @@ function ireascript.eval()
     end
   end
 
-  if ireascript.input:len() == 0 then
-    return -- buffer got reset (eg. clear)
-  end
+  -- nested eval: stop here
+  if ireascript.input:len() < 1 then return end
 
   table.insert(ireascript.history, 1, ireascript.input)
   ireascript.hindex = 0
   ireascript.input = ''
 
-  if ireascript.prepend:len() == 0 then
+  if ireascript.lines == 0 then
+    -- buffer got reset (.clear)
+    ireascript.input = ''
+  elseif ireascript.prepend:len() == 0 then
     ireascript.nl()
   end
 end
@@ -804,10 +796,6 @@ function ireascript.execCommand()
 
   if match then
     match.func()
-
-    if ireascript.input:len() == 0 then
-      return -- buffer got reset
-    end
   else
     ireascript.errorFormat()
     ireascript.push(string.format("command not found: '%s'", name))
