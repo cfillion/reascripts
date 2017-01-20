@@ -750,14 +750,15 @@ function ireascript.scrollTo(pos)
 end
 
 function ireascript.eval(nested)
-  if ireascript.code():len() < 1 then return end
+  local code = ireascript.code()
+  if code:len() < 1 then return end
 
-  if ireascript.input:sub(0, 1) == ireascript.CMD_PREFIX then
-    ireascript.execCommand()
-  elseif ireascript.input:sub(0, 1) == ireascript.ACTION_PREFIX then
-    ireascript.execAction()
+  if code:sub(0, 1) == ireascript.CMD_PREFIX then
+    ireascript.execCommand(code:sub(2))
+  elseif code:sub(0, 1) == ireascript.ACTION_PREFIX then
+    ireascript.execAction(code:sub(2))
   else
-    local err = ireascript.lua(ireascript.code())
+    local err = ireascript.lua(code)
 
     if err then
       ireascript.errorFormat()
@@ -782,8 +783,7 @@ function ireascript.eval(nested)
   end
 end
 
-function ireascript.execCommand()
-  local name = ireascript.input:sub(2)
+function ireascript.execCommand(name)
   local match, lower = nil, name:lower()
 
   for _,command in ipairs(ireascript.BUILTIN) do
@@ -801,8 +801,8 @@ function ireascript.execCommand()
   end
 end
 
-function ireascript.execAction()
-  local name, midi = ireascript.input:sub(2), false
+function ireascript.execAction(name)
+  local midi = false
 
   if name:sub(0, 1) == ireascript.ACTION_PREFIX then
     name, midi = name:sub(2), true
@@ -863,7 +863,7 @@ function ireascript.lua(code)
     ireascript.prepend = ''
   else
     if values:sub(-5) == '<eof>' and ireascript.input:len() > 0 then
-      ireascript.prepend = ireascript.code()
+      ireascript.prepend = code
       return
     else
       ireascript.prepend = ''
