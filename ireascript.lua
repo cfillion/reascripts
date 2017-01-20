@@ -57,7 +57,8 @@ local ireascript = {
   INDENT_THRESHOLD = 5,
   PROMPT = '> ',
   PROMPT_CONTINUE = '*> ',
-  PREFIX = '.',
+  CMD_PREFIX = '.',
+  ACTION_PREFIX = '!',
 
   COLOR_BLACK = {12, 12, 12},
   COLOR_BLUE = {88, 124, 212},
@@ -149,7 +150,7 @@ end
 
 function ireascript.replay()
   local line = ireascript.history[1]
-  if line and line ~= ireascript.PREFIX then
+  if line and line ~= ireascript.CMD_PREFIX then
     ireascript.input = line
     ireascript.eval()
   else
@@ -194,7 +195,7 @@ function ireascript.reset(banner)
     ireascript.resetFormat()
     ireascript.push(ireascript.BANNER)
     ireascript.nl()
-    ireascript.push("Type Lua code or .help")
+    ireascript.push("Type Lua code, !ACTION or .help")
     ireascript.nl()
   end
 
@@ -761,9 +762,11 @@ end
 function ireascript.eval()
   if ireascript.input:len() < 1 then return end
 
-  local prefixLength = ireascript.PREFIX:len()
-  if ireascript.input:sub(0, prefixLength) == ireascript.PREFIX then
-    local name = ireascript.input:sub(prefixLength + 1)
+  local cmdPrefixLength = ireascript.CMD_PREFIX:len()
+  local actionPrefixLength = ireascript.ACTION_PREFIX:len()
+
+  if ireascript.input:sub(0, cmdPrefixLength) == ireascript.CMD_PREFIX then
+    local name = ireascript.input:sub(cmdPrefixLength + 1)
     local match, lower = nil, name:lower()
 
     for _,command in ipairs(ireascript.BUILTIN) do
@@ -782,6 +785,16 @@ function ireascript.eval()
     else
       ireascript.errorFormat()
       ireascript.push(string.format("command not found: '%s'", name))
+    end
+  elseif ireascript.input:sub(0, actionPrefixLength) == ireascript.ACTION_PREFIX then
+    local name = ireascript.input:sub(actionPrefixLength + 1)
+    local id = reaper.NamedCommandLookup(name)
+    if id > 0 then
+      reaper.Main_OnCommand(id, 0)
+      ireascript.format(id)
+    else
+      ireascript.errorFormat()
+      ireascript.push(string.format("action not found: '%s'", name))
     end
   else
     local err = ireascript.lua(ireascript.code())
