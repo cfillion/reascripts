@@ -759,6 +759,8 @@ function ireascript.scrollTo(pos)
 end
 
 function ireascript.eval()
+  if ireascript.input:len() < 1 then return end
+
   local prefixLength = ireascript.PREFIX:len()
   if ireascript.input:sub(0, prefixLength) == ireascript.PREFIX then
     local name = ireascript.input:sub(prefixLength + 1)
@@ -811,8 +813,6 @@ function ireascript.code()
 end
 
 function ireascript.lua(code)
-  if code:len() < 1 then return end
-
   local scope = 'eval' -- arbitrary value to have consistent error messages
 
   local ok, values = xpcall(function()
