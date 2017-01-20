@@ -762,40 +762,10 @@ end
 function ireascript.eval()
   if ireascript.input:len() < 1 then return end
 
-  local cmdPrefixLength = ireascript.CMD_PREFIX:len()
-  local actionPrefixLength = ireascript.ACTION_PREFIX:len()
-
-  if ireascript.input:sub(0, cmdPrefixLength) == ireascript.CMD_PREFIX then
-    local name = ireascript.input:sub(cmdPrefixLength + 1)
-    local match, lower = nil, name:lower()
-
-    for _,command in ipairs(ireascript.BUILTIN) do
-      if command.name == lower then
-        match = command
-        break
-      end
-    end
-
-    if match then
-      match.func()
-
-      if ireascript.input:len() == 0 then
-        return -- buffer got reset
-      end
-    else
-      ireascript.errorFormat()
-      ireascript.push(string.format("command not found: '%s'", name))
-    end
-  elseif ireascript.input:sub(0, actionPrefixLength) == ireascript.ACTION_PREFIX then
-    local name = ireascript.input:sub(actionPrefixLength + 1)
-    local id = reaper.NamedCommandLookup(name)
-    if id > 0 then
-      reaper.Main_OnCommand(id, 0)
-      ireascript.format(id)
-    else
-      ireascript.errorFormat()
-      ireascript.push(string.format("action not found: '%s'", name))
-    end
+  if ireascript.input:sub(0, 1) == ireascript.CMD_PREFIX then
+    ireascript.execCommand()
+  elseif ireascript.input:sub(0, 1) == ireascript.ACTION_PREFIX then
+    ireascript.execAction()
   else
     local err = ireascript.lua(ireascript.code())
 
@@ -808,12 +778,61 @@ function ireascript.eval()
     end
   end
 
+  if ireascript.input:len() == 0 then
+    return -- buffer got reset (eg. clear)
+  end
+
   table.insert(ireascript.history, 1, ireascript.input)
   ireascript.hindex = 0
   ireascript.input = ''
 
   if ireascript.prepend:len() == 0 then
     ireascript.nl()
+  end
+end
+
+function ireascript.execCommand()
+  local name = ireascript.input:sub(2)
+  local match, lower = nil, name:lower()
+
+  for _,command in ipairs(ireascript.BUILTIN) do
+    if command.name == lower then
+      match = command
+      break
+    end
+  end
+
+  if match then
+    match.func()
+
+    if ireascript.input:len() == 0 then
+      return -- buffer got reset
+    end
+  else
+    ireascript.errorFormat()
+    ireascript.push(string.format("command not found: '%s'", name))
+  end
+end
+
+function ireascript.execAction()
+  local name, midi = ireascript.input:sub(2), false
+
+  if name:sub(0, 1) == ireascript.ACTION_PREFIX then
+    name, midi = name:sub(2), true
+  end
+
+  local id = reaper.NamedCommandLookup(name)
+
+  if id > 0 then
+    if midi then
+      reaper.MIDIEditor_LastFocused_OnCommand(id, false)
+    else
+      reaper.Main_OnCommand(id, 0)
+    end
+    ireascript.format(id)
+  else
+    ireascript.errorFormat()
+    ireascript.push(string.format("action not found: '%s'", name))
   end
 end
 
