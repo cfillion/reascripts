@@ -59,6 +59,7 @@ local ireascript = {
   PROMPT_CONTINUE = '*> ',
   CMD_PREFIX = '.',
   ACTION_PREFIX = '!',
+  TAB = string.rep("\x20", 2),
 
   COLOR_BLACK = {12, 12, 12},
   COLOR_BLUE = {88, 124, 212},
@@ -108,7 +109,7 @@ local ireascript = {
 
 print = function(...)
   for i=1,select('#', ...) do
-    if i > 1 then ireascript.push("\t") end
+    if i > 1 then ireascript.push(ireascript.TAB) end
     ireascript.format(select(i, ...))
   end
   ireascript.nl()
