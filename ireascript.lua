@@ -1219,8 +1219,13 @@ else
   gfx.init(ireascript.TITLE, 550, 350)
 end
 
-gfx.setfont(ireascript.FONT_NORMAL, 'Courier', 14)
-gfx.setfont(ireascript.FONT_BOLD, 'Courier', 14, string.byte('b'))
+if ireascript.iswindows() then
+  gfx.setfont(ireascript.FONT_NORMAL, 'Consolas', 16)
+  gfx.setfont(ireascript.FONT_BOLD, 'Consolas', 16, string.byte('b'))
+else
+  gfx.setfont(ireascript.FONT_NORMAL, 'Courier', 14)
+  gfx.setfont(ireascript.FONT_BOLD, 'Courier', 14, string.byte('b'))
+end
 
 -- GO!!
 ireascript.run()
