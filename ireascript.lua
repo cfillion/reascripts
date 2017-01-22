@@ -472,8 +472,10 @@ function ireascript.update()
         -- rough first try for speed
         local overflow = (w + left) - gfx.w
         if overflow > 0 then
-          local firstCharWidth, _ = gfx.measurestr(segment.text:sub(0, 1))
-          resizeBy(math.floor(overflow / firstCharWidth))
+          local firstCharWidth, _ = gfx.measurestr(segment.text:match("%w"))
+          if firstCharWidth > 0 then
+            resizeBy(math.floor(overflow / firstCharWidth))
+          end
         end
 
         while w + left > gfx.w do
