@@ -48,7 +48,8 @@ local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs, select
 local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript',
-  BANNER = 'Interactive ReaScript v0.6 by cfillion',
+  VERSION = '0.6',
+
   MARGIN = 3,
   MAXLINES = 2048,
   MAXDEPTH = 3, -- maximum array depth
@@ -117,23 +118,22 @@ end
 function ireascript.help()
   function helpLine(name, desc, colWidth)
     local spaces = string.rep(' ', (colWidth - name:len()) + 1)
-    ireascript.nl()
     ireascript.highlightFormat()
     ireascript.push(name)
     ireascript.resetFormat()
     ireascript.push(spaces .. desc)
+    ireascript.nl()
   end
 
   ireascript.resetFormat()
-  ireascript.push('Built-in commands:')
+  ireascript.push('Built-in commands:\n')
 
   for i,command in ipairs(ireascript.BUILTIN) do
     helpLine(string.format('.%s', command.name), command.desc, 7)
   end
 
   ireascript.nl()
-  ireascript.nl()
-  ireascript.push('Built-in functions and variables:')
+  ireascript.push('Built-in functions and variables:\n')
   helpLine("print(...)", "Print any number of values", 11)
   helpLine("_", "Last return value", 11)
 end
@@ -163,10 +163,10 @@ function ireascript.reset(banner)
 
   if banner then
     ireascript.resetFormat()
-    ireascript.push(ireascript.BANNER)
-    ireascript.nl()
-    ireascript.push("Type Lua code, !ACTION or .help")
-    ireascript.nl()
+
+    ireascript.push(string.format('%s v%s by cfillion\n',
+      ireascript.TITLE, ireascript.VERSION))
+    ireascript.push('Type Lua code, !ACTION or .help\n')
   end
 
   ireascript.prompt()
@@ -626,15 +626,17 @@ function ireascript.push(contents)
 
   local index = 0
 
-  for line in contents:gmatch("[^\r\n]+") do
+  for line in contents:gmatch("[^\r\n]*") do
     if index > 0 then ireascript.nl() end
     index = index + 1
 
-    ireascript.buffer[#ireascript.buffer + 1] = {
-      font=ireascript.font,
-      fg=ireascript.foreground, bg=ireascript.background,
-      text=line:gsub("\t", string.rep("\x20", ireascript.INDENT)),
-    }
+    if line:len() > 0 then -- skip empty lines
+      ireascript.buffer[#ireascript.buffer + 1] = {
+        font=ireascript.font,
+        fg=ireascript.foreground, bg=ireascript.background,
+        text=line:gsub("\t", string.rep("\x20", ireascript.INDENT)),
+      }
+    end
   end
 end
 
@@ -765,6 +767,7 @@ function ireascript.eval(nested)
     if err then
       ireascript.errorFormat()
       ireascript.push(err)
+      ireascript.nl()
     else
       reaper.TrackList_AdjustWindows(false)
       reaper.UpdateArrange()
@@ -780,8 +783,6 @@ function ireascript.eval(nested)
   if ireascript.lines == 0 then
     -- buffer got reset (.clear)
     ireascript.input = ''
-  elseif ireascript.prepend:len() == 0 then
-    ireascript.nl()
   end
 end
 
@@ -799,7 +800,7 @@ function ireascript.execCommand(name)
     match.func()
   else
     ireascript.errorFormat()
-    ireascript.push(string.format("command not found: '%s'", name))
+    ireascript.push(string.format("command not found: '%s'\n", name))
   end
 end
 
@@ -821,7 +822,7 @@ function ireascript.execAction(name)
     ireascript.format(id)
   else
     ireascript.errorFormat()
-    ireascript.push(string.format("action not found: '%s'", name))
+    ireascript.push(string.format("action not found: '%s'\n", name))
   end
 end
 
@@ -862,6 +863,7 @@ function ireascript.lua(code)
       ireascript.format(values)
     end
 
+    ireascript.nl()
     ireascript.prepend = ''
   else
     if values:sub(-5) == '<eof>' and ireascript.input:len() > 0 then
