@@ -1064,18 +1064,25 @@ function ireascript.paste()
   local tool
 
   if ireascript.ismacos() then
-    tool = '/usr/bin/pbpaste'
+    tool = 'pbpaste'
   elseif ireascript.iswindows() then
     tool = 'powershell -windowstyle hidden -Command Get-Clipboard'
   end
 
-  local first, output = true, reaper.ExecProcess(tool, 0)
-  if not output then return end
+  local first = true
+  local proc, error = io.popen(tool, 'r')
 
-  local status, text = output:match("^(%d+)\n(.+)$")
-  if tonumber(status) ~= 0 or not text then return end
+  if not proc then
+    ireascript.removeCaret()
+    ireascript.nl()
+    ireascript.errorFormat()
+    ireascript.push(error)
+    ireascript.nl()
+    ireascript.prompt()
+    return
+  end
 
-  for line in ireascript.each_lines(text) do
+  for line in proc:lines() do
     if line:len() > 0 then
       if first then
         first = false
@@ -1091,6 +1098,8 @@ function ireascript.paste()
       ireascript.moveCaret(ireascript.caret + line:len())
     end
   end
+
+  proc:close()
 end
 
 function ireascript.complete()
