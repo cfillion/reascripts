@@ -626,7 +626,7 @@ function ireascript.push(contents)
 
   local index = 0
 
-  for line in contents:gmatch("[^\r\n]*") do
+  for line in ireascript.each_lines(contents) do
     if index > 0 then ireascript.nl() end
     index = index + 1
 
@@ -1074,7 +1074,7 @@ function ireascript.paste()
   local status, text = output:match("^(%d+)\n(.+)$")
   if tonumber(status) ~= 0 or not text then return end
 
-  for line in text:gmatch("[^\r\n]+") do
+  for line in ireascript.each_lines(text) do
     if line:len() > 0 then
       if first then
         first = false
@@ -1186,6 +1186,25 @@ function ireascript.contains(table, val)
   end
 
   return false
+end
+
+function ireascript.each_lines(text)
+  local pos, offset, finished = -1, 0, false
+
+  return function()
+    if finished then return end
+
+    pos = text:find('[\r\n]', pos + 1)
+
+    if not pos then
+      finished = true
+      return text:sub(offset)
+    end
+
+    local line = text:sub(offset, pos - 1)
+    offset = pos + 1
+    return line
+  end
 end
 
 function previousWindowState()
