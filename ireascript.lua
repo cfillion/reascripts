@@ -1037,7 +1037,7 @@ end
 function ireascript.copy()
   local tool
 
-  if ireascript.isosx() then
+  if ireascript.ismacos() then
     tool = 'pbcopy'
   elseif ireascript.iswindows() then
     tool = 'clip'
@@ -1062,7 +1062,7 @@ end
 function ireascript.paste()
   local tool
 
-  if ireascript.isosx() then
+  if ireascript.ismacos() then
     tool = '/usr/bin/pbpaste'
   elseif ireascript.iswindows() then
     tool = 'powershell -windowstyle hidden -Command Get-Clipboard'
@@ -1168,7 +1168,7 @@ function ireascript.iswindows()
   return reaper.GetOS():find('Win') ~= nil
 end
 
-function ireascript.isosx()
+function ireascript.ismacos()
   return reaper.GetOS():find('OSX') ~= nil
 end
 
