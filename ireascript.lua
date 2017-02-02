@@ -820,7 +820,8 @@ function ireascript.execAction(name)
       reaper.Main_OnCommand(id, 0)
     end
 
-    print(id, reaper.Undo_CanUndo2());
+    ireascript.format(id)
+    ireascript.nl()
   else
     ireascript.errorFormat()
     ireascript.push(string.format("action not found: '%s'\n", name))
