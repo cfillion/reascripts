@@ -1,11 +1,9 @@
--- @version 0.6
+-- @version 0.6.1
 -- @author cfillion
 -- @changelog
---   allow .clear to be recorded in the history
---   do not crash on clipboard read/write failure (eg. 32-bit windows)
---   don't evaluate command/actions while in a lua block
---   implement !ACTION for Main actions, !!ACTION for MIDI Editor actions
---   remove extra newline inserted when executing an empty command since v0.5
+--   fix division by zero when wrapping lines starting with a zero-length character
+--   fix invisible \t (tabs) on windows
+--   fix ugly font on windows
 -- @description Interactive ReaScript (iReaScript)
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=177324
 -- @donation https://www.paypal.me/cfillion
@@ -48,7 +46,7 @@ local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs, select
 local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript',
-  VERSION = '0.6',
+  VERSION = '0.6.1',
 
   MARGIN = 3,
   MAXLINES = 2048,
