@@ -52,7 +52,7 @@ function loop()
   end
 
   gfx.x, gfx.y = 10, 10
-  gfx.drawstr(modifiers(gfx.mouse_cap))
+  gfx.drawstr(modifiers())
 
   gfx.x, gfx.y = 10, 25
   gfx.drawstr(string.format("%d %d", gfx.mouse_cap, last_char or 0))
