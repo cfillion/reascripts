@@ -27,6 +27,7 @@ class Timeline extends EventEmitter
   update: (@data) ->
     [@canvas.width, @canvas.height] = [@canvas.clientWidth, @canvas.clientHeight]
     @scale = (@data.state.endTime - @data.state.startTime) / @canvas.width
+    @scale ||= 1 / Math.pow(2,32)
 
     @ctx.textBaseline = 'top'
     @ctx.font = "#{FONT_SIZE}px #{FONT_FAMILY}"
