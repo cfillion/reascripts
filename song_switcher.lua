@@ -118,8 +118,7 @@ function loadTracks()
 
       if name:find("%d+%.") then
         isSong = true
-
-        songs[#songs + 1] = {name=name, folder=track, tracks={track}, startTime=0, endTime=0}
+        table.insert(songs, {name=name, folder=track, tracks={track}})
       else
         isSong = false
       end
@@ -132,13 +131,15 @@ function loadTracks()
         local pos = reaper.GetMediaItemInfo_Value(item, 'D_POSITION')
         local endTime = pos + reaper.GetMediaItemInfo_Value(item, 'D_LENGTH')
 
-        if song.startTime == 0 or song.startTime > pos then
+        if not song.startTime or song.startTime > pos then
           song.startTime = pos
         end
-        if song.stop == 0 or song.endTime < endTime then
+        if not song.stopTime or song.endTime < endTime then
           song.endTime = endTime
         end
       end
+      if not song.startTime then song.startTime = 0 end
+      if not song.endTime then song.endTime = reaper.GetProjectLength() end
     end
 
     depth = depth + track_depth
