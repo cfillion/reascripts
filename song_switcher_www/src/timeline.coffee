@@ -1,16 +1,19 @@
-GRID_COLOR = '#888888'
 BACKGROUND = '#1e1e1e'
-FONT_SIZE = 14
+FONT_SIZE = 15
 FONT_FAMILY = 'sans-serif'
 ALIGN_LEFT = 1
 ALIGN_RIGHT = -1
-ALIGN_TOP = 0
-ALIGN_BOTTOM = 1
 PADDING = 20
 CURSOR_COLOR = 'yellow'
 CURSOR_WIDTH = 3
+GRID_COLOR = '#888888'
+GRID_WIDTH = 1
+MARKER_FG = 'white'
+MARKER_BG = 'red'
+MARKER_WIDTH = 2
 TYPE_CURSOR = 1
 TYPE_GRID = 2
+TYPE_MARKER = 3
 SNAP_THRESHOLD = 50
 
 EventEmitter = require('events').EventEmitter
@@ -34,25 +37,20 @@ class Timeline extends EventEmitter
     @snapPoints.length = 0
 
     @ctx.textBaseline = 'top'
-    @ctx.font = "#{FONT_SIZE}px #{FONT_FAMILY}"
 
     @ctx.fillStyle = BACKGROUND
     @ctx.fillRect 0, @rulerTop, @canvas.width, @rulerHeight
 
     end = @data.state.endTime - @data.state.startTime
-    @ctx.strokeStyle = @ctx.fillStyle = GRID_COLOR
-    @ctx.fillStyle = GRID_COLOR
-    @timeLabel 0, ALIGN_TOP
-    @rulerTick 0, TYPE_GRID
-    @timeLabel end, ALIGN_TOP
-    @timeLabel end / 2, ALIGN_TOP
-    @rulerTick end / 2, TYPE_GRID
-    @rulerTick end, TYPE_GRID
+    @gridLine 0
+    @gridLine end / 2
+    @gridLine end
 
-    cursorPos = @data.position - @data.state.startTime
-    @ctx.strokeStyle = @ctx.fillStyle = CURSOR_COLOR
-    @rulerTick cursorPos, TYPE_CURSOR
-    @timeLabel cursorPos, ALIGN_BOTTOM
+    [@ctx.strokeStyle, @ctx.fillStyle] = [MARKER_BG, MARKER_BG]
+    for marker in @data.markerList when marker.time >= @data.state.startTime and marker.time <= @data.state.endTime
+      @marker marker
+
+    @editCursor @data.position - @data.state.startTime
 
     if @data.position < @data.state.startTime
       @outOfBounds ALIGN_LEFT
@@ -61,30 +59,61 @@ class Timeline extends EventEmitter
 
     @snapPoints.sort (a, b) -> a - b
 
-  rulerTick: (time, type) ->
+  editCursor: (time) ->
     pos = @timeToPx time
-    @snapPoints.push pos unless type == TYPE_CURSOR
 
-    switch type
-      when TYPE_CURSOR
-        @ctx.lineWidth = 3
-        @ctx.beginPath()
-        @ctx.moveTo pos - @rulerTop, 0
-        @ctx.lineTo pos, @rulerTop + CURSOR_WIDTH
-        @ctx.lineTo pos + @rulerTop, 0
-        @ctx.fill()
-      when TYPE_GRID
-        @ctx.lineWidth = 1
+    @ctx.strokeStyle = @ctx.fillStyle = CURSOR_COLOR
+    @ctx.lineWidth = CURSOR_WIDTH
+
+    @ctx.beginPath()
+    @ctx.moveTo pos - @rulerTop, 0
+    @ctx.lineTo pos, @rulerTop + CURSOR_WIDTH
+    @ctx.lineTo pos + @rulerTop, 0
+    @ctx.fill()
+
+    @rulerTick time, false
+
+  gridLine: (time) ->
+    @ctx.strokeStyle = @ctx.fillStyle = GRID_COLOR
+    @ctx.lineWidth = GRID_WIDTH
+    @rulerTick time
+
+  marker: (marker) ->
+    time = marker.time - @data.state.startTime
+    pos = @timeToPx time
+
+    @ctx.strokeStyle = @ctx.fillStyle = MARKER_BG
+    @ctx.lineWidth = MARKER_WIDTH
+    @rulerTick time
+
+    @ctx.font = "bold #{FONT_SIZE}px #{FONT_FAMILY}"
+    label = marker.name || marker.id
+    boxWidth = @ctx.measureText(label).width + (MARKER_WIDTH * 2)
+    @ctx.fillRect pos, @rulerTop, boxWidth, FONT_SIZE
+
+    @ctx.fillStyle = MARKER_FG
+    @ctx.textAlign = 'left'
+    @ctx.fillText label, pos + MARKER_WIDTH, @rulerTop + 2
+
+  rulerTick: (time, ruler = true) ->
+    pos = @timeToPx time
+    @snapPoints.push pos if ruler
 
     @ctx.beginPath()
     @ctx.moveTo pos, @rulerTop
     @ctx.lineTo pos, @rulerBottom
     @ctx.stroke()
 
-  timeLabel: (time, align) ->
+    @ctx.font = "#{FONT_SIZE}px #{FONT_FAMILY}"
+
+    align = if ruler then 0 else 1
     label = @formatTime time
-    pos = Math.max(0, Math.min(@timeToPx(time), @canvas.width))
-    halfWidth = @ctx.measureText(label).width / 2
+    [pos, _] = @alignCenter pos, label
+    @ctx.fillText label, pos, (@rulerBottom + 3) * align
+
+  alignCenter: (pos, text) ->
+    width = @ctx.measureText(text).width
+    halfWidth = width / 2
 
     if (diff = pos - halfWidth) < 0
       pos += Math.abs diff
@@ -92,8 +121,7 @@ class Timeline extends EventEmitter
       pos -= right - @canvas.width
 
     @ctx.textAlign = 'center'
-
-    @ctx.fillText label, pos, (@rulerBottom + 3) * align
+    [pos, width]
 
   outOfBounds: (dir) ->
     pos = PADDING

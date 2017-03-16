@@ -2,7 +2,7 @@ EXT_SECTION = 'cfillion_song_switcher'
 EXT_STATE = 'state'
 EXT_REL_MOVE = 'relative_move'
 EXT_FILTER = 'filter'
-CMD_UPDATE = 'TRANSPORT;GET/EXTSTATE/' + EXT_SECTION + '/' + EXT_STATE
+CMD_UPDATE = 'TRANSPORT;MARKER;GET/EXTSTATE/' + EXT_SECTION + '/' + EXT_STATE
 
 EventEmitter = require('events').EventEmitter
 equal = require 'deep-equal'
@@ -23,6 +23,16 @@ class State
   fallback: ->
     @currentIndex = @songCount = @startTime = @endTime = 0
     [@title, @invalid] = ['## No data from Song Switcher ##', true]
+
+class Marker
+  constructor: (data) ->
+    i = 1
+    @name = data[i++]
+    @id = data[i++]
+    @time = parseFloat data[i++]
+    @color = parseInt data[i++]
+
+    @name ||= @id
 
 class Client extends EventEmitter
   makeSetExtState = (key, value) ->
@@ -65,6 +75,7 @@ class Client extends EventEmitter
       set 'state', new State
 
   parse: (response) ->
+    markers = []
     @editData (set) ->
       for l in response.split('\n')
         tok = l.split '\t'
@@ -73,12 +84,15 @@ class Client extends EventEmitter
           when 'TRANSPORT'
             set 'playState', tok[1] != '0'
             set 'position', parseFloat(tok[2])
+          when 'MARKER'
+            markers.push new Marker(tok)
           when 'EXTSTATE'
             if tok[1] == EXT_SECTION && tok[2] == EXT_STATE
               set 'state', if tok[3].length
                 new State simple_unescape(tok[3]).split('\t')
               else
                 new State
+      set 'markerList', markers
 
   editData: (cb) ->
     modified = []

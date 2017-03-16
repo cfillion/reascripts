@@ -22,8 +22,8 @@ class SongSwitcherWWW
       @setClass @ctrlBar, 'invalid', state.invalid
       @setText @songName, state.title || '## No Song Selected ##'
       @timeline.update @client.data
-    @client.on 'positionChanged', =>
-      @timeline.update @client.data
+    @client.on 'positionChanged', => @timeline.update @client.data
+    @client.on 'markerListChanged', => @timeline.update @client.data
     @timeline.on 'seek', (time) =>
       @client.seek time
     @playBtn.addEventListener 'click', => @client.play()
