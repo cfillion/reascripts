@@ -1,9 +1,11 @@
 Client = require './client'
+Timeline = require './timeline'
 
 class SongSwitcherWWW
   constructor: ->
     @client = new Client 1000
 
+    @timeline = new Timeline document.getElementById('timeline')
     @ctrlBar  = document.getElementById 'controls'
     @prevBtn  = document.getElementById 'prev'
     @nextBtn  = document.getElementById 'next'
@@ -19,6 +21,11 @@ class SongSwitcherWWW
       @setVisible @nextBtn, state.currentIndex < state.songCount
       @setClass @ctrlBar, 'invalid', state.invalid
       @setText @songName, state.title || '## No Song Selected ##'
+      @timeline.update @client.data
+    @client.on 'positionChanged', =>
+      @timeline.update @client.data
+    @timeline.on 'seek', (time) =>
+      @client.seek time
     @playBtn.addEventListener 'click', => @client.play()
     @prevBtn.addEventListener 'click', => @client.relativeMove -1
     @nextBtn.addEventListener 'click', => @client.relativeMove 1
@@ -36,6 +43,7 @@ class SongSwitcherWWW
         @client.setFilter @filter.value
 
       @closeFilter()
+    window.addEventListener 'resize', => @timeline.update @client.data
 
   setText: (node, text) ->
     if(textNode = node.lastChild)

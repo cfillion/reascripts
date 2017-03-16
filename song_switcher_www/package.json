@@ -4,15 +4,14 @@
   "private" : true,
 
   "dependencies": {
-    "spin.js": "^2.0",
-    "string-hash": "^1.1"
+    "sprintf-js": "^1.0",
+    "deep-equal": "^1.0"
   },
   "devDependencies": {
     "autoprefixer": "^6.7",
     "browserify": "^14.1",
     "bundle-collapser": "^1.1",
     "coffee-script": "^1.12",
-    "deep-equal": "^1.0",
     "postcss-cli": "^2.6",
     "uglify-js": "^2.8"
   }

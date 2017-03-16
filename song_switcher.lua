@@ -119,7 +119,7 @@ function loadTracks()
       if name:find("%d+%.") then
         isSong = true
 
-        songs[#songs + 1] = {name=name, folder=track, tracks={track}, start=0}
+        songs[#songs + 1] = {name=name, folder=track, tracks={track}, startTime=0, endTime=0}
       else
         isSong = false
       end
@@ -127,11 +127,16 @@ function loadTracks()
       local song = songs[#songs]
       song.tracks[#song.tracks + 1] = track
 
-      local firstItem = reaper.GetTrackMediaItem(track, 0)
-      if firstItem then
-        local pos = reaper.GetMediaItemInfo_Value(firstItem, 'D_POSITION')
-        if song.start == 0 or song.start > pos then
-          song.start = pos
+      for itemIndex=0,reaper.CountTrackMediaItems(track)-1 do
+        local item = reaper.GetTrackMediaItem(track, itemIndex)
+        local pos = reaper.GetMediaItemInfo_Value(item, 'D_POSITION')
+        local endTime = pos + reaper.GetMediaItemInfo_Value(item, 'D_LENGTH')
+
+        if song.startTime == 0 or song.startTime > pos then
+          song.startTime = pos
+        end
+        if song.stop == 0 or song.endTime < endTime then
+          song.endTime = endTime
         end
       end
     end
@@ -213,7 +218,7 @@ function setCurrentIndex(index)
       reaper.CSurf_OnStop()
     end
     if mode == SWITCH_SEEK or mode == SWITCH_SEEKSTOP then
-      reaper.SetEditCurPos(song.start, true, true)
+      reaper.SetEditCurPos(song.startTime, true, true)
     end
   end
 
@@ -833,15 +838,11 @@ function setSwitchMode(mode)
 end
 
 function updateState()
-  local currentName
-  if songs[currentIndex] then
-    currentName = songs[currentIndex].name
-  else
-    currentName = ''
-  end
+  local song = songs[currentIndex] or {name='', startTime=0, endTime=0}
 
-  local state = string.format("%d\t%d\t%s\t%s",
-    currentIndex, #songs, currentName, tostring(invalid)
+  local state = string.format("%d\t%d\t%s\t%f\t%f\t%s",
+    currentIndex, #songs, song.name, song.startTime, song.endTime,
+    tostring(invalid)
   )
   reaper.SetExtState(EXT_SECTION, EXT_STATE, state, false)
 end

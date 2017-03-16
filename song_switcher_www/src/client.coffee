@@ -4,7 +4,7 @@ EXT_REL_MOVE = 'relative_move'
 EXT_FILTER = 'filter'
 CMD_UPDATE = 'TRANSPORT;GET/EXTSTATE/' + EXT_SECTION + '/' + EXT_STATE
 
-EventEmitter = require './event_emitter'
+EventEmitter = require('events').EventEmitter
 equal = require 'deep-equal'
 
 class State
@@ -12,20 +12,24 @@ class State
     if data then @unpack(data) else @fallback()
 
   unpack: (data) ->
-    @currentIndex = parseInt(data[0])
-    @songCount = parseInt(data[1])
-    @title = data[2]
-    @invalid = data[3] == 'true'
+    i = 0
+    @currentIndex = parseInt data[i++]
+    @songCount = parseInt data[i++]
+    @title = data[i++]
+    @startTime = parseFloat data[i++]
+    @endTime = parseFloat data[i++]
+    @invalid = data[i++] == 'true'
 
   fallback: ->
-    [@currentIndex, @songCount, @invalid] = [0, 0, true]
-    @title = '## No data from Song Switcher ##'
+    @currentIndex = @songCount = @startTime = @endTime = 0
+    [@title, @invalid] = ['## No data from Song Switcher ##', true]
 
 class Client extends EventEmitter
   makeSetExtState = (key, value) ->
     "SET/EXTSTATE/#{EXT_SECTION}/#{key}/#{encodeURIComponent value}"
 
   constructor: (timer) ->
+    @data = {}
     (fetch_loop = =>
       @send ''
       setTimeout fetch_loop, timer
@@ -42,6 +46,10 @@ class Client extends EventEmitter
   setFilter: (filter) ->
     @send makeSetExtState(EXT_FILTER, filter)
     return
+  
+  seek: (time) ->
+    @send "SET/POS/#{time}"
+    return
 
   send: (cmd) ->
     req = new XMLHttpRequest
@@ -56,29 +64,36 @@ class Client extends EventEmitter
     return
 
   reset: ->
-    @set 'playState', false
-    @set 'position', 0
-    @set 'state', new State
+    @editData (set) ->
+      set 'playState', false
+      set 'position', 0
+      set 'state', new State
     return
 
   parse: (response) ->
-    for l in response.split('\n')
-      tok = l.split '\t'
+    @editData (set) ->
+      for l in response.split('\n')
+        tok = l.split '\t'
 
-      switch tok[0]
-        when 'TRANSPORT'
-          @set 'playState', tok[1] != '0'
-          @set 'position', parseFloat(tok[2])
-        when 'EXTSTATE'
-          if tok[1] == EXT_SECTION && tok[2] == EXT_STATE
-            @set 'state', if tok[3].length
-              new State simple_unescape(tok[3]).split('\t')
-            else
-              new State
+        switch tok[0]
+          when 'TRANSPORT'
+            set 'playState', tok[1] != '0'
+            set 'position', parseFloat(tok[2])
+          when 'EXTSTATE'
+            if tok[1] == EXT_SECTION && tok[2] == EXT_STATE
+              set 'state', if tok[3].length
+                new State simple_unescape(tok[3]).split('\t')
+              else
+                new State
     return
 
-  set: (key, value) ->
-    @emit "#{key}Changed", this[key] = value unless equal(this[key], value)
+  editData: (cb) ->
+    modified = []
+    cb (key, value) =>
+      unless equal @data[key], value
+        @data[key] = value
+        modified.push key
+    @emit "#{key}Changed", @data[key] for key in modified
     return
 
 module.exports = Client
