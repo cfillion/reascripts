@@ -1,4 +1,5 @@
-BACKGROUND = '#1e1e1e'
+RULER_BACKGROUND = '#1e1e1e'
+TIME_BACKGROUND = 'black'
 FONT_SIZE = 15
 FONT_FAMILY = 'sans-serif'
 ALIGN_LEFT = 1
@@ -38,7 +39,7 @@ class Timeline extends EventEmitter
 
     @ctx.textBaseline = 'top'
 
-    @ctx.fillStyle = BACKGROUND
+    @ctx.fillStyle = RULER_BACKGROUND
     @ctx.fillRect 0, @rulerTop, @canvas.width, @rulerHeight
 
     end = @data.state.endTime - @data.state.startTime
@@ -92,11 +93,12 @@ class Timeline extends EventEmitter
     @ctx.fillRect pos, @rulerTop, boxWidth, FONT_SIZE
 
     @ctx.fillStyle = MARKER_FG
-    @ctx.textAlign = 'left'
     @ctx.fillText label, pos + MARKER_WIDTH, @rulerTop + 2
 
   rulerTick: (time, ruler = true) ->
     pos = @timeToPx time
+    labelYpos = if ruler then 0 else @rulerBottom + 3
+
     @snapPoints.push pos if ruler
 
     @ctx.beginPath()
@@ -106,21 +108,22 @@ class Timeline extends EventEmitter
 
     @ctx.font = "#{FONT_SIZE}px #{FONT_FAMILY}"
 
-    align = if ruler then 0 else 1
+    [oldFill, @ctx.fillStyle] = [@ctx.fillStyle, TIME_BACKGROUND]
     label = @formatTime time
-    [pos, _] = @alignCenter pos, label
-    @ctx.fillText label, pos, (@rulerBottom + 3) * align
+    [labelXpos, labelWidth] = @alignCenter pos, label
+    @ctx.fillRect labelXpos, labelYpos, labelWidth, FONT_SIZE
+    @ctx.fillStyle = oldFill
+    @ctx.fillText label, labelXpos, labelYpos
 
   alignCenter: (pos, text) ->
     width = @ctx.measureText(text).width
     halfWidth = width / 2
 
-    if (diff = pos - halfWidth) < 0
-      pos += Math.abs diff
-    else if (right = pos + halfWidth) > @canvas.width
-      pos -= right - @canvas.width
+    if pos - halfWidth > 0
+      if (right = pos + halfWidth) > @canvas.width
+        pos -= right - @canvas.width
+      pos -= halfWidth
 
-    @ctx.textAlign = 'center'
     [pos, width]
 
   outOfBounds: (dir) ->
