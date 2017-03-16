@@ -29,7 +29,7 @@ class Timeline extends EventEmitter
     @rulerBottom = @rulerTop + @rulerHeight
     @snapPoints = []
 
-    @canvas.addEventListener 'click', (e) => @emitSnap(e.offsetX)
+    @canvas.addEventListener 'click', (e) => @emitSeek(e.offsetX)
 
   update: (@data) ->
     [@canvas.width, @canvas.height] = [@canvas.clientWidth, @canvas.clientHeight]
@@ -155,7 +155,7 @@ class Timeline extends EventEmitter
 
     sprintf '%s%02d:%02d.%03d', sign, min, sec, ms
 
-  emitSnap: (pos) ->
+  emitSeek: (pos) ->
     [min, max] = [-1, @snapPoints.length]
 
     while max - min > 1
