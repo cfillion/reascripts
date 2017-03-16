@@ -1,0 +1,92 @@
+html, body, .vlayout
+  height: 100%
+  margin: 0
+
+body
+  background-color: black
+  box-sizing: border-box
+  color: white
+  font-family: sans-serif
+  font-size: 50px
+  padding: 0 5% 0 5%
+  text-align: center
+  user-select: none
+
+div
+  cursor: default
+  padding: 10px
+
+.vlayout
+  display: flex
+  flex-direction: column
+  justify-content: space-between
+
+.hlayout
+  align-items: center
+  display: flex
+
+.vlayout, .hlayout, #controls, #song_box
+  padding: 0
+
+#song_box
+  flex-grow: 1
+  word-wrap: break-word
+
+  /* min-width fixes this flexbox overflow issue with word-wrap on firefox
+      https://bugzilla.mozilla.org/show_bug.cgi?id=1136818 */
+  min-width: 10px
+
+  span
+    display: block
+
+  input
+    background-color: #1e1e1e
+    border-style: none
+    color: inherit
+    display: none
+    font-size: inherit
+    text-align: inherit
+    width: 100%
+
+  &.edit
+    span
+      display: none
+
+    input
+      display: block
+
+#prev, #next
+  min-width: 50px
+
+.button
+  &:hover:not(.active)
+    background-color: #1e1e1e
+
+  &:active:not(.active)
+    background-color: #3c5a64
+    color: inherit
+
+#play
+  border: 1px white solid
+  font-size: 0.7em
+
+  &.active
+    background-color: #7ca5d7
+    color: black
+
+noscript, .invalid
+  background-color: red
+
+.hidden
+  visibility: hidden
+
+#footer
+  font-size: 12px
+  margin-right: -5%
+  text-align: right
+
+a
+  color: #7ca5d7
+
+#reset
+  color: red
