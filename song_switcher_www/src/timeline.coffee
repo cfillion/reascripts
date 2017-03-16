@@ -119,11 +119,10 @@ class Timeline extends EventEmitter
     width = @ctx.measureText(text).width
     halfWidth = width / 2
 
-    if pos - halfWidth > 0
-      if (right = pos + halfWidth) > @canvas.width
-        pos -= right - @canvas.width
-      pos -= halfWidth
+    if (right = pos + halfWidth) > @canvas.width
+      pos -= right - @canvas.width
 
+    pos = Math.max(0, pos - halfWidth)
     [pos, width]
 
   outOfBounds: (dir) ->
