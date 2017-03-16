@@ -37,19 +37,15 @@ class Client extends EventEmitter
 
   play: ->
     @send 40044 # Transport: Play/stop
-    return
 
   relativeMove: (move) ->
     @send makeSetExtState(EXT_REL_MOVE, move)
-    return
 
   setFilter: (filter) ->
     @send makeSetExtState(EXT_FILTER, filter)
-    return
   
   seek: (time) ->
     @send "SET/POS/#{time}"
-    return
 
   send: (cmd) ->
     req = new XMLHttpRequest
@@ -61,14 +57,12 @@ class Client extends EventEmitter
           @reset()
     req.open 'GET', "/_/#{cmd};#{CMD_UPDATE}", true
     req.send null
-    return
 
   reset: ->
     @editData (set) ->
       set 'playState', false
       set 'position', 0
       set 'state', new State
-    return
 
   parse: (response) ->
     @editData (set) ->
@@ -85,7 +79,6 @@ class Client extends EventEmitter
                 new State simple_unescape(tok[3]).split('\t')
               else
                 new State
-    return
 
   editData: (cb) ->
     modified = []
@@ -94,6 +87,5 @@ class Client extends EventEmitter
         @data[key] = value
         modified.push key
     @emit "#{key}Changed", @data[key] for key in modified
-    return
 
 module.exports = Client
