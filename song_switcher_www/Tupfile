@@ -14,9 +14,9 @@ PREFIXER = $(NODE_BIN)/postcss --use autoprefixer
 : build/modules/*.js |> $(BROWSERIFY) build/modules/main.js -s SongSwitcherWWW \
   -p bundle-collapser/plugin | $(UGLIFY) -mo %o |> build/script.js
 
-# stylesheets
+# stylesheet
 : src/style.sass |> $(SASS) -C --sourcemap=none -t compressed %f \
-  | $(PREFIXER) -o %o |> build/style.css
+  | $(PREFIXER) -o %o |> build/%B.css
 
 # html
-: src/song_switcher.slim | build/style.css build/script.js |> $(SLIM) src/song_switcher.slim > %o |> dist/song_switcher.html
+: src/song_switcher.slim | build/style.css build/script.js |> $(SLIM) %f > %o |> dist/song_switcher.html
