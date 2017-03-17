@@ -146,13 +146,12 @@ class Timeline extends EventEmitter
     px * @scale
 
   formatTime: (time) ->
-    time = Math.trunc time * 1000
+    time = Math.trunc time
     sign = if time < 0 then '-' else ''
-    min = Math.abs time / 1000 / 60
-    sec = Math.abs time / 1000 % 60
-    ms = Math.abs time % 1000
+    min = Math.abs time / 60
+    sec = Math.abs time % 60
 
-    sprintf '%s%02d:%02d.%03d', sign, min, sec, ms
+    sprintf '%s%02d:%02d', sign, min, sec
 
   emitSeek: (pos) ->
     [min, max] = [-1, @snapPoints.length]
