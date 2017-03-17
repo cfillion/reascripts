@@ -138,11 +138,14 @@ function loadTracks()
           song.endTime = endTime
         end
       end
-      if not song.startTime then song.startTime = 0 end
-      if not song.endTime then song.endTime = reaper.GetProjectLength() end
     end
 
     depth = depth + track_depth
+  end
+
+  for _,song in ipairs(songs) do
+    if not song.startTime then song.startTime = 0 end
+    if not song.endTime then song.endTime = reaper.GetProjectLength() end
   end
 
   table.sort(songs, compareSongs)
