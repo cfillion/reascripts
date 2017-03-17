@@ -10,9 +10,9 @@ equal = require 'deep-equal'
 
 class State
   constructor: (data) ->
-    if data then @unpack(data) else @fallback()
+    if data then @_unpack(data) else @_fallback()
 
-  unpack: (data) ->
+  _unpack: (data) ->
     i = 0
     @currentIndex = parseInt data[i++]
     @songCount = parseInt data[i++]
@@ -21,7 +21,7 @@ class State
     @endTime = parseFloat data[i++]
     @invalid = data[i++] == 'true'
 
-  fallback: ->
+  _fallback: ->
     @currentIndex = @songCount = @startTime = @endTime = 0
     [@title, @invalid] = ['## No data from Song Switcher ##', true]
 
@@ -42,48 +42,48 @@ class Client extends EventEmitter
   constructor: (timer) ->
     @data = {}
     (fetch_loop = =>
-      @send ''
+      @_send ''
       setTimeout fetch_loop, timer
     )()
 
   play: ->
-    @send 40044 # Transport: Play/stop
+    @_send 40044 # Transport: Play/stop
 
   relativeMove: (move) ->
-    @send makeSetExtState(EXT_REL_MOVE, move)
+    @_send makeSetExtState(EXT_REL_MOVE, move)
 
   setFilter: (filter) ->
-    @send makeSetExtState(EXT_FILTER, filter)
+    @_send makeSetExtState(EXT_FILTER, filter)
   
   seek: (time) ->
-    @send "SET/POS/#{time}"
+    @_send "SET/POS/#{time}"
 
   panic: ->
-    @send 40345 # Send all notes off to all MIDI outputs/plug-ins
+    @_send 40345 # Send all notes off to all MIDI outputs/plug-ins
 
   reset: ->
-    @send makeSetExtState(EXT_RESET, 'true')
+    @_send makeSetExtState(EXT_RESET, 'true')
 
-  send: (cmd) ->
+  _send: (cmd) ->
     req = new XMLHttpRequest
     req.onreadystatechange = =>
       if(req.readyState == XMLHttpRequest.DONE)
         if req.status == 200
-          @parse req.responseText
+          @_parse req.responseText
         else
-          @eraseData()
+          @_eraseData()
     req.open 'GET', "/_/#{cmd};#{CMD_UPDATE}", true
     req.send null
 
-  eraseData: ->
-    @editData (set) ->
+  _eraseData: ->
+    @_editData (set) ->
       set 'playState', false
       set 'position', 0
       set 'state', new State
 
-  parse: (response) ->
+  _parse: (response) ->
     markers = []
-    @editData (set) ->
+    @_editData (set) ->
       for l in response.split('\n')
         tok = l.split '\t'
 
@@ -101,7 +101,7 @@ class Client extends EventEmitter
                 new State
       set 'markerList', markers
 
-  editData: (cb) ->
+  _editData: (cb) ->
     modified = []
     cb (key, value) =>
       unless equal @data[key], value

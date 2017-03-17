@@ -3,70 +3,70 @@ Timeline = require './timeline'
 
 class SongSwitcherWWW
   constructor: ->
-    @client = new Client 1000
+    @_client = new Client 1000
 
-    @timeline = new Timeline document.getElementById('timeline')
-    @ctrlBar  = document.getElementById 'controls'
-    @prevBtn  = document.getElementById 'prev'
-    @nextBtn  = document.getElementById 'next'
-    @playBtn  = document.getElementById 'play'
-    @panicBtn = document.getElementById 'panic'
-    @resetBtn = document.getElementById 'reset'
-    @songBox  = document.getElementById 'song_box'
-    @songName = document.getElementById 'title'
-    @filter   = document.getElementById 'filter'
+    @_timeline = new Timeline document.getElementById('timeline')
+    @_ctrlBar  = document.getElementById 'controls'
+    @_prevBtn  = document.getElementById 'prev'
+    @_nextBtn  = document.getElementById 'next'
+    @_playBtn  = document.getElementById 'play'
+    @_panicBtn = document.getElementById 'panic'
+    @_resetBtn = document.getElementById 'reset'
+    @_songBox  = document.getElementById 'song_box'
+    @_songName = document.getElementById 'title'
+    @_filter   = document.getElementById 'filter'
 
-    @client.on 'playStateChanged', (playing) =>
-      @setClass @playBtn, 'active', playing
-    @client.on 'stateChanged', (state) =>
-      @setVisible @prevBtn, state.currentIndex > 1
-      @setVisible @nextBtn, state.currentIndex < state.songCount
-      @setClass @ctrlBar, 'invalid', state.invalid
-      @setText @songName, state.title || '## No Song Selected ##'
-      @timeline.update @client.data
-    @client.on 'positionChanged', => @timeline.update @client.data
-    @client.on 'markerListChanged', => @timeline.update @client.data
-    @timeline.on 'seek', (time) =>
-      @client.seek time
-    @prevBtn.addEventListener 'click', => @client.relativeMove -1
-    @nextBtn.addEventListener 'click', => @client.relativeMove 1
-    @playBtn.addEventListener 'click', => @client.play()
-    @panicBtn.addEventListener 'click', => @client.panic()
-    @resetBtn.addEventListener 'click', => @client.reset()
-    @songName.addEventListener 'click', =>
-      @setClass @songBox, 'edit', true
-      @filter.focus()
-    @filter.addEventListener 'blur', => @closeFilter()
-    @filter.addEventListener 'keypress', (e) =>
-      if e.keyCode == 8 && !@filter.value.length
-        @closeFilter()
+    @_client.on 'playStateChanged', (playing) =>
+      @_setClass @_playBtn, 'active', playing
+    @_client.on 'stateChanged', (state) =>
+      @_setVisible @_prevBtn, state.currentIndex > 1
+      @_setVisible @_nextBtn, state.currentIndex < state.songCount
+      @_setClass @_ctrlBar, 'invalid', state.invalid
+      @_setText @_songName, state.title || '## No Song Selected ##'
+      @_timeline.update @_client.data
+    @_client.on 'positionChanged', => @_timeline.update @_client.data
+    @_client.on 'markerListChanged', => @_timeline.update @_client.data
+    @_timeline.on 'seek', (time) =>
+      @_client.seek time
+    @_prevBtn.addEventListener 'click', => @_client.relativeMove -1
+    @_nextBtn.addEventListener 'click', => @_client.relativeMove 1
+    @_playBtn.addEventListener 'click', => @_client.play()
+    @_panicBtn.addEventListener 'click', => @_client.panic()
+    @_resetBtn.addEventListener 'click', => @_client.reset()
+    @_songName.addEventListener 'click', =>
+      @_setClass @_songBox, 'edit', true
+      @_filter.focus()
+    @_filter.addEventListener 'blur', => @_closeFilter()
+    @_filter.addEventListener 'keypress', (e) =>
+      if e.keyCode == 8 && !@_filter.value.length
+        @_closeFilter()
       else if(e.keyCode != 13)
         return
 
-      if(@filter.value.length > 0)
-        @client.setFilter @filter.value
+      if(@_filter.value.length > 0)
+        @_client.setFilter @_filter.value
 
-      @closeFilter()
-    window.addEventListener 'resize', => @timeline.update @client.data
+      @_closeFilter()
+    window.addEventListener 'resize', => @_timeline.update @_client.data
 
-  setText: (node, text) ->
+  _setText: (node, text) ->
     if(textNode = node.lastChild)
       textNode.nodeValue = text
     else
       node.appendChild document.createTextNode(text)
 
-  setClass: (node, klass, enable) ->
+  _setClass: (node, klass, enable) ->
     if(enable)
       node.classList.add klass
     else
       node.classList.remove klass
 
-  setVisible: (node, visible) ->
-    @setClass node, 'hidden', !visible
+  _setVisible: (node, visible) ->
+    @_setClass node, 'hidden', !visible
 
-  closeFilter: ->
-    @setClass @songBox, 'edit', false
-    @filter.value = ''
+  _closeFilter: ->
+    @_setClass @_songBox, 'edit', false
+    @_filter.value = ''
     document.activeElement.blur() # close android keyboard
 
 module.exports = SongSwitcherWWW

@@ -21,131 +21,131 @@ EventEmitter = require('events').EventEmitter
 sprintf = require('sprintf-js').sprintf
 
 class Timeline extends EventEmitter
-  constructor: (@canvas) ->
-    @ctx = @canvas.getContext '2d'
+  constructor: (@_canvas) ->
+    @_ctx = @_canvas.getContext '2d'
 
-    @rulerTop = FONT_SIZE
-    @rulerHeight = @canvas.clientHeight - (@rulerTop * 2)
-    @rulerBottom = @rulerTop + @rulerHeight
-    @snapPoints = []
+    @_rulerTop = FONT_SIZE
+    @_rulerHeight = @_canvas.clientHeight - (@_rulerTop * 2)
+    @_rulerBottom = @_rulerTop + @_rulerHeight
+    @_snapPoints = []
 
-    @canvas.addEventListener 'click', (e) => @emitSeek(e.offsetX)
+    @_canvas.addEventListener 'click', (e) => @_emitSeek(e.offsetX)
 
-  update: (@data) ->
-    [@canvas.width, @canvas.height] = [@canvas.clientWidth, @canvas.clientHeight]
-    @scale = (@data.state.endTime - @data.state.startTime) / @canvas.width
-    @scale ||= 1 / Math.pow(2,32)
-    @snapPoints.length = 0
+  update: (@_data) ->
+    [@_canvas.width, @_canvas.height] = [@_canvas.clientWidth, @_canvas.clientHeight]
+    @_scale = (@_data.state.endTime - @_data.state.startTime) / @_canvas.width
+    @_scale ||= 1 / Math.pow(2,32)
+    @_snapPoints.length = 0
 
-    @ctx.textBaseline = 'top'
+    @_ctx.textBaseline = 'top'
 
-    @ctx.fillStyle = RULER_BACKGROUND
-    @ctx.fillRect 0, @rulerTop, @canvas.width, @rulerHeight
+    @_ctx.fillStyle = RULER_BACKGROUND
+    @_ctx.fillRect 0, @_rulerTop, @_canvas.width, @_rulerHeight
 
-    @gridLine 0
-    @gridLine @data.state.endTime - @data.state.startTime
+    @_gridLine 0
+    @_gridLine @_data.state.endTime - @_data.state.startTime
 
-    [@ctx.strokeStyle, @ctx.fillStyle] = [MARKER_BG, MARKER_BG]
-    for marker in @data.markerList when marker.time >= @data.state.startTime and marker.time <= @data.state.endTime
-      @marker marker
+    [@_ctx.strokeStyle, @_ctx.fillStyle] = [MARKER_BG, MARKER_BG]
+    for marker in @_data.markerList when marker.time >= @_data.state.startTime and marker.time <= @_data.state.endTime
+      @_marker marker
 
-    @editCursor @data.position - @data.state.startTime
+    @_editCursor @_data.position - @_data.state.startTime
 
-    if @data.position < @data.state.startTime
-      @outOfBounds ALIGN_LEFT
-    else if @data.position > @data.state.endTime
-      @outOfBounds ALIGN_RIGHT
+    if @_data.position < @_data.state.startTime
+      @_outOfBounds ALIGN_LEFT
+    else if @_data.position > @_data.state.endTime
+      @_outOfBounds ALIGN_RIGHT
 
-    @snapPoints.sort (a, b) -> a - b
+    @_snapPoints.sort (a, b) -> a - b
 
-  editCursor: (time) ->
-    pos = @timeToPx time
+  _editCursor: (time) ->
+    pos = @_timeToPx time
 
-    @ctx.strokeStyle = @ctx.fillStyle = CURSOR_COLOR
-    @ctx.lineWidth = CURSOR_WIDTH
+    @_ctx.strokeStyle = @_ctx.fillStyle = CURSOR_COLOR
+    @_ctx.lineWidth = CURSOR_WIDTH
 
-    @ctx.beginPath()
-    @ctx.moveTo pos - @rulerTop, 0
-    @ctx.lineTo pos, @rulerTop + CURSOR_WIDTH
-    @ctx.lineTo pos + @rulerTop, 0
-    @ctx.fill()
+    @_ctx.beginPath()
+    @_ctx.moveTo pos - @_rulerTop, 0
+    @_ctx.lineTo pos, @_rulerTop + CURSOR_WIDTH
+    @_ctx.lineTo pos + @_rulerTop, 0
+    @_ctx.fill()
 
-    @rulerTick time, false
+    @_rulerTick time, false
 
-  gridLine: (time) ->
-    @ctx.strokeStyle = @ctx.fillStyle = GRID_COLOR
-    @ctx.lineWidth = GRID_WIDTH
-    @rulerTick time
+  _gridLine: (time) ->
+    @_ctx.strokeStyle = @_ctx.fillStyle = GRID_COLOR
+    @_ctx.lineWidth = GRID_WIDTH
+    @_rulerTick time
 
-  marker: (marker) ->
-    time = marker.time - @data.state.startTime
-    pos = @timeToPx time
+  _marker: (marker) ->
+    time = marker.time - @_data.state.startTime
+    pos = @_timeToPx time
 
-    @ctx.strokeStyle = @ctx.fillStyle = MARKER_BG
-    @ctx.lineWidth = MARKER_WIDTH
-    @rulerTick time
+    @_ctx.strokeStyle = @_ctx.fillStyle = MARKER_BG
+    @_ctx.lineWidth = MARKER_WIDTH
+    @_rulerTick time
 
-    @ctx.font = "bold #{FONT_SIZE}px #{FONT_FAMILY}"
+    @_ctx.font = "bold #{FONT_SIZE}px #{FONT_FAMILY}"
     label = marker.name || marker.id
-    boxWidth = @ctx.measureText(label).width + (MARKER_WIDTH * 2)
-    @ctx.fillRect pos, @rulerTop, boxWidth, FONT_SIZE
+    boxWidth = @_ctx.measureText(label).width + (MARKER_WIDTH * 2)
+    @_ctx.fillRect pos, @_rulerTop, boxWidth, FONT_SIZE
 
-    @ctx.fillStyle = MARKER_FG
-    @ctx.fillText label, pos + MARKER_WIDTH, @rulerTop + 2
+    @_ctx.fillStyle = MARKER_FG
+    @_ctx.fillText label, pos + MARKER_WIDTH, @_rulerTop + 2
 
-  rulerTick: (time, ruler = true) ->
-    pos = @timeToPx time
-    labelYpos = if ruler then 0 else @rulerBottom + 3
+  _rulerTick: (time, ruler = true) ->
+    pos = @_timeToPx time
+    labelYpos = if ruler then 0 else @_rulerBottom + 3
 
-    @snapPoints.push pos if ruler
+    @_snapPoints.push pos if ruler
 
-    @ctx.beginPath()
-    @ctx.moveTo pos, @rulerTop
-    @ctx.lineTo pos, @rulerBottom
-    @ctx.stroke()
+    @_ctx.beginPath()
+    @_ctx.moveTo pos, @_rulerTop
+    @_ctx.lineTo pos, @_rulerBottom
+    @_ctx.stroke()
 
-    @ctx.font = "#{FONT_SIZE}px #{FONT_FAMILY}"
+    @_ctx.font = "#{FONT_SIZE}px #{FONT_FAMILY}"
 
-    [oldFill, @ctx.fillStyle] = [@ctx.fillStyle, TIME_BACKGROUND]
-    label = @formatTime time
-    [labelXpos, labelWidth] = @ensureVisible pos, label, not ruler
-    @ctx.fillRect labelXpos, labelYpos, labelWidth, FONT_SIZE
-    @ctx.fillStyle = oldFill
-    @ctx.fillText label, labelXpos, labelYpos
+    [oldFill, @_ctx.fillStyle] = [@_ctx.fillStyle, TIME_BACKGROUND]
+    label = @_formatTime time
+    [labelXpos, labelWidth] = @_ensureVisible pos, label, not ruler
+    @_ctx.fillRect labelXpos, labelYpos, labelWidth, FONT_SIZE
+    @_ctx.fillStyle = oldFill
+    @_ctx.fillText label, labelXpos, labelYpos
 
-  ensureVisible: (pos, text, center) ->
-    width = @ctx.measureText(text).width
+  _ensureVisible: (pos, text, center) ->
+    width = @_ctx.measureText(text).width
     pos -= width / 2 if center
 
-    if (right = pos + width) > @canvas.width
-      pos -= right - @canvas.width
+    if (right = pos + width) > @_canvas.width
+      pos -= right - @_canvas.width
 
     pos = Math.max 0, pos
     [pos, width]
 
-  outOfBounds: (dir) ->
+  _outOfBounds: (dir) ->
     pos = PADDING
-    pos = @canvas.width - pos if dir == ALIGN_RIGHT
+    pos = @_canvas.width - pos if dir == ALIGN_RIGHT
 
-    height = @rulerHeight / 2.5
+    height = @_rulerHeight / 2.5
     width = height
-    top = (@canvas.height - height) / 2
+    top = (@_canvas.height - height) / 2
 
-    @ctx.lineWidth = 3
+    @_ctx.lineWidth = 3
 
-    @ctx.beginPath()
-    @ctx.moveTo pos + (width * dir), top
-    @ctx.lineTo pos, top + (height / 2)
-    @ctx.lineTo pos + (width * dir), top + height
-    @ctx.stroke()
+    @_ctx.beginPath()
+    @_ctx.moveTo pos + (width * dir), top
+    @_ctx.lineTo pos, top + (height / 2)
+    @_ctx.lineTo pos + (width * dir), top + height
+    @_ctx.stroke()
 
-  timeToPx: (time) ->
-    time / @scale
+  _timeToPx: (time) ->
+    time / @_scale
 
-  pxToTime: (px) ->
-    px * @scale
+  _pxToTime: (px) ->
+    px * @_scale
 
-  formatTime: (time) ->
+  _formatTime: (time) ->
     time = Math.trunc time
     sign = if time < 0 then '-' else ''
     min = Math.abs time / 60
@@ -153,24 +153,24 @@ class Timeline extends EventEmitter
 
     sprintf '%s%02d:%02d', sign, min, sec
 
-  emitSeek: (pos) ->
-    [min, max] = [-1, @snapPoints.length]
+  _emitSeek: (pos) ->
+    [min, max] = [-1, @_snapPoints.length]
 
     while max - min > 1
       i = Math.round((min + max) / 2)
-      point = @snapPoints[i]
+      point = @_snapPoints[i]
       if point <= pos
         min = i
       else
         max = i
 
-    min = @snapPoints[min] - pos
-    max = @snapPoints[max] - pos
+    min = @_snapPoints[min] - pos
+    max = @_snapPoints[max] - pos
     distance = Math.min Math.abs(min), Math.abs(max)
 
     if distance < SNAP_THRESHOLD
       pos = (if distance == Math.abs(min) then min else max) + pos
 
-    @emit 'seek', @pxToTime(pos) + @data.state.startTime
+    @emit 'seek', @_pxToTime(pos) + @_data.state.startTime
 
 module.exports = Timeline
