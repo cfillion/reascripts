@@ -42,10 +42,8 @@ class Timeline extends EventEmitter
     @ctx.fillStyle = RULER_BACKGROUND
     @ctx.fillRect 0, @rulerTop, @canvas.width, @rulerHeight
 
-    end = @data.state.endTime - @data.state.startTime
     @gridLine 0
-    @gridLine end / 2
-    @gridLine end
+    @gridLine @data.state.endTime - @data.state.startTime
 
     [@ctx.strokeStyle, @ctx.fillStyle] = [MARKER_BG, MARKER_BG]
     for marker in @data.markerList when marker.time >= @data.state.startTime and marker.time <= @data.state.endTime
