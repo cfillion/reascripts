@@ -28,10 +28,13 @@ html
 
       #play.button Play/Stop
 
-      #footer
-        a> target="_blank" href="http://forum.cockos.com/showthread.php?t=181159"
-          | Song Switcher Control
-        | by cfillion
+      #footer.hlayout
+        #panic.button MIDI Panic
+        #reset.button Reset data
+        #about
+          a> target="_blank" href="http://forum.cockos.com/showthread.php?t=181159"
+            | Song Switcher Control
+          | by cfillion
 
     script
       == File.read 'build/script.js'

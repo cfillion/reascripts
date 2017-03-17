@@ -1,8 +1,9 @@
-EXT_SECTION = 'cfillion_song_switcher'
-EXT_STATE = 'state'
+EXT_SECTION  = 'cfillion_song_switcher'
+EXT_STATE    = 'state'
 EXT_REL_MOVE = 'relative_move'
-EXT_FILTER = 'filter'
-CMD_UPDATE = 'TRANSPORT;MARKER;GET/EXTSTATE/' + EXT_SECTION + '/' + EXT_STATE
+EXT_FILTER   = 'filter'
+EXT_RESET    = 'reset'
+CMD_UPDATE   = "TRANSPORT;MARKER;GET/EXTSTATE/#{EXT_SECTION}/#{EXT_STATE}"
 
 EventEmitter = require('events').EventEmitter
 equal = require 'deep-equal'
@@ -57,6 +58,12 @@ class Client extends EventEmitter
   seek: (time) ->
     @send "SET/POS/#{time}"
 
+  panic: ->
+    @send 40345 # Send all notes off to all MIDI outputs/plug-ins
+
+  reset: ->
+    @send makeSetExtState(EXT_RESET, 'true')
+
   send: (cmd) ->
     req = new XMLHttpRequest
     req.onreadystatechange = =>
@@ -64,11 +71,11 @@ class Client extends EventEmitter
         if req.status == 200
           @parse req.responseText
         else
-          @reset()
+          @eraseData()
     req.open 'GET', "/_/#{cmd};#{CMD_UPDATE}", true
     req.send null
 
-  reset: ->
+  eraseData: ->
     @editData (set) ->
       set 'playState', false
       set 'position', 0

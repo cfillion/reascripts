@@ -1,4 +1,6 @@
-$alt-bg: #2e2e2e
+$alt-bg:  #2e2e2e
+$margin:  20px
+$padding: 10px
 
 html, body, .vlayout
   height: 100%
@@ -10,13 +12,13 @@ body
   color: white
   font-family: sans-serif
   font-size: 50px
-  padding: 0 5% 0 5%
+  padding: ($margin - $padding) $margin ($margin - $padding) $margin
   text-align: center
   user-select: none
 
 div
   cursor: default
-  padding: 10px 0 10px 0
+  padding: $padding 0 $padding 0
 
 .vlayout
   display: flex
@@ -36,7 +38,7 @@ div
 
   /* min-width fixes this flexbox overflow issue with word-wrap on firefox
       https://bugzilla.mozilla.org/show_bug.cgi?id=1136818 */
-  min-width: 10px
+  min-width: $padding
 
   span
     display: block
@@ -59,9 +61,11 @@ div
 
 #prev, #next
   min-width: 50px
+  border: none
 
 .button
-  padding: 10px
+  border: 1px white solid
+  padding: $padding
 
   &:hover:not(.active)
     background-color: $alt-bg
@@ -71,7 +75,6 @@ div
     color: inherit
 
 #play
-  border: 1px white solid
   font-size: 0.7em
 
   &.active
@@ -82,19 +85,22 @@ div
   height: 100px
   width: 100%
 
+#footer
+  font-size: 12px
+  text-align: right
+
+  .button
+    padding: 7px $padding 7px $padding
+    margin: 3px $padding 3px 0
+
+#about
+  flex-grow: 1
+
 noscript, .invalid
   background-color: red
 
 .hidden
   visibility: hidden
 
-#footer
-  font-size: 12px
-  margin-right: -5%
-  text-align: right
-
 a
   color: #7ca5d7
-
-#reset
-  color: red

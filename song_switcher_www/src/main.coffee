@@ -10,6 +10,8 @@ class SongSwitcherWWW
     @prevBtn  = document.getElementById 'prev'
     @nextBtn  = document.getElementById 'next'
     @playBtn  = document.getElementById 'play'
+    @panicBtn = document.getElementById 'panic'
+    @resetBtn = document.getElementById 'reset'
     @songBox  = document.getElementById 'song_box'
     @songName = document.getElementById 'title'
     @filter   = document.getElementById 'filter'
@@ -26,9 +28,11 @@ class SongSwitcherWWW
     @client.on 'markerListChanged', => @timeline.update @client.data
     @timeline.on 'seek', (time) =>
       @client.seek time
-    @playBtn.addEventListener 'click', => @client.play()
     @prevBtn.addEventListener 'click', => @client.relativeMove -1
     @nextBtn.addEventListener 'click', => @client.relativeMove 1
+    @playBtn.addEventListener 'click', => @client.play()
+    @panicBtn.addEventListener 'click', => @client.panic()
+    @resetBtn.addEventListener 'click', => @client.reset()
     @songName.addEventListener 'click', =>
       @setClass @songBox, 'edit', true
       @filter.focus()
