@@ -110,19 +110,19 @@ class Timeline extends EventEmitter
 
     [oldFill, @ctx.fillStyle] = [@ctx.fillStyle, TIME_BACKGROUND]
     label = @formatTime time
-    [labelXpos, labelWidth] = @alignCenter pos, label
+    [labelXpos, labelWidth] = @ensureVisible pos, label, not ruler
     @ctx.fillRect labelXpos, labelYpos, labelWidth, FONT_SIZE
     @ctx.fillStyle = oldFill
     @ctx.fillText label, labelXpos, labelYpos
 
-  alignCenter: (pos, text) ->
+  ensureVisible: (pos, text, center) ->
     width = @ctx.measureText(text).width
-    halfWidth = width / 2
+    pos -= width / 2 if center
 
-    if (right = pos + halfWidth) > @canvas.width
+    if (right = pos + width) > @canvas.width
       pos -= right - @canvas.width
 
-    pos = Math.max(0, pos - halfWidth)
+    pos = Math.max 0, pos
     [pos, width]
 
   outOfBounds: (dir) ->
