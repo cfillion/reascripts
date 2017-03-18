@@ -4,7 +4,6 @@
   "private" : true,
 
   "dependencies": {
-    "sprintf-js": "^1.0",
     "deep-equal": "^1.0"
   },
   "devDependencies": {

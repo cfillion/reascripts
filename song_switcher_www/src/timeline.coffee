@@ -18,7 +18,6 @@ TYPE_MARKER = 3
 SNAP_THRESHOLD = 50
 
 EventEmitter = require('events').EventEmitter
-sprintf = require('sprintf-js').sprintf
 
 class Timeline extends EventEmitter
   constructor: (@_canvas) ->
@@ -150,7 +149,11 @@ class Timeline extends EventEmitter
     min = Math.abs time / 60
     sec = Math.abs time % 60
 
-    sprintf '%s%02d:%02d', sign, min, sec
+    pad = (padding, int) ->
+      int = Math.trunc int
+      (padding + int).slice -padding.length
+
+    "#{sign}#{pad '00', min}:#{pad '00', sec}"
 
   _emitSeek: (pos) ->
     [min, max] = [-1, @_snapPoints.length]
