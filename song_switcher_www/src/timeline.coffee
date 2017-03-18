@@ -80,6 +80,9 @@ class Timeline extends EventEmitter
     time = marker.time - @_data.state.startTime
     pos = @_timeToPx time
 
+    @_ctx.strokeStyle = RULER_BACKGROUND
+    @_rulerLine pos - MARKER_WIDTH
+
     @_ctx.strokeStyle = @_ctx.fillStyle = MARKER_BG
     @_ctx.lineWidth = MARKER_WIDTH
     @_rulerTick time
@@ -98,19 +101,22 @@ class Timeline extends EventEmitter
 
     @_snapPoints.push pos if ruler
 
+    @_rulerLine pos
+
+    @_ctx.font = "#{FONT_SIZE}px #{FONT_FAMILY}"
+    [oldFill, @_ctx.fillStyle] = [@_ctx.fillStyle, TIME_BACKGROUND]
+    label = @_formatTime time, not ruler
+    [labelXpos, labelWidth] = @_ensureVisible pos, label, not ruler
+
+    @_ctx.fillRect labelXpos, labelYpos, labelWidth, FONT_SIZE
+    @_ctx.fillStyle = oldFill
+    @_ctx.fillText label, labelXpos, labelYpos + 1 # don't clip above the canvas top
+
+  _rulerLine: (pos) ->
     @_ctx.beginPath()
     @_ctx.moveTo pos, @_rulerTop
     @_ctx.lineTo pos, @_rulerBottom
     @_ctx.stroke()
-
-    @_ctx.font = "#{FONT_SIZE}px #{FONT_FAMILY}"
-
-    [oldFill, @_ctx.fillStyle] = [@_ctx.fillStyle, TIME_BACKGROUND]
-    label = @_formatTime time, not ruler
-    [labelXpos, labelWidth] = @_ensureVisible pos, label, not ruler
-    @_ctx.fillRect labelXpos, labelYpos, labelWidth, FONT_SIZE
-    @_ctx.fillStyle = oldFill
-    @_ctx.fillText label, labelXpos, labelYpos + 1 # don't clip above the canvas top
 
   _ensureVisible: (pos, text, center) ->
     width = @_ctx.measureText(text).width
