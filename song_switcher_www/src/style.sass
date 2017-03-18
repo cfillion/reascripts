@@ -86,15 +86,17 @@ div
   width: 100%
 
 #footer
+  align-items: flex-end
   font-size: 12px
   text-align: right
 
   .button
-    padding: 7px $padding 7px $padding
+    padding: $padding ($padding * 1.5) $padding ($padding * 1.5)
     margin: 3px $padding 3px 0
 
 #about
   flex-grow: 1
+  padding: 0
 
 noscript, .invalid
   background-color: red
