@@ -8,6 +8,10 @@ CMD_UPDATE   = "TRANSPORT;MARKER;GET/EXTSTATE/#{EXT_SECTION}/#{EXT_STATE}"
 EventEmitter = require('events').EventEmitter
 equal = require 'deep-equal'
 
+parseTime = (str) ->
+  # workaround for Javascript's weird floating point approximation
+  Math.trunc(parseFloat(str) * 1000) / 1000
+
 class State
   constructor: (data) ->
     if data then @_unpack(data) else @_fallback()
@@ -17,8 +21,8 @@ class State
     @currentIndex = parseInt data[i++]
     @songCount = parseInt data[i++]
     @title = data[i++]
-    @startTime = parseFloat data[i++]
-    @endTime = parseFloat data[i++]
+    @startTime = parseTime data[i++]
+    @endTime = parseTime data[i++]
     @invalid = data[i++] == 'true'
 
   _fallback: ->
@@ -30,7 +34,7 @@ class Marker
     i = 1
     @name = data[i++]
     @id = data[i++]
-    @time = parseFloat data[i++]
+    @time = parseTime data[i++]
     @color = parseInt data[i++]
 
 class Client extends EventEmitter
@@ -88,7 +92,7 @@ class Client extends EventEmitter
         switch tok[0]
           when 'TRANSPORT'
             set 'playState', tok[1] != '0'
-            set 'position', parseFloat(tok[2])
+            set 'position', parseTime(tok[2])
           when 'MARKER'
             markers.push new Marker(tok)
           when 'EXTSTATE'

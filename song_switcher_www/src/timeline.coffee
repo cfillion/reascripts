@@ -146,7 +146,6 @@ class Timeline extends EventEmitter
     px * @_scale
 
   _formatTime: (time) ->
-    time = Math.trunc time
     sign = if time < 0 then '-' else ''
     min = Math.abs time / 60
     sec = Math.abs time % 60
