@@ -37,7 +37,7 @@ class Timeline extends EventEmitter
     @_scale ||= 1 / Math.pow(2,32)
     @_snapPoints.length = 0
 
-    @_ctx.textBaseline = 'top'
+    @_ctx.textBaseline = 'hanging'
 
     @_ctx.fillStyle = RULER_BACKGROUND
     @_ctx.fillRect 0, @_rulerTop, @_canvas.width, @_rulerHeight
@@ -111,7 +111,7 @@ class Timeline extends EventEmitter
     [labelXpos, labelWidth] = @_ensureVisible pos, label, not ruler
     @_ctx.fillRect labelXpos, labelYpos, labelWidth, FONT_SIZE
     @_ctx.fillStyle = oldFill
-    @_ctx.fillText label, labelXpos, labelYpos
+    @_ctx.fillText label, labelXpos, labelYpos + 1 # don't clip above the canvas top
 
   _ensureVisible: (pos, text, center) ->
     width = @_ctx.measureText(text).width
