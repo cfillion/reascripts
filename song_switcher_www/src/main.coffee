@@ -26,8 +26,9 @@ class SongSwitcherWWW
       @_timeline.update @_client.data
     @_client.on 'positionChanged', => @_timeline.update @_client.data
     @_client.on 'markerListChanged', => @_timeline.update @_client.data
-    @_timeline.on 'seek', (time) =>
-      @_client.seek time
+
+    @_timeline.on 'seek', (time) => @_client.seek time
+
     @_prevBtn.addEventListener 'click', => @_client.relativeMove -1
     @_nextBtn.addEventListener 'click', => @_client.relativeMove 1
     @_playBtn.addEventListener 'click', => @_client.play()
@@ -47,7 +48,10 @@ class SongSwitcherWWW
         @_client.setFilter @_filter.value
 
       @_closeFilter()
+
     window.addEventListener 'resize', => @_timeline.update @_client.data
+    window.addEventListener 'keydown', (e) =>
+      @_client.play() if e.keyCode == 32 && e.target == document.body
 
   _setText: (node, text) ->
     if(textNode = node.lastChild)
