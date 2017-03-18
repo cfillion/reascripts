@@ -134,7 +134,7 @@ function loadTracks()
         if not song.startTime or song.startTime > pos then
           song.startTime = pos
         end
-        if not song.stopTime or song.endTime < endTime then
+        if not song.endTime or song.endTime < endTime then
           song.endTime = endTime
         end
       end
