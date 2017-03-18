@@ -106,7 +106,7 @@ class Timeline extends EventEmitter
     @_ctx.font = "#{FONT_SIZE}px #{FONT_FAMILY}"
 
     [oldFill, @_ctx.fillStyle] = [@_ctx.fillStyle, TIME_BACKGROUND]
-    label = @_formatTime time
+    label = @_formatTime time, not ruler
     [labelXpos, labelWidth] = @_ensureVisible pos, label, not ruler
     @_ctx.fillRect labelXpos, labelYpos, labelWidth, FONT_SIZE
     @_ctx.fillStyle = oldFill
@@ -144,16 +144,19 @@ class Timeline extends EventEmitter
   _pxToTime: (px) ->
     px * @_scale
 
-  _formatTime: (time) ->
+  _formatTime: (time, showMs) ->
     sign = if time < 0 then '-' else ''
     min = Math.abs time / 60
     sec = Math.abs time % 60
+    ms = Math.abs time * 1000
 
     pad = (padding, int) ->
       int = Math.trunc int
       (padding + int).slice -padding.length
 
-    "#{sign}#{pad '00', min}:#{pad '00', sec}"
+    out = "#{sign}#{pad '00', min}:#{pad '00', sec}"
+    out += ".#{pad '000', ms}" if showMs
+    out
 
   _emitSeek: (pos) ->
     [min, max] = [-1, @_snapPoints.length]
