@@ -85,13 +85,13 @@ class Timeline extends EventEmitter
     @_ctx.lineWidth = MARKER_WIDTH
     @_rulerTick time
 
-    @_ctx.font = "bold #{FONT_SIZE}px #{FONT_FAMILY}"
-    label = marker.name || marker.id
-    boxWidth = @_ctx.measureText(label).width + (MARKER_WIDTH * 2)
-    @_ctx.fillRect pos, @_rulerTop, boxWidth, FONT_SIZE
+    if marker.name.length > 0
+      @_ctx.font = "bold #{FONT_SIZE}px #{FONT_FAMILY}"
+      boxWidth = @_ctx.measureText(marker.name).width + (MARKER_WIDTH * 2)
+      @_ctx.fillRect pos, @_rulerTop, boxWidth, FONT_SIZE
 
-    @_ctx.fillStyle = MARKER_FG
-    @_ctx.fillText label, pos + MARKER_WIDTH, @_rulerTop + 2
+      @_ctx.fillStyle = MARKER_FG
+      @_ctx.fillText marker.name, pos + MARKER_WIDTH, @_rulerTop + 2
 
   _rulerTick: (time, ruler = true) ->
     pos = @_timeToPx time

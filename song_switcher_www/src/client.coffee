@@ -33,8 +33,6 @@ class Marker
     @time = parseFloat data[i++]
     @color = parseInt data[i++]
 
-    @name ||= @id
-
 class Client extends EventEmitter
   makeSetExtState = (key, value) ->
     "SET/EXTSTATE/#{EXT_SECTION}/#{key}/#{encodeURIComponent value}"
