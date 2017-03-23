@@ -81,9 +81,14 @@ div
     background-color: #7ca5d7
     color: black
 
-#timeline
-  height: 100px
+#timeline, noscript
+  $height: 100px
+  height: $height
+  line-height: $height
   width: 100%
+
+body:not(.js) #timeline
+  display: none
 
 #footer
   align-items: flex-end

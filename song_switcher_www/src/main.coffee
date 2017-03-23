@@ -5,6 +5,8 @@ class SongSwitcherWWW
   constructor: ->
     @_client = new Client 1000
 
+    @_setClass document.body, 'js'
+
     @_timeline = new Timeline document.getElementById('timeline')
     @_ctrlBar  = document.getElementById 'controls'
     @_prevBtn  = document.getElementById 'prev'
@@ -59,7 +61,7 @@ class SongSwitcherWWW
     else
       node.appendChild document.createTextNode(text)
 
-  _setClass: (node, klass, enable) ->
+  _setClass: (node, klass, enable = true) ->
     if(enable)
       node.classList.add klass
     else
