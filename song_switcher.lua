@@ -1,10 +1,13 @@
 -- @description Song Switcher
--- @version 1.2
+-- @version 1.3
 -- @changelog
---   create a new web browser interface (requires REAPER v5.30+)
---   improve how the previous docking state is saved
---   remember window size and position
---   seek to the first item in the song's children tracks [p=1743149]
+--   * fix detection of start/end time when there are no items in the first few tracks
+--   Web Interface:
+--   * add midi panic and data reset buttons
+--   * disable spell check on the input box
+--   * implement timeline view with seek support and markers
+--   * make spacebar trigger play/stop on desktop
+--   * rewrite with cleaner code
 -- @author cfillion
 -- @provides
 --   [main] cfillion_Song Switcher/*.lua
@@ -12,9 +15,9 @@
 -- @link Forum Thread http://forum.cockos.com/showthread.php?t=181159
 -- @donation https://www.paypal.me/cfillion
 -- @screenshot
---   Docked Mode http://i.imgur.com/4xPMV9J.gif
+--   Docked Mode https://i.imgur.com/4xPMV9J.gif
 --   Windowed Mode https://i.imgur.com/KOP2yK3.png
---   Web Interface https://i.imgur.com/8NOddMK.png
+--   Web Interface https://i.imgur.com/DPcRCGh.png
 -- @about
 --   # Song Switcher
 --
@@ -24,9 +27,15 @@
 --
 --   ## Usage
 --
---   Each song must be in a top-level folder track named "#. Song Name".
---   This script will mute and hide all songs except for the current one.
---   Other tracks/folders are left untouched.  
+--   Each song must be in a top-level folder track named "#. Song Name"
+--   ("#" being any number).
+--
+--   After selecting a song, Song Switcher mutes and hides all songs in the
+--   project except for the current one. Other tracks/folders that are not part
+--   of a song's top-level folder are left untouched.  
+--   Song Switcher can also optionally stop playback and/or seek to the
+--   first item in the song when switching.
+--
 --   This script works best with REAPER settings "**Do not process muted tracks**"
 --   and "**Track mute fade**" enabled.
 --
@@ -40,6 +49,9 @@
 --
 --   A web browser interface is also installed as **song_switcher.html** for
 --   remote use (this feature requires REAPER v5.30+ and ReaPack v1.1+).
+--   Note that the timecode displayed in the web interface always starts at 00:00.
+--   This means that even if a song starts at 7:45 in the project and ends at 9:12,
+--   it's displayed as 00:00 to 01:26 on the web interface for convenience.
 
 WINDOW_TITLE = 'Song Switcher'
 
