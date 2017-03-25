@@ -12,7 +12,7 @@ body
   color: white
   font-family: sans-serif
   font-size: 50px
-  padding: ($margin - $padding) $margin ($margin - $padding) $margin
+  padding: ($margin - $padding) $margin 0 $margin
   text-align: center
   user-select: none
 
@@ -24,6 +24,10 @@ div
   display: flex
   flex-direction: column
   justify-content: space-between
+
+  & > *
+    flex-shrink: 0
+    margin-bottom: $padding
 
 .hlayout
   align-items: center
@@ -96,7 +100,7 @@ body:not(.js) #timeline
 
   .button
     padding: $padding ($padding * 1.5) $padding ($padding * 1.5)
-    margin: 3px $padding 3px 0
+    margin-right: $padding
 
 #about
   flex-grow: 1
@@ -111,3 +115,14 @@ noscript, .invalid
 
 a
   color: #7ca5d7
+
+@media (max-height: 425px)
+  .spacer
+    display: none
+
+@media (max-height: 320px)
+  body
+    font-size: 40px
+
+  #timeline
+    height: 80px

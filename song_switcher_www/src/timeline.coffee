@@ -21,20 +21,15 @@ EventEmitter = require('events').EventEmitter
 
 class Timeline extends EventEmitter
   constructor: (@_canvas) ->
-    @_ctx = @_canvas.getContext '2d'
-
-    @_rulerTop = FONT_SIZE
-    @_rulerHeight = @_canvas.clientHeight - (@_rulerTop * 2)
-    @_rulerBottom = @_rulerTop + @_rulerHeight
     @_snapPoints = []
+    @_rulerTop = FONT_SIZE
 
+    @_ctx = @_canvas.getContext '2d'
     @_canvas.addEventListener 'click', (e) => @_emitSeek(e.offsetX)
 
   update: (@_data) ->
-    [@_canvas.width, @_canvas.height] = [@_canvas.clientWidth, @_canvas.clientHeight]
-    @_scale = (@_data.state.endTime - @_data.state.startTime) / @_canvas.width
-    @_scale ||= 1 / Math.pow(2,32)
     @_snapPoints.length = 0
+    @_resize()
 
     @_ctx.textBaseline = 'hanging'
 
@@ -56,6 +51,15 @@ class Timeline extends EventEmitter
       @_outOfBounds ALIGN_RIGHT
 
     @_snapPoints.sort (a, b) -> a - b
+
+  _resize: ->
+    [@_canvas.width, @_canvas.height] = [@_canvas.clientWidth, @_canvas.clientHeight]
+
+    @_rulerHeight = @_canvas.height - (@_rulerTop * 2)
+    @_rulerBottom = @_rulerTop + @_rulerHeight
+
+    @_scale = (@_data.state.endTime - @_data.state.startTime) / @_canvas.width
+    @_scale ||= 1 / Math.pow(2,32)
 
   _editCursor: (time) ->
     pos = @_timeToPx time
