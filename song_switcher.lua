@@ -221,6 +221,12 @@ function setCurrentIndex(index)
     setSongEnabled(songs[currentIndex], false)
   end
 
+  local mode = getSwitchMode()
+
+  if mode == SWITCH_SEEKSTOP then
+    reaper.CSurf_OnStop()
+  end
+
   local song = songs[index]
   local disableOk = not invalid
   local enableOk = setSongEnabled(song, true)
@@ -229,10 +235,6 @@ function setCurrentIndex(index)
     currentIndex = index
     setNextIndex(index)
 
-    local mode = getSwitchMode()
-    if mode == SWITCH_SEEKSTOP then
-      reaper.CSurf_OnStop()
-    end
     if mode == SWITCH_SEEK or mode == SWITCH_SEEKSTOP then
       reaper.SetEditCurPos(song.startTime, true, true)
     end
@@ -438,7 +440,7 @@ function switchModeButton()
   if mode == SWITCH_SEEK then
     action = 'seek'
   elseif mode == SWITCH_SEEKSTOP then
-    action = 'seek+stop'
+    action = 'stop+seek'
   else
     action = 'onswitch'
   end
