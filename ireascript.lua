@@ -1198,20 +1198,21 @@ function ireascript.contains(table, val)
 end
 
 function ireascript.each_lines(text)
-  local pos, offset, finished = -1, 0, false
+  local offset, finished = 0, false
+  local from, to = -1
 
   return function()
     if finished then return end
 
-    pos = text:find('[\r\n]', pos + 1)
+    from, to = text:find('\r?\n', from + 1)
 
-    if not pos then
+    if not from then
       finished = true
       return text:sub(offset)
     end
 
-    local line = text:sub(offset, pos - 1)
-    offset = pos + 1
+    local line = text:sub(offset, from - 1)
+    offset = to + 1
     return line
   end
 end
