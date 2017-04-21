@@ -5,8 +5,6 @@ class SongSwitcherWWW
   constructor: ->
     @_client = new Client 1000
 
-    @_setClass document.body, 'js'
-
     @_timeline = new Timeline document.getElementById('timeline')
     @_ctrlBar  = document.getElementById 'controls'
     @_prevBtn  = document.getElementById 'prev'
@@ -17,6 +15,10 @@ class SongSwitcherWWW
     @_songBox  = document.getElementById 'song_box'
     @_songName = document.getElementById 'title'
     @_filter   = document.getElementById 'filter'
+
+    @_setText @_songName, '## Awaiting data ##'
+    @_setClass @_ctrlBar, 'invalid', false
+    @_timeline.update @_client.data
 
     @_client.on 'playStateChanged', (playing) =>
       @_setClass @_playBtn, 'active', playing

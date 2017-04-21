@@ -13,16 +13,14 @@ html
       div.spacer
         /! Top spacer
 
-      #controls.hlayout
-        #prev.button &#9664;
+      #controls.hlayout.invalid
+        #prev.button.hidden &#9664;
 
         #song_box
-          span#title ## Awaiting data ##
+          span#title Ooops! Javascript is blocked or disabled.
           input id="filter" type="text" spellcheck="false"
 
-        #next.button &#9654;
-
-      noscript Oops! Javascript is blocked or disabled.
+        #next.button.hidden &#9654;
 
       canvas#timeline
 

@@ -43,6 +43,8 @@ class Client extends EventEmitter
 
   constructor: (timer) ->
     @data = {}
+    @_resetData()
+
     (fetch_loop = =>
       @_send ''
       setTimeout fetch_loop, timer
@@ -73,15 +75,16 @@ class Client extends EventEmitter
         if req.status == 200
           @_parse req.responseText
         else
-          @_eraseData()
+          @_resetData()
     req.open 'GET', "/_/#{cmd};#{CMD_UPDATE}", true
     req.send null
 
-  _eraseData: ->
+  _resetData: ->
     @_editData (set) ->
       set 'playState', false
       set 'position', 0
       set 'state', new State
+      set 'markerList', []
 
   _parse: (response) ->
     markers = []
