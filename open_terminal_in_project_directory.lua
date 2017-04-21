@@ -44,3 +44,4 @@ else
 end
 
 os.execute("open -a Terminal.app " .. escape(path))
+reaper.defer(function() end)
