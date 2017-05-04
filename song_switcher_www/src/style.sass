@@ -36,6 +36,13 @@ div
 .vlayout, .hlayout, #controls, #song_box
   padding: 0
 
+#lock-overlay
+  position: fixed
+  top: 0
+  left: 0
+  right: 0
+  bottom: 0
+
 #song_box
   flex-grow: 1
   word-wrap: break-word
@@ -78,12 +85,12 @@ div
     background-color: #3c5a64
     color: inherit
 
-#play
-  font-size: 0.7em
-
   &.active
     background-color: #7ca5d7
     color: black
+
+#play
+  font-size: 0.7em
 
 #timeline
   $height: 100px
@@ -91,6 +98,9 @@ div
   image-rendering: pixelated
   line-height: $height
   width: 100%
+
+#lock
+  z-index: 1000
 
 #footer
   align-items: flex-end
@@ -104,6 +114,7 @@ div
   flex-grow: 1
   padding: 0
   text-align: right
+  z-index: 1000
 
 .invalid
   background-color: red

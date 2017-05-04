@@ -6,12 +6,15 @@ class SongSwitcherWWW
     @_client = new Client 1000
 
     @_timeline = new Timeline document.getElementById('timeline')
+    @_lockOverlay = document.getElementById 'lock-overlay'
+
     @_ctrlBar  = document.getElementById 'controls'
     @_prevBtn  = document.getElementById 'prev'
     @_nextBtn  = document.getElementById 'next'
     @_playBtn  = document.getElementById 'play'
     @_panicBtn = document.getElementById 'panic'
     @_resetBtn = document.getElementById 'reset'
+    @_lockBtn  = document.getElementById 'lock'
     @_songBox  = document.getElementById 'song_box'
     @_songName = document.getElementById 'title'
     @_filter   = document.getElementById 'filter'
@@ -38,6 +41,10 @@ class SongSwitcherWWW
     @_playBtn.addEventListener 'click', => @_client.play()
     @_panicBtn.addEventListener 'click', => @_client.panic()
     @_resetBtn.addEventListener 'click', => @_client.reset()
+    @_lockBtn.addEventListener 'click', =>
+      if !@_isLocked() || confirm('Are you sure?')
+        @_lockOverlay.classList.toggle 'hidden'
+        @_lockBtn.classList.toggle 'active'
     @_songName.addEventListener 'click', =>
       @_setClass @_songBox, 'edit', true
       @_filter.focus()
@@ -55,7 +62,8 @@ class SongSwitcherWWW
 
     window.addEventListener 'resize', => @_timeline.update @_client.data
     window.addEventListener 'keydown', (e) =>
-      @_client.play() if e.keyCode == 32 && e.target == document.body
+      if !@_isLocked() && e.keyCode == 32 && e.target == document.body
+        @_client.play()
 
   _setText: (node, text) ->
     if(textNode = node.lastChild)
@@ -76,5 +84,8 @@ class SongSwitcherWWW
     @_setClass @_songBox, 'edit', false
     @_filter.value = ''
     document.activeElement.blur() # close android keyboard
+
+  _isLocked: ->
+    @_lockBtn.classList.contains 'active'
 
 module.exports = SongSwitcherWWW

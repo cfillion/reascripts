@@ -9,6 +9,7 @@ html
     style == File.read 'build/style.css'
     script src="/main.js"
   body
+    #lock-overlay.hidden
     .vlayout
       div.spacer
         /! Top spacer
@@ -29,6 +30,7 @@ html
       #footer.hlayout
         #panic.button MIDI Panic
         #reset.button Reset data
+        #lock.button  Lock
         #about
           a> target="_blank" href="http://forum.cockos.com/showthread.php?t=181159"
             | Song Switcher Control
