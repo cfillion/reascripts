@@ -83,7 +83,7 @@ class Client extends EventEmitter
     @_editData (set) ->
       set 'playState', false
       set 'position', 0
-      set 'state', new State
+      set 'state', new State([]) # invalid data different from fallback
       set 'markerList', []
 
   _parse: (response) ->
