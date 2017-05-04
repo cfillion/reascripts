@@ -64,6 +64,10 @@ class SongSwitcherWWW
     window.addEventListener 'keydown', (e) =>
       if !@_isLocked() && e.keyCode == 32 && e.target == document.body
         @_client.play()
+    window.addEventListener 'beforeunload', (e) =>
+      if @_isLocked()
+        text = 'Are you sure?'
+        e.returnValue = text
 
   _setText: (node, text) ->
     if(textNode = node.lastChild)
