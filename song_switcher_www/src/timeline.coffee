@@ -44,19 +44,23 @@ class Timeline extends EventEmitter
         @update @_data
 
     window.addEventListener mousemove, (e) =>
+      [x, y] = @_mousePos e
       if @_mouseTime && @_mouseTime < (new Date()) - SEEK_DELAY
+        pos = Math.max 1, Math.min(x, @_canvas.width)
         @_disableSnap = true
-        @_seekPreview = @_pxToTime @_mousePos(e)
+        @_seekPreview = @_pxToTime pos
         @update @_data
 
+      if @_isMouseOver x, y
         # prevent scrolling on mobile when zoomed
         e.preventDefault()
         false
 
     @_canvas.addEventListener click, (e) =>
-      pos = @_mousePos e
-      pos = @_snap pos unless @_disableSnap
-      @emit 'seek', @_pxToTime(pos) + @_data.state.startTime
+      [x, y] = @_mousePos e
+      return unless @_isMouseOver x, y
+      x = @_snap x unless @_disableSnap
+      @emit 'seek', @_pxToTime(x) + @_data.state.startTime
 
   update: (@_data) ->
     @_snapPoints.length = 0
@@ -220,11 +224,15 @@ class Timeline extends EventEmitter
     else
       pos
 
+  _isMouseOver: (x, y) ->
+    x > 0 && x <= @_canvas.width && y > 0 && y <= @_canvas.height
+
   _mousePos: (e) ->
     if @_hasTouch
       e = e.touches[0] || e.changedTouches[0]
 
-    pos = e.pageX - @_canvas.offsetLeft
-    Math.max 1, Math.min(pos, @_canvas.width)
+    x = e.pageX - @_canvas.offsetLeft
+    y = e.pageY - @_canvas.offsetTop
+    [x, y]
 
 module.exports = Timeline
