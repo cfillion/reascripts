@@ -49,6 +49,10 @@ class Timeline extends EventEmitter
         @_seekPreview = @_pxToTime @_mousePos(e)
         @update @_data
 
+        # prevent scrolling on mobile when zoomed
+        e.preventDefault()
+        false
+
     @_canvas.addEventListener click, (e) =>
       pos = @_mousePos e
       pos = @_snap pos unless @_disableSnap
