@@ -23,8 +23,10 @@ class SongSwitcherWWW
     @_setClass @_ctrlBar, 'invalid', false
     @_timeline.update @_client.data
 
-    @_client.on 'playStateChanged', (playing) =>
-      @_setClass @_playBtn, 'active', playing
+    @_client.on 'playStateChanged', (state) =>
+      @_setClass @_playBtn, 'active', state > 0
+      @_setClass @_playBtn, 'record', state & 4
+      @_setClass @_playBtn, 'paused', state & 2
     @_client.on 'stateChanged', (state) =>
       @_setVisible @_prevBtn, state.currentIndex > 1
       @_setVisible @_nextBtn, state.currentIndex < state.songCount

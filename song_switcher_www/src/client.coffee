@@ -94,7 +94,7 @@ class Client extends EventEmitter
 
         switch tok[0]
           when 'TRANSPORT'
-            set 'playState', tok[1] != '0'
+            set 'playState', parseInt(tok[1])
             set 'position', parseTime(tok[2])
           when 'MARKER'
             markers.push new Marker(tok)
