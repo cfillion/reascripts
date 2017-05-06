@@ -218,9 +218,9 @@ class Timeline extends EventEmitter
 
   _mousePos: (e) ->
     if @_hasTouch
-      touch = e.touches[0] || e.changedTouches[0]
-      touch.pageX - touch.target.offsetLeft
-    else
-      e.offsetX
+      e = e.touches[0] || e.changedTouches[0]
+
+    pos = e.pageX - @_canvas.offsetLeft
+    Math.max 1, Math.min(pos, @_canvas.width)
 
 module.exports = Timeline
