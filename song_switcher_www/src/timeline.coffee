@@ -16,6 +16,8 @@ TYPE_CURSOR = 1
 TYPE_GRID = 2
 TYPE_MARKER = 3
 SNAP_THRESHOLD = 50
+SEEK_COLOR = 'orange'
+SEEK_DELAY = 500 # in milliseconds
 
 EventEmitter = require('events').EventEmitter
 
@@ -25,7 +27,32 @@ class Timeline extends EventEmitter
     @_rulerTop = FONT_SIZE
 
     @_ctx = @_canvas.getContext '2d'
-    @_canvas.addEventListener 'click', (e) => @_emitSeek(e.offsetX)
+
+    @_hasTouch = 'ontouchstart' of window
+    mousedown = if @_hasTouch then 'touchstart' else 'mousedown'
+    mousemove = if @_hasTouch then 'touchmove' else 'mousemove'
+    mouseup = if @_hasTouch then 'touchend' else 'mouseup'
+    click = if @_hasTouch then 'touchend' else 'click'
+
+    @_canvas.addEventListener mousedown, =>
+      [@_mouseTime, @_disableSnap] = [new Date(), false]
+
+    window.addEventListener mouseup, =>
+      @_mouseTime = null
+      if @_seekPreview
+        @_seekPreview = null
+        @update @_data
+
+    window.addEventListener mousemove, (e) =>
+      if @_mouseTime && @_mouseTime < (new Date()) - SEEK_DELAY
+        @_disableSnap = true
+        @_seekPreview = @_pxToTime @_mousePos(e)
+        @update @_data
+
+    @_canvas.addEventListener click, (e) =>
+      pos = @_mousePos e
+      pos = @_snap pos unless @_disableSnap
+      @emit 'seek', @_pxToTime(pos) + @_data.state.startTime
 
   update: (@_data) ->
     @_snapPoints.length = 0
@@ -49,6 +76,9 @@ class Timeline extends EventEmitter
       @_outOfBounds ALIGN_LEFT
     else if @_data.position > @_data.state.endTime
       @_outOfBounds ALIGN_RIGHT
+
+    @_ctx.strokeStyle = @_ctx.fillStyle = SEEK_COLOR
+    @_rulerTick @_seekPreview if @_seekPreview
 
     @_snapPoints.sort (a, b) -> a - b
 
@@ -166,7 +196,7 @@ class Timeline extends EventEmitter
     out += ".#{pad '000', ms}" if showMs
     out
 
-  _emitSeek: (pos) ->
+  _snap: (pos) ->
     [min, max] = [-1, @_snapPoints.length]
 
     while max - min > 1
@@ -182,8 +212,15 @@ class Timeline extends EventEmitter
     distance = Math.min Math.abs(min), Math.abs(max)
 
     if distance < SNAP_THRESHOLD
-      pos = (if distance == Math.abs(min) then min else max) + pos
+      (if distance == Math.abs(min) then min else max) + pos
+    else
+      pos
 
-    @emit 'seek', @_pxToTime(pos) + @_data.state.startTime
+  _mousePos: (e) ->
+    if @_hasTouch
+      touch = e.touches[0] || e.changedTouches[0]
+      touch.pageX - touch.target.offsetLeft
+    else
+      e.offsetX
 
 module.exports = Timeline
