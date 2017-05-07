@@ -43,7 +43,7 @@ class Client extends EventEmitter
 
   constructor: (timer) ->
     @data = {}
-    @_resetData()
+    @_resetData [] # pass an empty state different from fallback for initialization
 
     (fetch_loop = =>
       @_send ''
@@ -79,11 +79,11 @@ class Client extends EventEmitter
     req.open 'GET', "/_/#{cmd};#{CMD_UPDATE}", true
     req.send null
 
-  _resetData: ->
+  _resetData: (state) ->
     @_editData (set) ->
       set 'playState', false
       set 'position', 0
-      set 'state', new State([]) # invalid data different from fallback
+      set 'state', new State(state)
       set 'markerList', []
 
   _parse: (response) ->
