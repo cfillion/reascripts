@@ -97,6 +97,8 @@ KEY_PLUS = 43
 KEY_STAR = 42
 KEY_F3 = 26163
 
+MOUSE_LEFT_BTN = 1
+
 PADDING = 3
 MARGIN = 10
 HALF_MARGIN = 5
@@ -469,17 +471,7 @@ function dockButton()
   local dockState = gfx.dock(-1)
 
   if button(btn, dockState ~= 0, false, false) then
-    if dockState == 0 then
-      local lastDock = tonumber(reaper.GetExtState(EXT_SECTION,
-        EXT_LAST_DOCK))
-      if not lastDock or lastDock < 1 then lastDock = 1 end
-
-      gfx.dock(lastDock)
-    else
-      reaper.SetExtState(EXT_SECTION, EXT_LAST_DOCK,
-        tostring(dockState), true)
-      gfx.dock(0)
-    end
+    toggleDock(dockState)
   end
 end
 
@@ -681,6 +673,9 @@ function mouse()
   elseif mouseState == 1 and gfx.mouse_cap == 0 then
     -- left button release
     mouseClick = true
+  elseif mouseState == 2 and gfx.mouse_cap == 0 then
+    -- right button release
+    contextMenu()
   end
 
   mouseState = gfx.mouse_cap
@@ -854,6 +849,40 @@ function updateState()
     tostring(invalid)
   )
   reaper.SetExtState(EXT_SECTION, EXT_STATE, state, false)
+end
+
+function toggleDock(dockState)
+  if dockState == 0 then
+    local lastDock = tonumber(reaper.GetExtState(EXT_SECTION,
+      EXT_LAST_DOCK))
+    if not lastDock or lastDock < 1 then lastDock = 1 end
+
+    gfx.dock(lastDock)
+  else
+    reaper.SetExtState(EXT_SECTION, EXT_LAST_DOCK,
+      tostring(dockState), true)
+    gfx.dock(0)
+  end
+end
+
+function contextMenu()
+  local dockState = gfx.dock(-1)
+  local dockFlag
+  if dockState > 0 then dockFlag = '!' else dockFlag = '' end
+
+  local menu = string.format(
+    '%sDock window|Reset data',
+    dockFlag
+  )
+
+  local actions = {
+    function() toggleDock(dockState) end,
+    reset,
+  }
+
+  gfx.x, gfx.y = gfx.mouse_x, gfx.mouse_y
+  local index = gfx.showmenu(menu)
+  if actions[index] then actions[index]() end
 end
 
 -- graphics initialization
