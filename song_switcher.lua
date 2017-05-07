@@ -515,7 +515,7 @@ function button(line, active, highlight, danger)
   end
 
   if isUnderMouse(line.rect.x, line.rect.y, line.rect.w, line.rect.h) then
-    if mouseState > 0 then
+    if (mouseState & MOUSE_LEFT_BTN) == MOUSE_LEFT_BTN then
       if danger then
         useColor(COLOR_DANGERBG)
         color = COLOR_DANGERFG
