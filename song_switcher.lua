@@ -1,13 +1,17 @@
 -- @description Song Switcher
--- @version 1.3
+-- @version 1.4
 -- @changelog
---   * fix detection of start/end time when there are no items in the first few tracks
+--   * only show mousedown button effect for the left button
+--   * show a context menu on right click
+--   * stop transport before switching songs rather than after
+--   * toggle filter box with single click rather than double click
 --   Web Interface:
---   * add midi panic and data reset buttons
---   * disable spell check on the input box
---   * implement timeline view with seek support and markers
---   * make spacebar trigger play/stop on desktop
---   * rewrite with cleaner code
+--   * add Lock button to enable read-only mode
+--   * change the color of the play button on pause/record
+--   * confirm tab close in locked mode
+--   * disable pixel interpolation when scaling the timeline
+--   * enhance noscript and fix loading flickering
+--   * implement precise seek on mouse drag in timeline
 -- @author cfillion
 -- @provides
 --   [main] cfillion_Song Switcher/*.lua
