@@ -872,7 +872,11 @@ function ireascript.lua(code)
     ireascript.errorFormat()
 
     if hasMessage then
-      ireascript.push(values:sub(20))
+      if values:len() >= 20 then
+        ireascript.push(values:sub(20))
+      else
+        ireascript.push('\x20')
+      end
     else
       ireascript.push('error')
       ireascript.resetFormat()
