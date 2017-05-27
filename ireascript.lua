@@ -760,13 +760,7 @@ function ireascript.eval(nested)
   elseif code:sub(0, 1) == ireascript.ACTION_PREFIX then
     ireascript.execAction(code:sub(2))
   else
-    local err = ireascript.lua(code)
-
-    if err then
-      ireascript.errorFormat()
-      ireascript.push(err)
-      ireascript.nl()
-    else
+    if ireascript.lua(code) then
       reaper.TrackList_AdjustWindows(false)
       reaper.UpdateArrange()
     end
@@ -866,15 +860,30 @@ function ireascript.lua(code)
     ireascript.nl()
     ireascript.prepend = ''
   else
-    if values:sub(-5) == '<eof>' and ireascript.input:len() > 0 then
+    local hasMessage = type(values) == 'string'
+
+    if hasMessage and values:sub(-5) == '<eof>' and ireascript.input:len() > 0 then
       ireascript.prepend = code
       return
     else
       ireascript.prepend = ''
     end
 
-    return values:sub(20)
+    ireascript.errorFormat()
+
+    if hasMessage then
+      ireascript.push(values:sub(20))
+    else
+      ireascript.push('error')
+      ireascript.resetFormat()
+      ireascript.push(' ')
+      ireascript.format(values)
+    end
+
+    ireascript.nl()
   end
+
+  return ok
 end
 
 function ireascript.format(value)
