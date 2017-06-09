@@ -103,6 +103,9 @@ local ireascript = {
   EXT_SECTION = 'cfillion_ireascript',
   EXT_WINDOW_STATE = 'window_state',
   EXT_LAST_DOCK = 'last_dock',
+
+  HISTORY_FILE = ({reaper.get_action_context()})[2] .. '.history',
+  HISTORY_LIMIT = 1000,
 }
 
 print = function(...)
@@ -165,6 +168,10 @@ function ireascript.reset(banner)
     ireascript.push(string.format('%s v%s by cfillion\n',
       ireascript.TITLE, ireascript.VERSION))
     ireascript.push('Type Lua code, !ACTION or .help\n')
+  end
+
+  if #ireascript.history == 0 then
+    ireascript.readHistory()
   end
 
   ireascript.prompt()
@@ -733,6 +740,39 @@ function ireascript.moveCaret(pos)
   end
 end
 
+function ireascript.readHistory()
+  local file, err = io.open(ireascript.HISTORY_FILE, 'r')
+  if not file then return -1 end
+
+  ireascript.history = {}
+
+  for line in file:lines() do
+    if #ireascript.history >= ireascript.HISTORY_LIMIT then break end
+    table.insert(ireascript.history, line)
+  end
+
+  file:close()
+  return #ireascript.history
+end
+
+function ireascript.writeHistory()
+  local file, err = io.open(ireascript.HISTORY_FILE, 'w')
+  if not file then return false end
+
+  local count = math.min(#ireascript.history, ireascript.HISTORY_LIMIT)
+  for i=1, count do
+    file:write(string.format('%s\n', ireascript.history[i]))
+  end
+
+  file:close()
+  return count
+end
+
+function ireascript.pushHistory(line)
+  table.insert(ireascript.history, 1, line)
+  ireascript.hindex = 0
+end
+
 function ireascript.historyJump(pos)
   if pos < 0 or pos > #ireascript.history then
     return
@@ -768,8 +808,7 @@ function ireascript.eval(nested)
 
   if nested then return end
 
-  table.insert(ireascript.history, 1, ireascript.input)
-  ireascript.hindex = 0
+  ireascript.pushHistory(ireascript.input)
   ireascript.input = ''
 
   if ireascript.lines == 0 then
@@ -1230,24 +1269,24 @@ function ireascript.each_lines(text)
   end
 end
 
-function previousWindowState()
+function ireascript.previousWindowState()
   local state = tostring(reaper.GetExtState(
     ireascript.EXT_SECTION, ireascript.EXT_WINDOW_STATE))
   return state:match("^(%d+) (%d+) (%d+) (-?%d+) (-?%d+)$")
 end
 
-function saveWindowState()
+function ireascript.saveWindowState()
   local dockState, xpos, ypos = gfx.dock(-1, 0, 0, 0, 0)
   local w, h = gfx.w, gfx.h
   if dockState > 0 then
-    w, h = previousWindowState()
+    w, h = ireascript.previousWindowState()
   end
 
   reaper.SetExtState(ireascript.EXT_SECTION, ireascript.EXT_WINDOW_STATE,
     string.format("%d %d %d %d %d", w, h, dockState, xpos, ypos), true)
 end
 
-local w, h, dockState, x, y = previousWindowState()
+local w, h, dockState, x, y = ireascript.previousWindowState()
 
 if w then
   gfx.init(ireascript.TITLE, w, h, dockState, x, y)
@@ -1266,4 +1305,7 @@ end
 -- GO!!
 ireascript.run()
 
-reaper.atexit(saveWindowState)
+reaper.atexit(function()
+  ireascript.saveWindowState()
+  ireascript.writeHistory()
+end)
