@@ -99,6 +99,7 @@ local ireascript = {
   KEY_RIGHT = 1919379572,
   KEY_TAB = 9,
   KEY_UP = 30064,
+  KEY_F1 = 26161,
 
   EXT_SECTION = 'cfillion_ireascript',
   EXT_WINDOW_STATE = 'window_state',
@@ -148,6 +149,23 @@ function ireascript.replay()
     ireascript.errorFormat()
     ireascript.push('history is empty')
   end
+end
+
+function ireascript.about()
+  if not reaper.ReaPack_GetOwner then
+    reaper.MB('ReaPack v1.2+ is required to use this feature.', 'iReaScript', 0)
+    return
+  end
+
+  local owner = reaper.ReaPack_GetOwner(({reaper.get_action_context()})[2])
+  if not owner then
+    reaper.MB(
+      'iReaScript must be installed through ReaPack to use this feature.', 'iReaScript', 0)
+    return
+  end
+
+  reaper.AboutInstalledPackage(owner, 0)
+  reaper.ReaPack_FreeEntry(owner)
 end
 
 function ireascript.exit()
@@ -276,6 +294,8 @@ function ireascript.keyboard()
     ireascript.paste()
   elseif char == ireascript.KEY_TAB then
     ireascript.complete()
+  elseif char == ireascript.KEY_F1 then
+    ireascript.about()
   elseif char >= ireascript.KEY_INPUTRANGE_FIRST and char <= ireascript.KEY_INPUTRANGE_LAST then
     local before, after = ireascript.splitInput()
     ireascript.input = before .. string.char(char) .. after
@@ -524,7 +544,7 @@ function ireascript.contextMenu()
   if dockState > 0 then dockFlag = '!' end
 
   local menu = string.format(
-    'Copy (^C)|Paste (^V)||Clear (^L)||%sDock window|Close iReaScript (^D)',
+    'Copy (^C)|Paste (^V)||Clear (^L)||%sDock window|About iReaScript (F1)|Close iReaScript (^D)',
     dockFlag
   )
 
@@ -544,6 +564,7 @@ function ireascript.contextMenu()
         gfx.dock(0)
       end
     end,
+    ireascript.about,
     ireascript.exit,
   }
 
