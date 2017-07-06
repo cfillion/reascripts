@@ -51,7 +51,7 @@ local ireascript = {
   MARGIN = 3,
   MAXLINES = 2048,
   MAXDEPTH = 3, -- maximum array depth
-  MAXLEN = 1024, -- maximum array size
+  MAXLEN = 2048, -- maximum array size
   INDENT = 2,
   INDENT_THRESHOLD = 5,
   PROMPT = '> ',
@@ -164,7 +164,7 @@ function ireascript.about()
     return
   end
 
-  reaper.AboutInstalledPackage(owner, 0)
+  reaper.AboutInstalledPackage(owner)
   reaper.ReaPack_FreeEntry(owner)
 end
 
@@ -956,37 +956,7 @@ function ireascript.format(value)
   local t = type(value)
 
   if t == 'table' then
-    local i, array, last = 0, true, 0
-
-    for k,v in pairs(value) do
-      if type(k) == 'number' and k > 0 then
-        i = i + (k - last) - 1
-        last = k
-      else
-        array = false
-      end
-
-      i = i + 1
-    end
-
-    if ireascript.flevel == nil then
-      ireascript.flevel = 1
-    elseif ireascript.flevel >= ireascript.MAXDEPTH then
-      ireascript.errorFormat()
-      ireascript.push('...')
-      return
-    else
-      ireascript.flevel = ireascript.flevel + 1
-    end
-
-    if array then
-      ireascript.formatArray(value, i)
-    else
-      ireascript.formatTable(value, i)
-    end
-
-    ireascript.flevel = ireascript.flevel - 1
-
+    ireascript.formatAnyTable(value)
     return
   elseif value == nil then
     ireascript.foreground = ireascript.COLOR_YELLOW
@@ -997,6 +967,11 @@ function ireascript.format(value)
     value = string.format('<%s>', value)
   elseif t == 'string' then
     ireascript.foreground = ireascript.COLOR_GREEN
+
+    if value:len() > ireascript.MAXLEN then
+      value = value:sub(1, ireascript.MAXLEN) .. '...'
+    end
+
     value = string.format('%q', value):
       gsub("\\\n", '\\n'):
       gsub('\\0*13', '\\r'):
@@ -1004,6 +979,39 @@ function ireascript.format(value)
   end
 
   ireascript.push(tostring(value))
+end
+
+function ireascript.formatAnyTable(value)
+  local i, array, last = 0, true, 0
+
+  for k,v in pairs(value) do
+    if type(k) == 'number' and k > 0 then
+      i = i + (k - last) - 1
+      last = k
+    else
+      array = false
+    end
+
+    i = i + 1
+  end
+
+  if ireascript.flevel == nil then
+    ireascript.flevel = 1
+  elseif ireascript.flevel >= ireascript.MAXDEPTH then
+    ireascript.errorFormat()
+    ireascript.push('...')
+    return
+  else
+    ireascript.flevel = ireascript.flevel + 1
+  end
+
+  if array then
+    ireascript.formatArray(value, i)
+  else
+    ireascript.formatTable(value, i)
+  end
+
+  ireascript.flevel = ireascript.flevel - 1
 end
 
 function ireascript.formatArray(value, size)
