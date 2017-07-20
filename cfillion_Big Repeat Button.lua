@@ -6,7 +6,7 @@
 --   Fix mouse cursor click hit detection in small windows
 -- @link
 --   cfillion.ca https://cfillion.ca
---   Request Thread http://forum.cockos.com/showthread.php?t=191477
+--   Request Thread https://forum.cockos.com/showthread.php?t=191477
 -- @screenshot https://i.imgur.com/BUripgE.gif
 -- @donation https://www.paypal.me/cfillion/10
 

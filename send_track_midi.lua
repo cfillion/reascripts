@@ -1,5 +1,5 @@
 -- send_track_midi.lua v0.1 by Christian Fillion (cfillion)
--- http://forum.cockos.com/showpost.php?p=1580440
+-- https://forum.cockos.com/showpost.php?p=1580440
 
 local selectionSize = reaper.CountSelectedTracks(0)
 

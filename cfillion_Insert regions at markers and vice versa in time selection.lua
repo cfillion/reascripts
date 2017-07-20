@@ -1,7 +1,7 @@
 -- @description Insert regions at markers and vice versa in time selection
 -- @version 1.0
 -- @author cfillion
--- @link http://forum.cockos.com/showthread.php?t=185577
+-- @link https://forum.cockos.com/showthread.php?t=185577
 
 reaper.Undo_BeginBlock()
 

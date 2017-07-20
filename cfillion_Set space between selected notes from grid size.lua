@@ -2,7 +2,7 @@
 -- @version 1.0.1
 -- @changelog Fix behavior when multiple notes are at the same position.
 -- @author cfillion
--- @link Forum Thread http://forum.cockos.com/showthread.php?t=187255
+-- @link Forum Thread https://forum.cockos.com/showthread.php?t=187255
 -- @donation https://www.paypal.me/cfillion
 
 local editor = reaper.MIDIEditor_GetActive()

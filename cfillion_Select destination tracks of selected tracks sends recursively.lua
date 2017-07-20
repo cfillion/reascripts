@@ -2,7 +2,7 @@
 -- @version 1.1.1
 -- @author cfillion
 -- @changelog Simpler packaging using new ReaPack features (no other code changes).
--- @link Forum Thread http://forum.cockos.com/showthread.php?t=183638
+-- @link Forum Thread https://forum.cockos.com/showthread.php?t=183638
 -- @donation https://www.paypal.me/cfillion
 -- @provides
 --   [main] .

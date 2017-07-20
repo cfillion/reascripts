@@ -5,7 +5,7 @@
 --   fix invisible \t (tabs) on windows
 --   fix ugly font on windows
 -- @description Interactive ReaScript (iReaScript)
--- @link Forum Thread http://forum.cockos.com/showthread.php?t=177324
+-- @link Forum Thread https://forum.cockos.com/showthread.php?t=177324
 -- @donation https://www.paypal.me/cfillion
 -- @screenshot http://i.imgur.com/RrGfulR.gif
 -- @about
@@ -33,7 +33,7 @@
 --
 --   ## Known Issues/Limitations
 --
---   - Some errors cannot be caught (see http://forum.cockos.com/showthread.php?t=177319)
+--   - Some errors cannot be caught (see https://forum.cockos.com/showthread.php?t=177319)
 --   - This tool cannot be used to open a new GFX window
 --
 --   ## Contributing

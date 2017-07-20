@@ -3,7 +3,7 @@
 -- @author cfillion
 -- @link
 --   cfillion.ca https://cfillion.ca/
---   Forum Thread http://forum.cockos.com/showthread.php?t=187651
+--   Forum Thread https://forum.cockos.com/showthread.php?t=187651
 -- @donation https://www.paypal.me/cfillion
 -- @provides
 --   [main] .

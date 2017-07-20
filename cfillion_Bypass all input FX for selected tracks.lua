@@ -1,7 +1,7 @@
 -- @description Bypass all input FX for selected tracks
 -- @version 1.0
 -- @author cfillion
--- @link http://forum.cockos.com/showthread.php?t=185229
+-- @link https://forum.cockos.com/showthread.php?t=185229
 
 reaper.Undo_BeginBlock()
 

@@ -16,7 +16,7 @@
 -- @provides
 --   [main] cfillion_Song Switcher/*.lua
 --   [webinterface] cfillion_Song Switcher/song_switcher.html > song_switcher.html
--- @link Forum Thread http://forum.cockos.com/showthread.php?t=181159
+-- @link Forum Thread https://forum.cockos.com/showthread.php?t=181159
 -- @donation https://www.paypal.me/cfillion
 -- @screenshot
 --   Docked Mode https://i.imgur.com/4xPMV9J.gif

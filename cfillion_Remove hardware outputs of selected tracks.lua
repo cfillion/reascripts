@@ -1,7 +1,7 @@
 -- @description Remove hardware outputs of selected tracks
 -- @version 1.0
 -- @author cfillion
--- @website http://forum.cockos.com/showthread.php?t=189761
+-- @website https://forum.cockos.com/showthread.php?t=189761
 -- @donation https://www.paypal.me/cfillion
 
 local self = ({reaper.get_action_context()})[2]:match('([^/\\_]+).lua$')

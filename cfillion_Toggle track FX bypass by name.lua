@@ -2,7 +2,7 @@
 -- @version 1.1
 -- @changelog Add track filter feature (by name or selection)
 -- @author cfillion
--- @link http://forum.cockos.com/showthread.php?t=184623
+-- @link https://forum.cockos.com/showthread.php?t=184623
 -- @screenshot
 --   Basic Usage https://i.imgur.com/jVgwbi3.gif
 --   Undo Points https://i.imgur.com/dtNwlsn.png

@@ -2,7 +2,7 @@
 -- @version 1.0.1
 -- @changelog More efficient packaging of the slots for ReaPack.
 -- @author cfillion
--- @link Request Thread http://forum.cockos.com/showthread.php?t=181160
+-- @link Request Thread https://forum.cockos.com/showthread.php?t=181160
 -- @metapackage
 -- @provides
 --   [main] . > cfillion_Toggle take FX 1 bypass for selected items.lua

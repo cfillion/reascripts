@@ -2,7 +2,7 @@
 -- @version 1.0
 -- @author cfillion
 -- @donation https://www.paypal.me/cfillion
--- @link Forum Thread http://forum.cockos.com/showthread.php?t=186689
+-- @link Forum Thread https://forum.cockos.com/showthread.php?t=186689
 
 local TITLE = "Nudge start or end of regions in time selection"
 local UNDO_STATE_MISCCFG = 8

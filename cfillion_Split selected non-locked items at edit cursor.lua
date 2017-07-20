@@ -1,7 +1,7 @@
 -- @description Split selected non-locked items at edit cursor
 -- @version 1.0
 -- @author cfillion
--- @link Forum Thread http://forum.cockos.com/showthread.php?t=189347
+-- @link Forum Thread https://forum.cockos.com/showthread.php?t=189347
 -- @donation https://www.paypal.me/cfillion
 -- @about
 --   This script splits selected non-locked items at edit cursor.

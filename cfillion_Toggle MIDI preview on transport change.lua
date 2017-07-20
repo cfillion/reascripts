@@ -5,7 +5,7 @@
 --   Fixed preview toggling when reopening the midi editor
 -- @links
 --   https://cfillion.tk
---   Forum Thread http://forum.cockos.com/showthread.php?t=169896
+--   Forum Thread https://forum.cockos.com/showthread.php?t=169896
 -- @donation https://www.paypal.me/cfillion
 --
 -- Send patches at <https://github.com/cfillion/reascripts>.
