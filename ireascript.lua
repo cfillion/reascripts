@@ -101,6 +101,9 @@ local ireascript = {
   KEY_UP = 30064,
   KEY_F1 = 26161,
 
+  MIDDLE_CLICK = 64,
+  RIGHT_CLICK = 2,
+
   EXT_SECTION = 'cfillion_ireascript',
   EXT_WINDOW_STATE = 'window_state',
   EXT_LAST_DOCK = 'last_dock',
@@ -591,8 +594,12 @@ function ireascript.loop()
   end
 
   if gfx.mouse_cap ~= ireascript.mouse_cap then
-    if gfx.mouse_cap & 2 == 0 and ireascript.mouse_cap & 2 == 2 then
+    if ireascript.isMouseCap(ireascript.RIGHT_CLICK) then
       ireascript.contextMenu()
+    end
+
+    if ireascript.isMouseCap(ireascript.MIDDLE_CLICK) then
+      ireascript.paste()
     end
 
     ireascript.mouse_cap = gfx.mouse_cap
@@ -607,6 +614,10 @@ function ireascript.loop()
   ireascript.scrollTo(ireascript.scroll) -- refreshed bound check
 
   gfx.update()
+end
+
+function ireascript.isMouseCap(flag)
+  return gfx.mouse_cap & flag == 0 and ireascript.mouse_cap & flag == flag
 end
 
 function ireascript.resetFormat()
