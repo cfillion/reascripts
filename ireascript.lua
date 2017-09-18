@@ -1,10 +1,14 @@
--- @version 0.6.1
+-- @description Interactive ReaScript (iReaScript)
+-- @version 0.6.2
 -- @author cfillion
 -- @changelog
---   fix division by zero when wrapping lines starting with a zero-length character
---   fix invisible \t (tabs) on windows
---   fix ugly font on windows
--- @description Interactive ReaScript (iReaScript)
+--   add "About iReaScript (F1)" context menu entry and shortcut (ReaPack v1.2+)
+--   don't crash when pasting \r\n
+--   don't display a completely blank line when an empty error string is given
+--   paste on middle click
+--   persist history between sessions
+--   reimplement copy/paste using my new API functions (SWS v1.9.6+)
+--   support non-string arguments to Lua's error function
 -- @link Forum Thread https://forum.cockos.com/showthread.php?t=177324
 -- @donation https://www.paypal.me/cfillion
 -- @screenshot http://i.imgur.com/RrGfulR.gif
