@@ -110,6 +110,10 @@ local ireascript = {
 
   HISTORY_FILE = ({reaper.get_action_context()})[2] .. '.history',
   HISTORY_LIMIT = 1000,
+
+  NO_CLIPBOARD_API = 'Copy/paste requires SWS v2.9.6 or newer',
+  NO_REAPACK_API = 'ReaPack v1.2+ is required to use this feature',
+  MANUALLY_INSTALLED = 'iReaScript must be installed through ReaPack to use this feature',
 }
 
 print = function(...)
@@ -156,18 +160,18 @@ end
 
 function ireascript.about()
   if not reaper.ReaPack_GetOwner then
-    reaper.MB('ReaPack v1.2+ is required to use this feature.', 'iReaScript', 0)
+    reaper.internalError(ireascript.NO_REAPACK_API)
     return
   end
 
   local owner = reaper.ReaPack_GetOwner(({reaper.get_action_context()})[2])
+
   if not owner then
-    reaper.MB(
-      'iReaScript must be installed through ReaPack to use this feature.', 'iReaScript', 0)
+    ireascript.internalError(ireascript.MANUALLY_INSTALLED)
     return
   end
 
-  reaper.AboutInstalledPackage(owner)
+  reaper.ReaPack_AboutInstalledPackage(owner)
   reaper.ReaPack_FreeEntry(owner)
 end
 
@@ -1127,53 +1131,22 @@ function ireascript.useColor(color)
 end
 
 function ireascript.copy()
-  local tool
-
-  if ireascript.ismacos() then
-    tool = 'pbcopy'
-  elseif ireascript.iswindows() then
-    tool = 'clip'
+  if reaper.CF_SetClipboard then
+    reaper.CF_SetClipboard(ireascript.code())
+  else
+    ireascript.internalError(ireascript.NO_CLIPBOARD_API)
   end
-
-  local proc, error = io.popen(tool, 'w')
-
-  if not proc then
-    ireascript.removeCaret()
-    ireascript.nl()
-    ireascript.errorFormat()
-    ireascript.push(error)
-    ireascript.nl()
-    ireascript.prompt()
-    return
-  end
-
-  proc:write(ireascript.code())
-  proc:close()
 end
 
 function ireascript.paste()
-  local tool
-
-  if ireascript.ismacos() then
-    tool = 'pbpaste'
-  elseif ireascript.iswindows() then
-    tool = 'powershell -windowstyle hidden -Command Get-Clipboard'
-  end
-
-  local first = true
-  local proc, error = io.popen(tool, 'r')
-
-  if not proc then
-    ireascript.removeCaret()
-    ireascript.nl()
-    ireascript.errorFormat()
-    ireascript.push(error)
-    ireascript.nl()
-    ireascript.prompt()
+  if not reaper.CF_GetClipboard then
+    ireascript.internalError(ireascript.NO_CLIPBOARD_API)
     return
   end
 
-  for line in proc:lines() do
+  local clipboard, first = reaper.CF_GetClipboard(''), true
+
+  for line in ireascript.each_lines(clipboard) do
     if line:len() > 0 then
       if first then
         first = false
@@ -1189,8 +1162,16 @@ function ireascript.paste()
       ireascript.moveCaret(ireascript.caret + line:len())
     end
   end
+end
 
-  proc:close()
+function ireascript.internalError(msg)
+  ireascript.removeCaret()
+  ireascript.nl()
+  ireascript.errorFormat()
+  ireascript.push(string.format('internal error: %s', msg))
+  ireascript.nl()
+  ireascript.prompt()
+  return
 end
 
 function ireascript.complete()
