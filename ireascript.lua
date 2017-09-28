@@ -809,6 +809,13 @@ function ireascript.writeHistory()
 end
 
 function ireascript.pushHistory(line)
+  for i=1,math.min(50, #ireascript.history) do
+    if ireascript.history[i] == line then
+      table.remove(ireascript.history, i)
+      i = i - 1
+    end
+  end
+
   table.insert(ireascript.history, 1, line)
   ireascript.hindex = 0
 end
