@@ -1,17 +1,19 @@
 -- @description Show all saved nudge settings
--- @version 2.0.1
+-- @version 2.1
 -- @changelog
---   change shortcut for editing current nudge setting to 'n' key
---   close the nudge dialog without saving when clicking on the edit button
---   highlight the corresponding button when triggering a keyboard shortcut
---   show value of the copies setting in nudge/duplicate mode
+--   add actions for nudging left/right by last selected settings [p=1893932]
+--   disable Nudge left/right buttons when in Set mode [p=1893932]
+--   don't override the Last settings when the edit it cancelled into a slot
+--   remember the previously selected slot
+--   show "Saved!" message for 2 seconds after saving settings into a slot
 -- @author cfillion
 -- @link cfillion.ca https://cfillion.ca
 -- @donation https://www.paypal.me/cfillion
 -- @screenshot https://i.imgur.com/5o3OIyf.png
 -- @provides
---   . > cfillion_Nudge left by selected saved nudge dialog settings.lua
---   . > cfillion_Nudge right by selected saved nudge dialog settings.lua
+--   [main] .
+--   [main] . > cfillion_Nudge left by selected saved nudge dialog settings.lua
+--   [main] . > cfillion_Nudge right by selected saved nudge dialog settings.lua
 -- @about
 --   # Show all saved nudge settings
 --
@@ -45,7 +47,8 @@
 --   settings is to open and close the native nudge dialog.
 --
 --   Furthermore, REAPER does not store the nudge amout when using the "Set" mode
---   in the native nudge dialog. The script displays "N/A" in this case.
+--   in the native nudge dialog. The script displays "N/A" in this case and the
+--   nudge left/right actions are unavailable.
 
 local WHAT_MAP = {'position', 'left trim', 'left edge', 'right trim', 'contents',
   'duplicate', 'edit cursor', 'end position'}
@@ -70,20 +73,20 @@ local KEY_LEFT   = 0x6c656674
 local KEY_RIGHT  = 0x72676874
 local KEY_F1     = 0x6631
 
-local EXT_SECTION = 'cfillion_show_nudge_settings'
+local EXT_SECTION      = 'cfillion_show_nudge_settings'
 local EXT_WINDOW_STATE = 'window_state'
-local EXT_LAST_SLOT = 'last_slot'
+local EXT_LAST_SLOT    = 'last_slot'
 
-local exit = false
-local mouseDown = false
+local exit       = false
+local mouseDown  = false
 local mouseClick = false
-local key = nil
-local isEditing = false
-local saved = 0
-local iniFile = reaper.get_ini_file()
-local setting = {}
+local key        = nil
+local isEditing  = false
+local saved      = 0
+local setting    = {}
 
 local scriptName = ({reaper.get_action_context()})[2]:match("([^/\\_]+).lua$")
+local iniFile    = reaper.get_ini_file()
 
 function iniRead(key, n)
   if n > 0 then
@@ -266,7 +269,7 @@ function drawBox(box)
 end
 
 function box(box)
-  box.rect = boxRect(box)
+  if not box.rect then box.rect = boxRect(box) end
   if box.callback then button(box) end
   drawBox(box)
 end
