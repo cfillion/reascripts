@@ -52,17 +52,17 @@ local NOTE_MAP = {'1/256', '1/128', '1/64', '1/32T', '1/32', '1/16T', '1/16',
   '1/8T', '1/8', '1/4T', '1/4', '1/2', 'whole'}
 
 local NUDGEDLG_ACTION = 41228
-local SAVE_ACTIONS = {last=0, bank1=41271, bank2=41283}
-local LNUDGE_ACTIONS = {last=41250, bank1=41279, bank2=41291}
-local RNUDGE_ACTIONS = {last=41249, bank1=41275, bank2=41287}
+local SAVE_ACTIONS    = {last=0,     bank1=41271, bank2=41283}
+local LNUDGE_ACTIONS  = {last=41250, bank1=41279, bank2=41291}
+local RNUDGE_ACTIONS  = {last=41249, bank1=41275, bank2=41287}
 
 local WIN_PADDING = 10
 local BOX_PADDING = 7
 
 local KEY_ESCAPE = 0x1b
-local KEY_LEFT = 0x6c656674
-local KEY_RIGHT = 0x72676874
-local KEY_F1 = 0x6631
+local KEY_LEFT   = 0x6c656674
+local KEY_RIGHT  = 0x72676874
+local KEY_F1     = 0x6631
 
 local EXT_SECTION = 'cfillion_show_nudge_settings'
 local EXT_WINDOW_STATE = 'windowState'
@@ -70,9 +70,10 @@ local EXT_WINDOW_STATE = 'windowState'
 local exit = false
 local mouseDown = false
 local mouseClick = false
+local key = nil
+local isEditing = false
 local iniFile = reaper.get_ini_file()
 local setting = {}
-local isEditing = false
 
 local scriptName = ({reaper.get_action_context()})[2]:match("([^/\\_]+).lua$")
 
@@ -121,17 +122,16 @@ function snapTo(unit)
 end
 
 function loadSetting(n, reload)
-  local changed = setting.n ~= n
-  if not changed and not reload then return end
+  if setting.n == n and not reload then return end
 
   setting = {n=n}
 
-  local nudge = iniRead('nudge', n)
+  local nudge  = iniRead('nudge', n)
   setting.mode = nudge & 1
   setting.what = (nudge >> 12) + 1
   setting.unit = (nudge >> 4 & 0xFF) + 1
   setting.snap = nudge & 2
-  setting.rel = nudge & 4
+  setting.rel  = nudge & 4
 
   if setting.unit >= 4 and setting.unit <= 16 then
     setting.note = setting.unit - 3
@@ -170,8 +170,8 @@ function nudgeRight()
 end
 
 function setAsLast()
-  local count = reaper.CountSelectedMediaItems(0)
-  local selection = {}
+  local selection, count = {}, reaper.CountSelectedMediaItems(0)
+
   for i=0,count - 1 do
     local item = reaper.GetSelectedMediaItem(0, 0)
     table.insert(selection, item)
@@ -241,6 +241,7 @@ function drawBox(box)
   if not box.noborder then
     gfx.rect(box.rect.x, box.rect.y, box.rect.w, box.rect.h, false)
   end
+
   gfx.x = box.rect.x + BOX_PADDING
   gfx.drawstr(box.text, 4, gfx.x + box.rect.w - (BOX_PADDING * 2), gfx.y + box.rect.h + 2)
 
@@ -253,6 +254,7 @@ function box(box)
 end
 
 function button(box)
+  -- rect may be precomputed by rtlToolbar
   if not box.rect then box.rect = boxRect(box) end
 
   local underMouse =
@@ -265,6 +267,7 @@ function button(box)
 
   if (mouseClick and underMouse) or kbTrigger then
     box.callback()
+
     if box.active ~= nil then
       box.active = true
     end
@@ -283,7 +286,7 @@ end
 
 function rtlToolbar(x, btns)
   local leftmost = gfx.x
-  gfx.x = (gfx.w - x)
+  gfx.x = gfx.w - x
 
   for i=#btns,1,-1 do
     local btn = btns[i]
@@ -358,6 +361,7 @@ end
 
 function detectEdit()
   local state = reaper.GetToggleCommandState(NUDGEDLG_ACTION) == 1
+
   if isEditing and not state then
     saveCurrent()
   end
