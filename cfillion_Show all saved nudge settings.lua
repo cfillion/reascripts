@@ -185,8 +185,6 @@ function setAsLast()
 end
 
 function editCurrent()
-  if isEditing then return end
-
   if setting.n > 0 then
     setAsLast()
   end
