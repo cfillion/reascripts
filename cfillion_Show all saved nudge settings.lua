@@ -65,7 +65,8 @@ local KEY_RIGHT  = 0x72676874
 local KEY_F1     = 0x6631
 
 local EXT_SECTION = 'cfillion_show_nudge_settings'
-local EXT_WINDOW_STATE = 'windowState'
+local EXT_WINDOW_STATE = 'window_state'
+local EXT_LAST_SLOT = 'last_slot'
 
 local exit = false
 local mouseDown = false
@@ -126,6 +127,7 @@ function loadSetting(n, reload)
   if setting.n == n and not reload then return end
 
   setting = {n=n}
+  reaper.SetExtState(EXT_SECTION, EXT_LAST_SLOT, n, true)
 
   local nudge  = iniRead('nudge', n)
   setting.mode = nudge & 1
@@ -430,6 +432,16 @@ function saveWindowState()
     string.format("%d %d %d %d %d", w, h, dockState, xpos, ypos), true)
 end
 
+function previousSlot()
+  local slot = tonumber(reaper.GetExtState(EXT_SECTION, EXT_LAST_SLOT))
+
+  if slot and slot >= 0 and slot <= 8 then
+    return slot
+  else
+    return 0
+  end
+end
+
 local w, h, dockState, x, y = previousWindowState()
 
 if w then
@@ -446,5 +458,5 @@ end
 
 reaper.atexit(saveWindowState)
 
-loadSetting(0)
+loadSetting(previousSlot())
 loop()
