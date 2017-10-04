@@ -189,12 +189,15 @@ function setAsLast()
 end
 
 function editCurrent()
-  if setting.n > 0 then
+  if isEditing then
+    -- prevent saveCurrent() from being called when the nudge dialog is manually closed
+    isEditing = false
+    reaper.Main_OnCommand(NUDGEDLG_ACTION, 0)
+    loadSetting(setting.n, true)
+    return
+  elseif setting.n > 0 then
     setAsLast()
   end
-
-  -- do not save the settings when the nudge dialog is manually closed
-  if isEditing then isEditing = false end
 
   reaper.Main_OnCommand(NUDGEDLG_ACTION, 0)
 end
