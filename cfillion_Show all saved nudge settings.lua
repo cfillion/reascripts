@@ -9,6 +9,9 @@
 -- @link cfillion.ca https://cfillion.ca
 -- @donation https://www.paypal.me/cfillion
 -- @screenshot https://i.imgur.com/5o3OIyf.png
+-- @provides
+--   . > cfillion_Nudge left by selected saved nudge dialog settings.lua
+--   . > cfillion_Nudge right by selected saved nudge dialog settings.lua
 -- @about
 --   # Show all saved nudge settings
 --
@@ -19,6 +22,9 @@
 --   settings filled. The new settings are automatically saved into the selected
 --   1-8 slot once the native dialog is closed. Trigger the edit feature a second
 --   time to close the native dialog without saving.
+--
+--   In addition to the GUI script, two additional actions are provided to nudge
+--   left or right by the last selected settings in the script interface.
 --
 --   ## Keyboard Shortcuts
 --
@@ -164,12 +170,10 @@ function action(ids)
   return base + ((setting.n - 1) % 4)
 end
 
-function nudgeLeft()
-  reaper.Main_OnCommand(action(LNUDGE_ACTIONS), 0)
-end
-
-function nudgeRight()
-  reaper.Main_OnCommand(action(RNUDGE_ACTIONS), 0)
+function nudge(actions)
+  if setting.mode ~= 1 then
+    reaper.Main_OnCommand(action(actions), 0)
+  end
 end
 
 function setAsLast()
@@ -181,7 +185,7 @@ function setAsLast()
     reaper.SetMediaItemSelected(item, false)
   end
 
-  nudgeRight()
+  nudge(RNUDGE_ACTIONS)
 
   for _,item in ipairs(selection) do
     reaper.SetMediaItemSelected(item, true)
@@ -354,8 +358,8 @@ function draw()
 
   if setting.mode == 0 then
     rtlToolbar(WIN_PADDING, {
-      {text='< Nudge left', shortcut=KEY_LEFT, callback=nudgeLeft},
-      {text='Nudge right >', shortcut=KEY_RIGHT, callback=nudgeRight},
+      {text='< Nudge left', shortcut=KEY_LEFT, callback=function() nudge(LNUDGE_ACTIONS) end},
+      {text='Nudge right >', shortcut=KEY_RIGHT, callback=function() nudge(RNUDGE_ACTIONS) end},
     })
   else
     rtlToolbar(WIN_PADDING, {{text='(Nudge unavailable in Set mode)'}});
@@ -445,6 +449,14 @@ function previousSlot()
   end
 end
 
+loadSetting(previousSlot())
+
+if scriptName:match('Nudge.+by selected') then
+  reaper.defer(function() end) -- disable automatic undo point
+  nudge(scriptName:match('left') and LNUDGE_ACTIONS or RNUDGE_ACTIONS)
+  return
+end
+
 local w, h, dockState, x, y = previousWindowState()
 
 if w then
@@ -460,6 +472,4 @@ else
 end
 
 reaper.atexit(saveWindowState)
-
-loadSetting(previousSlot())
 loop()
