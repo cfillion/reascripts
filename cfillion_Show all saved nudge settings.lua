@@ -72,6 +72,7 @@ local mouseDown = false
 local mouseClick = false
 local key = nil
 local isEditing = false
+local saved = 0
 local iniFile = reaper.get_ini_file()
 local setting = {}
 
@@ -190,11 +191,18 @@ function editCurrent()
     setAsLast()
   end
 
+  -- do not save the settings when the nudge dialog is manually closed
+  if isEditing then isEditing = false end
+
   reaper.Main_OnCommand(NUDGEDLG_ACTION, 0)
 end
 
 function saveCurrent()
-  reaper.Main_OnCommand(action(SAVE_ACTIONS), 0)
+  if setting.n > 0 then
+    reaper.Main_OnCommand(action(SAVE_ACTIONS), 0)
+    saved = os.time()
+  end
+
   loadSetting(setting.n, true)
 end
 
@@ -309,10 +317,14 @@ function draw()
       callback=function() loadSetting(i) end})
   end
 
-  rtlToolbar(WIN_PADDING, {
+  local topToolbar = {
     {text='Edit', active=isEditing, shortcut=string.byte('n'), callback=editCurrent},
     {text='?', shortcut=KEY_F1, callback=help},
-  })
+  }
+  if saved > os.time() - 2 then
+    table.insert(topToolbar, 1, {text='Saved!', noborder=true})
+  end
+  rtlToolbar(WIN_PADDING, topToolbar)
 
   gfx.x, gfx.y = WIN_PADDING, 38
   box({w=70, text=boolValue(setting.mode, 'Nudge', 'Set')})
