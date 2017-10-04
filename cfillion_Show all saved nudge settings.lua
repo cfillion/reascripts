@@ -45,7 +45,6 @@ local mouseClick = false
 local iniFile = reaper.get_ini_file()
 local setting = {}
 local isEditing = false
-local isDirty = false
 
 local scriptName = ({reaper.get_action_context()})[2]:match("([^/\\_]+).lua$")
 
@@ -99,13 +98,6 @@ function loadSetting(n, reload)
 
   setting = {n=n}
 
-  if n == 0 and not isEditing and isDirty then
-    -- This hack is required to force REAPER to save the last settings
-    -- into reaper.ini by quickly toggling the nudge dialog
-    editCurrent()
-    editCurrent()
-  end
-
   local nudge = iniRead('nudge', n)
   setting.mode = nudge & 1
   setting.what = (nudge >> 12) + 1
@@ -141,12 +133,10 @@ end
 
 function nudgeLeft()
   reaper.Main_OnCommand(action(LNUDGE_ACTIONS), 0)
-  isDirty = setting.n > 0
 end
 
 function nudgeRight()
   reaper.Main_OnCommand(action(RNUDGE_ACTIONS), 0)
-  isDirty = setting.n > 0
 end
 
 function setAsLast()
@@ -173,7 +163,6 @@ function editCurrent()
   end
 
   reaper.Main_OnCommand(NUDGEDLG_ACTION, 0)
-  isDirty = false
 end
 
 function saveCurrent()
