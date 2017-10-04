@@ -1,10 +1,8 @@
 -- @description Show all saved nudge settings
--- @version 2.0
+-- @version 2.0.1
 -- @changelog
---   add edit, help (?), nudge left/right buttons [p=1893726]
---   add space, left, right and escape keyboard shortcuts
---   refresh only once the nudge dialog is closed rather than every second
---   save automatically when the native nudge dialog is closed
+--   show value of the copies setting in nudge/duplicate mode
+--   close the nudge dialog without saving when clicking on the edit button
 -- @author cfillion
 -- @link cfillion.ca https://cfillion.ca
 -- @donation https://www.paypal.me/cfillion
@@ -17,7 +15,8 @@
 --
 --   The edit feature opens the native nudge settings dialog with the current
 --   settings filled. The new settings are automatically saved into the selected
---   slot once the native dialog is closed.
+--   1-8 slot once the native dialog is closed. Trigger the edit feature a second
+--   time to close the native dialog without saving.
 --
 --   ## Keyboard Shortcuts
 --
