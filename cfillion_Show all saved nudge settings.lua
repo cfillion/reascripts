@@ -335,10 +335,14 @@ function draw()
     box({text=string.format('Copies: %s', setting.copies), noborder=true})
   end
 
-  rtlToolbar(WIN_PADDING, {
-    {text='< Nudge left', shortcut=KEY_LEFT, callback=nudgeLeft},
-    {text='Nudge right >', shortcut=KEY_RIGHT, callback=nudgeRight},
-  })
+  if setting.mode == 0 then
+    rtlToolbar(WIN_PADDING, {
+      {text='< Nudge left', shortcut=KEY_LEFT, callback=nudgeLeft},
+      {text='Nudge right >', shortcut=KEY_RIGHT, callback=nudgeRight},
+    })
+  else
+    rtlToolbar(WIN_PADDING, {{text='(Nudge unavailable in Set mode)'}});
+  end
 end
 
 function setColor(color)
