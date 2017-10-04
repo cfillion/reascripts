@@ -142,6 +142,8 @@ function loadSetting(n, reload)
   else
     setting.amount = '(N/A)'
   end
+
+  setting.copies = iniRead('nudgecopies', n)
 end
 
 function action(ids)
@@ -320,9 +322,11 @@ function draw()
   box({text=string.format('Snap to %s: %s', snapTo(setting.unit),
     boolValue(setting.snap)), noborder=true})
 
+  gfx.x = 110
   if setting.mode == 1 and isAny(setting.what, {1, 6, 8}) then
-    gfx.x = 110
     box({text=string.format('Relative set: %s', boolValue(setting.rel)), noborder=true})
+  elseif setting.what == 6 then
+    box({text=string.format('Copies: %s', setting.copies), noborder=true})
   end
 
   rtlToolbar(WIN_PADDING, {
