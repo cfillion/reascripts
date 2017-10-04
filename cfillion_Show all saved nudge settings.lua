@@ -250,13 +250,11 @@ end
 
 function box(box)
   box.rect = boxRect(box)
+  if box.callback then button(box) end
   drawBox(box)
 end
 
 function button(box)
-  -- rect may be precomputed by rtlToolbar
-  if not box.rect then box.rect = boxRect(box) end
-
   local underMouse =
     gfx.mouse_x >= box.rect.x and
     gfx.mouse_x < box.rect.x + box.rect.w and
@@ -298,16 +296,16 @@ function rtlToolbar(x, btns)
 
   for _,btn in ipairs(btns) do
     btn.rect.x = gfx.x
-    button(btn)
+    box(btn)
   end
 end
 
 function draw()
   gfx.x, gfx.y = WIN_PADDING, WIN_PADDING
-  button({text='Last', active=setting.n == 0, shortcut=string.byte('0'),
+  box({text='Last', active=setting.n == 0, shortcut=string.byte('0'),
     callback=function() loadSetting(0) end})
   for i=1,8 do
-    button({text=i, active=setting.n == i, shortcut=string.byte(i),
+    box({text=i, active=setting.n == i, shortcut=string.byte(i),
       callback=function() loadSetting(i) end})
   end
 
