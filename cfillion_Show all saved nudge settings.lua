@@ -1,17 +1,40 @@
 -- @description Show all saved nudge settings
--- @version 1.1
+-- @version 2.0
 -- @changelog
---   Add "Save current" button
---   Improve text legibility on Windows
---   Remember window position
+--   add edit, help (?), nudge left/right buttons [p=1893726]
+--   add space, left, right and escape keyboard shortcuts
+--   refresh only once the nudge dialog is closed rather than every second
+--   save automatically when the native nudge dialog is closed
 -- @author cfillion
 -- @link cfillion.ca https://cfillion.ca
 -- @donation https://www.paypal.me/cfillion
--- @screenshot https://i.imgur.com/PrITgVt.png
+-- @screenshot https://i.imgur.com/iOBI0eQ.png
 -- @about
---   # Show every saved nudge settings
+--   # Show all saved nudge settings
 --
---   **Tip:** Switch to a different nudge setting with the 0-8 keys.
+--   This script allows viewing, editing and using all nudge setting presets in
+--   a single window.
+--
+--   ## Keyboard Shortcuts
+--
+--   - Switch to a different nudge setting with the **0-8** keys
+--   - Edit the current nudge setting by pressing **Space**
+--   - Nudge with the **left/right arrow** keys
+--   - Close the window with **Escape*
+--
+--   ## Caveats
+--
+--   The "Last" tab may be out of sync with the effective last nudge settings.
+--   This is because the native "Nudge left/right by saved nudge dialog settings X"
+--   actions do not save the nudge settings in reaper.ini when they change the
+--   last used settings.
+--
+--   There is no reliable way for a script to detect whether the last nudge
+--   settings are out of sync. A workaround for forcing REAPER to save its
+--   settings is to open and close the native nudge dialog.
+--
+--   Furthermore, REAPER does not store the nudge amout when using the "Set" mode
+--   in the native nudge dialog. The script displays "N/A" in this case.
 
 local WHAT_MAP = {'position', 'left trim', 'left edge', 'right trim', 'contents',
   'duplicate', 'edit cursor', 'end position'}
