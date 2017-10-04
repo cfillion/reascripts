@@ -8,7 +8,7 @@
 -- @author cfillion
 -- @link cfillion.ca https://cfillion.ca
 -- @donation https://www.paypal.me/cfillion
--- @screenshot https://i.imgur.com/iOBI0eQ.png
+-- @screenshot https://i.imgur.com/5o3OIyf.png
 -- @about
 --   # Show all saved nudge settings
 --
@@ -290,26 +290,6 @@ function rtlToolbar(x, btns)
   end
 end
 
-function drawSettings()
-  box({w=70, text=boolValue(setting.mode, 'Nudge', 'Set')})
-  box({w=100, text=mapValue(setting.what, WHAT_MAP)})
-  box({noborder=true, text=boolValue(setting.mode, 'by:', 'to:')})
-  box({w=70, text=setting.amount})
-  if setting.note then
-    box({w=50, text=mapValue(setting.note, NOTE_MAP)})
-  end
-  box({w=gfx.w - gfx.x - WIN_PADDING, text=mapValue(setting.unit, UNIT_MAP)})
-
-  gfx.x, gfx.y = WIN_PADDING - BOX_PADDING, 63
-  box({text=string.format('Snap to %s: %s', snapTo(setting.unit),
-    boolValue(setting.snap)), noborder=true})
-
-  if setting.mode == 1 and isAny(setting.what, {1, 6, 8}) then
-    gfx.x = 110
-    box({text=string.format('Relative set: %s', boolValue(setting.rel)), noborder=true})
-  end
-end
-
 function draw()
   gfx.x, gfx.y = WIN_PADDING, WIN_PADDING
   button({text='Last'}, setting.n == 0, function() loadSetting(0) end)
@@ -323,11 +303,26 @@ function draw()
   })
 
   gfx.x, gfx.y = WIN_PADDING, 38
-  drawSettings()
+  box({w=70, text=boolValue(setting.mode, 'Nudge', 'Set')})
+  box({w=100, text=mapValue(setting.what, WHAT_MAP)})
+  box({noborder=true, text=boolValue(setting.mode, 'by:', 'to:')})
+  box({w=70, text=setting.amount})
+  if setting.note then
+    box({w=50, text=mapValue(setting.note, NOTE_MAP)})
+  end
+  box({w=gfx.w - gfx.x - WIN_PADDING, text=mapValue(setting.unit, UNIT_MAP)})
 
-  gfx.x, gfx.y = WIN_PADDING, 88
-  button({text='< Nudge left'}, false, nudgeLeft)
+  gfx.x, gfx.y = WIN_PADDING - BOX_PADDING, 66
+  box({text=string.format('Snap to %s: %s', snapTo(setting.unit),
+    boolValue(setting.snap)), noborder=true})
+
+  if setting.mode == 1 and isAny(setting.what, {1, 6, 8}) then
+    gfx.x = 110
+    box({text=string.format('Relative set: %s', boolValue(setting.rel)), noborder=true})
+  end
+
   rtlToolbar(WIN_PADDING, {
+    {{text='< Nudge left'}, false, nudgeLeft},
     {{text='Nudge right >'}, false, nudgeRight},
   })
 end
@@ -417,7 +412,7 @@ local w, h, dockState, x, y = previousWindowState()
 if w then
   gfx.init(scriptName, w, h, dockState, x, y)
 else
-  gfx.init(scriptName, 475, 120)
+  gfx.init(scriptName, 475, 97)
 end
 
 if reaper.GetAppVersion():match('OSX') then
