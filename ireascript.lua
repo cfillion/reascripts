@@ -1383,6 +1383,8 @@ end
 function ireascript.characterPos(segment, xpos)
   local charLeft = 0
 
+  ireascript.useFont(segment.font)
+
   for i=1,segment.text:len() do
     local charRight = gfx.measurestr(segment.text:sub(1, i))
 
