@@ -1386,7 +1386,7 @@ function ireascript.pointUnderMouse()
     return {segment=segIndex, char=char, offset=offset}
   elseif line.back == #ireascript.wrappedBuffer then
     local segment = ireascript.wrappedBuffer[line.back]
-    return {segment=line.back, char=segment.text:len(), offset=segment.w}
+    return {segment=line.back, char=segment.text:len() + 1, offset=segment.w}
   else
     return {segment=line.back, char=0, offset=0}
   end
