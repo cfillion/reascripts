@@ -506,7 +506,6 @@ function ireascript.update()
   if not ireascript.from or ireascript.from.wrapped <= 1 then
     ireascript.wrappedBuffer = {lines=0}
     ireascript.from = {buffer=1}
-    ireascript.selection = nil
   else
     while #ireascript.wrappedBuffer > ireascript.from.wrapped do
       if ireascript.wrappedBuffer[#ireascript.wrappedBuffer] == ireascript.SG_NEWLINE then
@@ -517,6 +516,7 @@ function ireascript.update()
     end
   end
 
+  ireascript.selection = nil
   ireascript.wrappedBuffer.w = gfx.w
 
   local leftmost = ireascript.MARGIN
