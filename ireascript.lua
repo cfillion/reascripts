@@ -1357,8 +1357,7 @@ function ireascript.characterPos(segment, xpos)
   local charLeft = 0
 
   for i=1,segment.text:len() do
-    local char = segment.text:sub(i, i)
-    local charRight = charLeft + gfx.measurestr(char)
+    local charRight = gfx.measurestr(segment.text:sub(1, i))
 
     if charLeft <= xpos and charRight >= xpos then
       return charLeft
