@@ -88,6 +88,7 @@ local ireascript = {
 
   KEY_BACKSPACE = 8,
   KEY_CLEAR = 144,
+  KEY_ESCAPE = 27,
   KEY_CTRLA = 1,
   KEY_CTRLC = 3,
   KEY_CTRLD = 4,
@@ -317,6 +318,8 @@ function ireascript.keyboard()
     ireascript.about()
   elseif char == ireascript.KEY_CTRLA then
     ireascript.selectAll()
+  elseif char == ireascript.KEY_ESCAPE then
+    ireascript.selection = nil
   elseif char >= ireascript.KEY_INPUTRANGE_FIRST and char <= ireascript.KEY_INPUTRANGE_LAST then
     local before, after = ireascript.splitInput()
     ireascript.input = before .. string.char(char) .. after
@@ -1380,7 +1383,7 @@ function ireascript.segmentAt(line, xpos)
   end
 end
 
-function ireascript.characterPos(segment, xpos)
+function ireascript.characterAt(segment, xpos)
   local charLeft = 0
 
   ireascript.useFont(segment.font)
@@ -1420,7 +1423,7 @@ function ireascript.pointUnderMouse()
 
   if segIndex then
     local segment = ireascript.wrappedBuffer[segIndex]
-    local char, offset = ireascript.characterPos(segment, mouseX - segX)
+    local char, offset = ireascript.characterAt(segment, mouseX - segX)
 
     return {segment=segIndex, char=char, offset=offset}
   elseif line.back == #ireascript.wrappedBuffer then
