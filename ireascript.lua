@@ -78,6 +78,8 @@ local ireascript = {
   SG_NEWLINE = 1,
   SG_BUFNEWLINE = 2,
 
+  IDC_IBEAM = 32513,
+
   FONT_NORMAL = 1,
   FONT_BOLD = 2,
 
@@ -1325,6 +1327,8 @@ if w then
 else
   gfx.init(ireascript.TITLE, 550, 350)
 end
+
+gfx.setcursor(ireascript.IDC_IBEAM)
 
 if ireascript.iswindows() then
   gfx.setfont(ireascript.FONT_NORMAL, 'Consolas', 16)
