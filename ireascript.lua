@@ -1376,15 +1376,31 @@ function ireascript.characterPos(segment, xpos)
   end
 end
 
-function ireascript.pointUnderMouse()
-  local line = ireascript.lineAt(gfx.mouse_y)
-  if not line then return end
+function ireascript.bufferStartPoint()
+  return {segment=1, char=0, offset=0}
+end
 
-  local segIndex, segX = ireascript.segmentAt(line, gfx.mouse_x)
+function ireascript.bufferEndPoint()
+  local bufSize = #ireascript.wrappedBuffer
+  local lastSeg = ireascript.wrappedBuffer[bufSize]
+
+  return {segment=bufSize, char=lastSeg.text:len() + 1, offset=lastSeg.w}
+end
+
+function ireascript.pointUnderMouse()
+  local mouseX = math.max(ireascript.MARGIN, math.min(gfx.mouse_x, gfx.w))
+  local mouseY = math.max(ireascript.MARGIN, math.min(gfx.mouse_y, gfx.h))
+
+  local line = ireascript.lineAt(mouseY)
+  if not line then
+    return ireascript.bufferEndPoint()
+  end
+
+  local segIndex, segX = ireascript.segmentAt(line, mouseX)
 
   if segIndex then
     local segment = ireascript.wrappedBuffer[segIndex]
-    local char, offset = ireascript.characterPos(segment, gfx.mouse_x - segX)
+    local char, offset = ireascript.characterPos(segment, mouseX - segX)
 
     return {segment=segIndex, char=char, offset=offset}
   elseif line.back == #ireascript.wrappedBuffer then
@@ -1406,14 +1422,7 @@ end
 function ireascript.mouseSelect()
   local point = ireascript.pointUnderMouse()
 
-  if not point and not ireascript.mouseDownPoint then
-    -- clicked outside of the buffer
-    ireascript.selection = nil
-  elseif not point then
-    return
-  elseif not ireascript.mouseDownPoint then
-    ireascript.mouseDownPoint = point
-  elseif ireascript.comparePoints(point, ireascript.mouseDownPoint) ==
+  if ireascript.comparePoints(point, ireascript.mouseDownPoint) ==
       ireascript.comparePoints(ireascript.mouseDownPoint, point) then
     -- both points are identical, clear selection
     ireascript.selection = nil
@@ -1422,7 +1431,6 @@ function ireascript.mouseSelect()
     table.sort(ireascript.selection, ireascript.comparePoints)
   end
 end
-
 
 function ireascript.selectedText()
   if not ireascript.selection then return end
@@ -1457,13 +1465,7 @@ function ireascript.selectedText()
 end
 
 function ireascript.selectAll()
-  local bufSize = #ireascript.wrappedBuffer
-  local lastSeg = ireascript.wrappedBuffer[bufSize]
-
-  ireascript.selection = {
-    {segment=1, char=1, offset=0},
-    {segment=bufSize, char=lastSeg.text:len() + 1, offset=lastSeg.w},
-  }
+  ireascript.selection = {ireascript.bufferStartPoint(), ireascript.bufferEndPoint()}
 end
 
 function ireascript.iswindows()
