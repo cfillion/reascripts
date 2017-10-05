@@ -373,6 +373,7 @@ function ireascript.draw(offset)
 
   gfx.x = ireascript.MARGIN
   gfx.y = gfx.h - (offset or 0)
+  ireascript.pageBottom = gfx.y
 
   local lines, lineHeight = 0, 0
   local lastSkipped, before, after = nil, 0, 0
@@ -1323,7 +1324,7 @@ function ireascript.complete()
 end
 
 function ireascript.lineAt(ypos)
-  local lineBottom = gfx.h
+  local lineBottom = ireascript.pageBottom
   local lines = 0
 
   for line in ireascript.eachWrappedLines() do
@@ -1404,11 +1405,17 @@ end
 
 function ireascript.mouseSelect()
   local point = ireascript.pointUnderMouse()
-  if not point or not ireascript.mouseDownPoint then return end
 
-  if ireascript.comparePoints(point, ireascript.mouseDownPoint) ==
+  if not point and not ireascript.mouseDownPoint then
+    -- clicked outside of the buffer
+    ireascript.selection = nil
+  elseif not point then
+    return
+  elseif not ireascript.mouseDownPoint then
+    ireascript.mouseDownPoint = point
+  elseif ireascript.comparePoints(point, ireascript.mouseDownPoint) ==
       ireascript.comparePoints(ireascript.mouseDownPoint, point) then
-    -- both points are identical, remove selection
+    -- both points are identical, clear selection
     ireascript.selection = nil
   else
     ireascript.selection = {ireascript.mouseDownPoint, point}
