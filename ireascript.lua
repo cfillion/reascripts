@@ -84,7 +84,7 @@ local ireascript = {
   FONT_NORMAL = 1,
   FONT_BOLD = 2,
 
-  EMPTY_lineHeight = 14,
+  EMPTY_LINE_HEIGHT = 14,
 
   KEY_BACKSPACE = 8,
   KEY_CLEAR = 144,
@@ -112,6 +112,7 @@ local ireascript = {
   MIDDLE_BTN = 64,
   LEFT_BTN = 1,
   RIGHT_BTN = 2,
+  DOUBLECLICK_TIME = 0.2,
 
   EXT_SECTION = 'cfillion_ireascript',
   EXT_WINDOW_STATE = 'window_state',
@@ -227,6 +228,7 @@ function ireascript.run()
   ireascript.lastMove = os.time()
   ireascript.mouseCap = 0
   ireascript.selection = nil
+  ireascript.lastClick = 0.0
 
   ireascript.reset(true)
   ireascript.loop()
@@ -350,7 +352,7 @@ function ireascript.eachWrappedLines()
         lineHeight = math.max(lineHeight, segment.h)
       elseif segment == ireascript.SG_NEWLINE then
         if lineHeight == 0 then
-          lineHeight = ireascript.EMPTY_lineHeight
+          lineHeight = ireascript.EMPTY_LINE_HEIGHT
         end
         break
       end
@@ -635,11 +637,7 @@ function ireascript.contextMenu()
   if actions[index] then actions[index]() end
 end
 
-function ireascript.loop()
-  if ireascript.keyboard() then
-    reaper.defer(ireascript.loop)
-  end
-
+function ireascript.mouseWheel()
   if gfx.mouse_wheel ~= 0 then
     local lines = math.ceil(math.abs(gfx.mouse_wheel) / 24)
 
@@ -651,23 +649,43 @@ function ireascript.loop()
 
     gfx.mouse_wheel = 0
   end
+end
+
+function ireascript.mouseBtnEvent()
+  if ireascript.isMouseDown(ireascript.LEFT_BTN) then
+    ireascript.mouseDownPoint = ireascript.pointUnderMouse()
+  elseif ireascript.isMouseUp(ireascript.LEFT_BTN) then
+    local now = reaper.time_precise()
+
+    if ireascript.lastClick > now - ireascript.DOUBLECLICK_TIME then
+      ireascript.selectWord(ireascript.pointUnderMouse())
+    else
+      ireascript.lastClick = now
+    end
+  end
+
+  if ireascript.isMouseUp(ireascript.MIDDLE_BTN) then
+    ireascript.paste()
+  end
+
+  if ireascript.isMouseUp(ireascript.RIGHT_BTN) then
+    ireascript.contextMenu()
+  end
+end
+
+function ireascript.loop()
+  if ireascript.keyboard() then
+    reaper.defer(ireascript.loop)
+  end
+
+  ireascript.mouseWheel()
 
   if gfx.mouse_cap ~= ireascript.mouseCap then
-    if ireascript.isMouseDown(ireascript.LEFT_BTN) then
-      ireascript.mouseDownPoint = ireascript.pointUnderMouse()
-    end
-
-    if ireascript.isMouseUp(ireascript.MIDDLE_BTN) then
-      ireascript.paste()
-    end
-
-    if ireascript.isMouseUp(ireascript.RIGHT_BTN) then
-      ireascript.contextMenu()
-    end
+    ireascript.mouseBtnEvent()
 
     ireascript.mouseCap = gfx.mouse_cap
   elseif ireascript.isMouseDrag(ireascript.LEFT_BTN) then
-    ireascript.mouseSelect(false)
+    ireascript.selectRange(ireascript.mouseDownPoint, ireascript.pointUnderMouse())
   end
 
   if ireascript.wrappedBuffer.w ~= gfx.w then
@@ -1419,17 +1437,25 @@ function ireascript.comparePoints(a, b)
   end
 end
 
-function ireascript.mouseSelect()
-  local point = ireascript.pointUnderMouse()
-
-  if ireascript.comparePoints(point, ireascript.mouseDownPoint) ==
-      ireascript.comparePoints(ireascript.mouseDownPoint, point) then
+function ireascript.selectRange(a, b)
+  if ireascript.comparePoints(a, b) == ireascript.comparePoints(b, a) then
     -- both points are identical, clear selection
     ireascript.selection = nil
   else
-    ireascript.selection = {ireascript.mouseDownPoint, point}
+    ireascript.selection = {a, b}
     table.sort(ireascript.selection, ireascript.comparePoints)
   end
+end
+
+function ireascript.selectWord(point)
+  local segment = ireascript.wrappedBuffer[point.segment]
+  if type(segment) ~= 'table' then return end
+
+  -- TODO: actually find the word boundaries
+  local start = {segment=point.segment, char=0, offset=0}
+  local stop = {segment=point.segment, char=segment.text:len(), offset=segment.w}
+
+  ireascript.selectRange(start, stop)
 end
 
 function ireascript.selectedText()
