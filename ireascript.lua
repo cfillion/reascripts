@@ -225,7 +225,7 @@ function ireascript.run()
   ireascript.hindex = 0
   ireascript.lastMove = os.time()
   ireascript.mouseCap = 0
-  ireascript.selection = {}
+  ireascript.selection = nil
 
   ireascript.reset(true)
   ireascript.loop()
@@ -419,7 +419,7 @@ function ireascript.draw(offset)
 end
 
 function ireascript.segmentSelection(segmentIndex)
-  local selected = #ireascript.selection == 2 and 
+  local selected = ireascript.selection and
     segmentIndex >= ireascript.selection[1].segment and
     segmentIndex <= ireascript.selection[2].segment
 
@@ -1204,7 +1204,8 @@ end
 
 function ireascript.copy()
   if reaper.CF_SetClipboard then
-    reaper.CF_SetClipboard(ireascript.selectedText())
+    local selectedText = ireascript.selectedText()
+    reaper.CF_SetClipboard(selectedText and selectedText or ireascript.code())
   else
     ireascript.internalError(ireascript.NO_CLIPBOARD_API)
   end
@@ -1397,15 +1398,22 @@ end
 
 function ireascript.mouseSelect()
   local point = ireascript.pointUnderMouse()
-  if not point or not ireascript.mouseDownPoint or
-    ireascript.mouseDownPoint == point then return end
+  if not point or not ireascript.mouseDownPoint then return end
 
-  ireascript.selection = {ireascript.mouseDownPoint, point}
-  table.sort(ireascript.selection, ireascript.comparePoints)
+  if ireascript.comparePoints(point, ireascript.mouseDownPoint) ==
+      ireascript.comparePoints(ireascript.mouseDownPoint, point) then
+    -- both points are identical, remove selection
+    ireascript.selection = nil
+  else
+    ireascript.selection = {ireascript.mouseDownPoint, point}
+    table.sort(ireascript.selection, ireascript.comparePoints)
+  end
 end
 
 
 function ireascript.selectedText()
+  if not ireascript.selection then return end
+
   local text = ''
 
   for i=ireascript.selection[1].segment,ireascript.selection[2].segment do
