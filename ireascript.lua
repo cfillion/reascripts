@@ -122,7 +122,7 @@ local ireascript = {
   HISTORY_FILE = ({reaper.get_action_context()})[2] .. '.history',
   HISTORY_LIMIT = 1000,
 
-  WORD_SEPARATORS = '%s"\'%(%)[%]%%%+%*%^%$%-<>:;,/\\',
+  WORD_SEPARATORS = '%s"\'<>:;,!&|=/\\%(%)%%%+%-%*%?%[%]%^%$',
 
   NO_CLIPBOARD_API = 'Copy/paste requires SWS v2.9.6 or newer',
   NO_REAPACK_API = 'ReaPack v1.2+ is required to use this feature',
