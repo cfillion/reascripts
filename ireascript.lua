@@ -1204,7 +1204,7 @@ end
 
 function ireascript.copy()
   if reaper.CF_SetClipboard then
-    reaper.CF_SetClipboard(ireascript.code())
+    reaper.CF_SetClipboard(ireascript.selectedText())
   else
     ireascript.internalError(ireascript.NO_CLIPBOARD_API)
   end
@@ -1364,7 +1364,7 @@ function ireascript.characterPos(segment, xpos)
     local charRight = gfx.measurestr(segment.text:sub(1, i))
 
     if charLeft <= xpos and charRight >= xpos then
-      return charLeft
+      return i, charLeft
     end
 
     charLeft = charRight
@@ -1379,11 +1379,11 @@ function ireascript.pointUnderMouse()
 
   if segIndex then
     local segment = ireascript.wrappedBuffer[segIndex]
-    local offset = ireascript.characterPos(segment, gfx.mouse_x - segX)
+    local char, offset = ireascript.characterPos(segment, gfx.mouse_x - segX)
 
-    return {segment=segIndex, offset=offset}
+    return {segment=segIndex, char=char, offset=offset}
   else
-    return {segment=line.back, offset=0}
+    return {segment=line.back, char=0, offset=0}
   end
 end
 
@@ -1402,6 +1402,37 @@ function ireascript.mouseSelect()
 
   ireascript.selection = {ireascript.mouseDownPoint, point}
   table.sort(ireascript.selection, ireascript.comparePoints)
+end
+
+
+function ireascript.selectedText()
+  local text = ''
+
+  for i=ireascript.selection[1].segment,ireascript.selection[2].segment do
+    local segment = ireascript.wrappedBuffer[i]
+
+    if type(segment) == 'table' then
+      local start, stop
+
+      if i == ireascript.selection[1].segment then
+        start = ireascript.selection[1].char
+      else
+        start = 0
+      end
+
+      if i == ireascript.selection[2].segment then
+        stop = ireascript.selection[2].char - 1
+      else
+        stop = segment.text:len()
+      end
+
+      text = text .. segment.text:sub(start, stop)
+    elseif segment == ireascript.SG_BUFNEWLINE then
+      text = text .. "\n"
+    end
+  end
+
+  return text
 end
 
 function ireascript.iswindows()
