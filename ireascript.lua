@@ -88,6 +88,7 @@ local ireascript = {
 
   KEY_BACKSPACE = 8,
   KEY_CLEAR = 144,
+  KEY_CTRLA = 1,
   KEY_CTRLC = 3,
   KEY_CTRLD = 4,
   KEY_CTRLL = 12,
@@ -312,6 +313,8 @@ function ireascript.keyboard()
     ireascript.complete()
   elseif char == ireascript.KEY_F1 then
     ireascript.about()
+  elseif char == ireascript.KEY_CTRLA then
+    ireascript.selectAll()
   elseif char >= ireascript.KEY_INPUTRANGE_FIRST and char <= ireascript.KEY_INPUTRANGE_LAST then
     local before, after = ireascript.splitInput()
     ireascript.input = before .. string.char(char) .. after
@@ -603,13 +606,12 @@ function ireascript.contextMenu()
   if dockState > 0 then dockFlag = '!' end
 
   local menu = string.format(
-    'Copy (^C)|Paste (^V)||Clear (^L)||%sDock window|About iReaScript (F1)|Close iReaScript (^D)',
+    'Copy (^C)|Paste (^V)||Select all (^A)||Clear (^L)||%sDock window|About iReaScript (F1)|Close iReaScript (^D)',
     dockFlag
   )
 
   local actions = {
-    ireascript.copy, ireascript.paste,
-    function() ireascript.reset() end,
+    ireascript.copy, ireascript.paste, ireascript.selectAll, ireascript.reset,
     function()
       if dockState == 0 then
         local lastDock = tonumber(reaper.GetExtState(
@@ -1445,6 +1447,16 @@ function ireascript.selectedText()
   end
 
   return text
+end
+
+function ireascript.selectAll()
+  local bufSize = #ireascript.wrappedBuffer
+  local lastSeg = ireascript.wrappedBuffer[bufSize]
+
+  ireascript.selection = {
+    {segment=1, char=1, offset=0},
+    {segment=bufSize, char=lastSeg.text:len() + 1, offset=lastSeg.w},
+  }
 end
 
 function ireascript.iswindows()
