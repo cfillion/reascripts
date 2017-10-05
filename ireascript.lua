@@ -429,10 +429,11 @@ function ireascript.segmentSelection(segmentIndex)
   local isLast = segmentIndex == ireascript.selection[2].segment
 
   local segment, width = ireascript.wrappedBuffer[segmentIndex]
+
   if type(segment) == 'table' then
     width = segment.w
   else
-    width = 4
+    width = 10
   end
 
   local start = isFirst and ireascript.selection[1].offset or 0
@@ -456,7 +457,7 @@ function ireascript.drawLine(line)
 
       if selectionStart then
         ireascript.useColor(ireascript.COLOR_SELECTION)
-        gfx.rect(gfx.x + selectionStart, gfx.y, selectionEnd - selectionStart, segment.h)
+        gfx.rect(gfx.x + selectionStart, gfx.y, selectionEnd - selectionStart, line.height)
       end
 
       ireascript.useColor(segment.fg)
@@ -467,6 +468,9 @@ function ireascript.drawLine(line)
       end
 
       gfx.drawstr(segment.text)
+    elseif segment == ireascript.SG_BUFNEWLINE and selectionStart then
+      ireascript.useColor(ireascript.COLOR_SELECTION)
+      gfx.rect(gfx.x , gfx.y, selectionEnd, line.height)
     end
   end
 end
