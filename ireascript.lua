@@ -122,6 +122,8 @@ local ireascript = {
   HISTORY_FILE = ({reaper.get_action_context()})[2] .. '.history',
   HISTORY_LIMIT = 1000,
 
+  WORD_SEPARATORS = '%s"\'%(%)[%]%%%+%*%^%$%-<>:;,/\\',
+
   NO_CLIPBOARD_API = 'Copy/paste requires SWS v2.9.6 or newer',
   NO_REAPACK_API = 'ReaPack v1.2+ is required to use this feature',
   MANUALLY_INSTALLED = 'iReaScript must be installed through ReaPack to use this feature',
@@ -1456,9 +1458,28 @@ function ireascript.selectWord(point)
   local segment = ireascript.wrappedBuffer[point.segment]
   if type(segment) ~= 'table' then return end
 
-  -- TODO: actually find the word boundaries
-  local start = {segment=point.segment, char=0, offset=0}
-  local stop = {segment=point.segment, char=segment.text:len(), offset=segment.w}
+  local match = string.format('[%s]', ireascript.WORD_SEPARATORS)
+  if segment.text:sub(point.char, point.char):match(match) then
+    -- select only whitespace if the point is between words
+    match = string.format('[^%s]', ireascript.WORD_SEPARATORS)
+  end
+
+  local before = segment.text:sub(1, point.char):reverse()
+  local wordStart = before:find(match)
+  if wordStart then
+    wordStart = before:len() - wordStart + 2
+  else
+    wordStart = 1
+  end
+
+  local wordEnd = segment.text:find(match, point.char) or (segment.text:len() + 1)
+
+  ireascript.useFont(segment.font)
+  local startOffset = gfx.measurestr(segment.text:sub(1, wordStart - 1))
+  local stopOffset = gfx.measurestr(segment.text:sub(1, wordEnd - 1))
+
+  local start = {segment=point.segment, char=wordStart, offset=startOffset}
+  local stop = {segment=point.segment, char=wordEnd, offset=stopOffset}
 
   ireascript.selectRange(start, stop)
 end
