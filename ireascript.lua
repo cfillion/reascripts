@@ -194,7 +194,7 @@ end
 
 function ireascript.reset(banner)
   ireascript.buffer = {}
-  ireascript.lines = 0
+  ireascript.lineCount = 0
   ireascript.page = 0
   ireascript.scroll = 0
   ireascript.wrappedBuffer = {w = 0}
@@ -341,7 +341,7 @@ function ireascript.nextBoundary(input, from)
   end
 end
 
-function ireascript.eachWrappedLines()
+function ireascript.wrappedLines()
   local lineEnd = #ireascript.wrappedBuffer
   local nl = lineEnd + 1 -- past the end of the buffer
 
@@ -387,7 +387,7 @@ function ireascript.draw(offset)
 
   ireascript.page = 0
 
-  for line in ireascript.eachWrappedLines() do
+  for line in ireascript.wrappedLines() do
     lineHeight = line.height
     lines = lines + 1
 
@@ -735,7 +735,7 @@ function ireascript.highlightFormat()
 end
 
 function ireascript.nl()
-  if ireascript.lines >= ireascript.MAXLINES then
+  if ireascript.lineCount >= ireascript.MAXLINES then
     local buf = ireascript.removeUntil(ireascript.buffer, ireascript.SG_NEWLINE)
     local wrap, nlCount = ireascript.removeUntil(ireascript.wrappedBuffer, ireascript.SG_BUFNEWLINE)
 
@@ -746,7 +746,7 @@ function ireascript.nl()
       ireascript.from.wrapped = ireascript.from.wrapped - wrap
     end
   else
-    ireascript.lines = ireascript.lines + 1
+    ireascript.lineCount = ireascript.lineCount + 1
   end
 
   ireascript.buffer[#ireascript.buffer + 1] = ireascript.SG_NEWLINE
@@ -759,7 +759,7 @@ function ireascript.push(contents)
 
   local index = 0
 
-  for line in ireascript.each_lines(contents) do
+  for line in ireascript.lines(contents) do
     if index > 0 then ireascript.nl() end
     index = index + 1
 
@@ -946,7 +946,7 @@ function ireascript.eval(nested)
   ireascript.pushHistory(ireascript.input)
   ireascript.input = ''
 
-  if ireascript.lines == 0 then
+  if ireascript.lineCount == 0 then
     -- buffer got reset (.clear)
     ireascript.input = ''
   end
@@ -1173,7 +1173,7 @@ function ireascript.formatTable(value, size)
     doIndent()
   end
 
-  for k,v in pairs(value) do
+  for k,v in ireascript.sortedPairs(value) do
     if i > 1 then
       ireascript.resetFormat()
 
@@ -1246,7 +1246,7 @@ function ireascript.paste()
 
   local clipboard, first = reaper.CF_GetClipboard(''), true
 
-  for line in ireascript.each_lines(clipboard) do
+  for line in ireascript.lines(clipboard) do
     if line:len() > 0 then
       if first then
         first = false
@@ -1350,7 +1350,7 @@ function ireascript.lineAt(ypos)
   local lineBottom = ireascript.pageBottom
   local lines = 0
 
-  for line in ireascript.eachWrappedLines() do
+  for line in ireascript.wrappedLines() do
     lines = lines + 1
 
     if lines > ireascript.scroll then
@@ -1544,7 +1544,26 @@ function ireascript.contains(table, val)
   return false
 end
 
-function ireascript.each_lines(text)
+function ireascript.sortedPairs(t)
+  local keys = {}
+  for key,_ in pairs(t) do
+    table.insert(keys, key)
+  end
+  table.sort(keys)
+
+  local it, state, n = ipairs(keys)
+
+  return function()
+    local newn, key = it(state, n)
+    n = newn
+
+    if key then
+      return key, t[key]
+    end
+  end
+end
+
+function ireascript.lines(text)
   local offset, finished = 0, false
   local from, to = -1
 
