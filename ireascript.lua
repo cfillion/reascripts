@@ -1103,18 +1103,7 @@ function ireascript.format(value)
 end
 
 function ireascript.formatAnyTable(value)
-  local i, array, last = 0, true, 0
-
-  for k,v in pairs(value) do
-    if type(k) == 'number' and k > 0 then
-      i = i + (k - last) - 1
-      last = k
-    else
-      array = false
-    end
-
-    i = i + 1
-  end
+  local size, isArray = ireascript.realTableSize(value)
 
   if ireascript.flevel == nil then
     ireascript.flevel = 1
@@ -1126,11 +1115,7 @@ function ireascript.formatAnyTable(value)
     ireascript.flevel = ireascript.flevel + 1
   end
 
-  if array then
-    ireascript.formatArray(value, i)
-  else
-    ireascript.formatTable(value, i)
-  end
+  (isArray and ireascript.formatArray or ireascript.formatTable)(value, size)
 
   ireascript.flevel = ireascript.flevel - 1
 end
@@ -1569,6 +1554,31 @@ function ireascript.contains(table, val)
   end
 
   return false
+end
+
+function ireascript.realTableSize(table)
+  local i, array, last = 0, true, 0
+
+  for k,v in pairs(table) do
+    if type(k) == 'number' and k > 0 then
+      i = i + (k - last) - 1
+      last = k
+    else
+      array = false
+      i = 0
+      break
+    end
+
+    i = i + 1
+  end
+
+  if not array then
+    for k,v in pairs(table) do
+      i = i + 1
+    end
+  end
+
+  return i, array
 end
 
 function ireascript.sortedPairs(t)
