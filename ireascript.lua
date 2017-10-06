@@ -1,17 +1,23 @@
 -- @description Interactive ReaScript (iReaScript)
--- @version 0.6.2
+-- @version 0.7
 -- @author cfillion
 -- @changelog
---   add "About iReaScript (F1)" context menu entry and shortcut (ReaPack v1.2+)
---   don't crash when pasting \r\n
---   don't display a completely blank line when an empty error string is given
---   paste on middle click
---   persist history between sessions
---   reimplement copy/paste using my new API functions (SWS v1.9.6+)
---   support non-string arguments to Lua's error function
--- @link Forum Thread https://forum.cockos.com/showthread.php?t=177324
+--   add "Select all" action to the context menu (also Ctrl+A)
+--   avoid clearing the clipboard
+--   clear selection when pressing Escape
+--   copy selected text instead of current input if non-empty
+--   display table keys in alphabetical order
+--   implement text selection!
+--   paste from selection (if non-empty) on middle click
+--   remove duplicate entries in history
+--   select word under cursor on double click
+--   set cursor to I-beam
+--   sort by key alphabetically when displaying table values
+-- @links
+--   cfillion.ca https://cfillion.ca
+--   Forum Thread https://forum.cockos.com/showthread.php?t=177324
 -- @donation https://www.paypal.me/cfillion
--- @screenshot http://i.imgur.com/RrGfulR.gif
+-- @screenshot https://i.imgur.com/RrGfulR.gif
 -- @about
 --   # Interactive ReaScript (iReaScript)
 --
@@ -31,9 +37,10 @@
 --   - Error catching
 --   - Multiline input (functions, conditions...)
 --   - Pretty print return values
---   - Scrolling
---   - Text wrapping
 --   - Run actions (!command_id, !!midi_editor_action)
+--   - Scrolling
+--   - Text selection
+--   - Text wrapping for long lines
 --
 --   ## Known Issues/Limitations
 --
@@ -50,7 +57,7 @@ local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs, select
 local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript',
-  VERSION = '0.6.2',
+  VERSION = '0.7',
 
   MARGIN = 3,
   MAXLINES = 2048,
