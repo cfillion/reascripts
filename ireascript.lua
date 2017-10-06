@@ -1230,11 +1230,16 @@ function ireascript.useColor(color)
 end
 
 function ireascript.copy()
-  if reaper.CF_SetClipboard then
-    local selectedText = ireascript.selectedText()
-    reaper.CF_SetClipboard(selectedText and selectedText or ireascript.code())
-  else
+  if not reaper.CF_SetClipboard then
     ireascript.internalError(ireascript.NO_CLIPBOARD_API)
+    return
+  end
+
+  local selectedText = ireascript.selectedText()
+  local clipboard = selectedText and selectedText or ireascript.code()
+
+  if clipboard:len() > 0 then
+    reaper.CF_SetClipboard(clipboard)
   end
 end
 
