@@ -1246,9 +1246,11 @@ function ireascript.paste(selection)
 
   local isFirst, clipboard = true, nil
 
-  if selection and ireascript.selection then
-    clipboard = ireascript.selectedText()
-  else
+  if selection then
+    clipboard = ireascript.selectedText(true)
+  end
+
+  if not clipboard then
     clipboard = reaper.CF_GetClipboard('')
   end
 
@@ -1465,6 +1467,9 @@ function ireascript.selectRange(a, b)
   else
     ireascript.selection = {a, b}
     table.sort(ireascript.selection, ireascript.comparePoints)
+
+    -- secondary selection (for middle click paste) is never cleared
+    ireascript.secondarySelection = ireascript.selection
   end
 end
 
@@ -1498,25 +1503,26 @@ function ireascript.selectWord(point)
   ireascript.selectRange(start, stop)
 end
 
-function ireascript.selectedText()
-  if not ireascript.selection then return end
+function ireascript.selectedText(useSecondary)
+  local sel = ireascript.selection or (useSecondary and ireascript.secondarySelection)
+  if not sel then return end
 
   local text = ''
 
-  for i=ireascript.selection[1].segment,ireascript.selection[2].segment do
+  for i=sel[1].segment,sel[2].segment do
     local segment = ireascript.wrappedBuffer[i]
 
     if type(segment) == 'table' then
       local start, stop
 
-      if i == ireascript.selection[1].segment then
-        start = ireascript.selection[1].char
+      if i == sel[1].segment then
+        start = sel[1].char
       else
         start = 0
       end
 
-      if i == ireascript.selection[2].segment then
-        stop = ireascript.selection[2].char - 1
+      if i == sel[2].segment then
+        stop = sel[2].char - 1
       else
         stop = segment.text:len()
       end
