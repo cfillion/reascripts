@@ -1581,12 +1581,21 @@ function ireascript.realTableSize(table)
   return i, array
 end
 
+function ireascript.anySort(a, b)
+  if type(a) ~= 'number' or type(b) ~= 'number' then
+    a = tostring(a)
+    b = tostring(b)
+  end
+
+  return a < b
+end
+
 function ireascript.sortedPairs(t)
   local keys = {}
   for key,_ in pairs(t) do
     table.insert(keys, key)
   end
-  table.sort(keys)
+  table.sort(keys, ireascript.anySort)
 
   local it, state, n = ipairs(keys)
 
