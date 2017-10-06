@@ -1428,11 +1428,19 @@ function ireascript.pointUnderMouse()
     local char, offset = ireascript.characterAt(segment, mouseX - segX)
 
     return {segment=segIndex, char=char, offset=offset}
-  elseif line.back == #ireascript.wrappedBuffer then
-    local segment = ireascript.wrappedBuffer[line.back]
-    return {segment=line.back, char=segment.text:len() + 1, offset=segment.w}
   else
-    return {segment=line.back, char=0, offset=0}
+    local segment = ireascript.wrappedBuffer[line.back]
+
+    if segment == ireascript.SG_BUFNEWLINE then
+      line.back = line.back - 1
+      segment = ireascript.wrappedBuffer[line.back]
+    end
+
+    if type(segment) == 'table' then
+      return {segment=line.back, char=segment.text:len() + 1, offset=segment.w}
+    else
+      return {segment=line.back, char=0, offset=0}
+    end
   end
 end
 
