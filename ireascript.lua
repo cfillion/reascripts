@@ -1197,9 +1197,10 @@ function ireascript.formatTable(value, size)
       ireascript.push(string.format('%d more...', size - i))
       break
     else
+      ireascript.push('[')
       ireascript.format(k)
       ireascript.resetFormat()
-      ireascript.push('=')
+      ireascript.push(']=')
       ireascript.format(v)
 
       i = i + 1
