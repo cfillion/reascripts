@@ -1360,7 +1360,7 @@ function ireascript.lineAt(ypos)
     if lines > ireascript.scroll then
       local lineTop = lineBottom - line.height
 
-      if lineTop <= ypos and lineBottom >= ypos then
+      if lineTop <= ypos then
         return line
       end
 
