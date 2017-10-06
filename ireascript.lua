@@ -670,7 +670,7 @@ function ireascript.mouseBtnEvent()
   end
 
   if ireascript.isMouseUp(ireascript.MIDDLE_BTN) then
-    ireascript.paste()
+    ireascript.paste(true)
   end
 
   if ireascript.isMouseUp(ireascript.RIGHT_BTN) then
@@ -1238,18 +1238,24 @@ function ireascript.copy()
   end
 end
 
-function ireascript.paste()
+function ireascript.paste(selection)
   if not reaper.CF_GetClipboard then
     ireascript.internalError(ireascript.NO_CLIPBOARD_API)
     return
   end
 
-  local clipboard, first = reaper.CF_GetClipboard(''), true
+  local isFirst, clipboard = true, nil
+
+  if selection and ireascript.selection then
+    clipboard = ireascript.selectedText()
+  else
+    clipboard = reaper.CF_GetClipboard('')
+  end
 
   for line in ireascript.lines(clipboard) do
     if line:len() > 0 then
-      if first then
-        first = false
+      if isFirst then
+        isFirst = false
       else
         ireascript.removeCaret()
         ireascript.nl()
