@@ -1553,7 +1553,7 @@ end
 function ireascript.realTableSize(table)
   local i, array, last = 0, true, 0
 
-  for k,v in pairs(table) do
+  for k,v in ireascript.sortedPairs(table) do
     if type(k) == 'number' and k > 0 then
       i = i + (k - last) - 1
       last = k
