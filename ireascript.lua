@@ -46,6 +46,7 @@
 
 local string, table, math, os = string, table, math, os
 local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs, select
+local reaper, gfx = reaper, gfx
 
 local ireascript = {
   -- settings
