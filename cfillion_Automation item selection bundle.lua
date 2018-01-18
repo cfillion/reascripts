@@ -1,4 +1,4 @@
--- @description Automation item selection bundle (10 actions)
+-- @description Automation item selection bundle (12 actions)
 -- @version 1.0
 -- @author cfillion
 -- @provides
@@ -12,21 +12,23 @@
 --   [main] . > cfillion_Add previous automation item in pool to selection.lua
 --   [main] . > cfillion_Select all automation items.lua
 --   [main] . > cfillion_Select all automation items in pool.lua
+--   [main] . > cfillion_Unelect all automation items.lua
+--   [main] . > cfillion_Unelect all automation items in pool.lua
 -- @about
 --   # Automation item selection bundle
 --
---   This package provides a total of 10 actions for selecting automation items
---   in the selected envelope lane. See the Contents tab for the list and for
---   the exact name of the actions.
+--   This package provides a total of 12 actions for selecting or unselecting
+--   automation items in the selected envelope lane. See the Contents tab for
+--   the list and for the exact name of the actions.
 --
 --   - Actions for selecting and moving to the next or previous AIs
 --   - Actions for preserving the current selection
 --   - Actions for cycling through the AIs in the selected pool
---   - Actions for selecting all AIs or all AIs in the selected pool
+--   - Actions for selecting or unselecting all AIs or AIs in the selected pool
 -- @link
 --   cfillion's website https://cfillion.ca
 --   Original request https://github.com/reaper-oss/sws/issues/899
--- @donate https://www.paypal.me/cfillion/
+-- @donate https://www.paypal.com/cgi-bin/webscr?business=T3DEWBQJAV7WL&cmd=_donations&currency_code=CAD&item_name=ReaScript%3A+Automation+item+selection+bundle
 
 local UNDO_STATE_TRACKCFG = 1
 
@@ -36,11 +38,13 @@ local poolMode = name:match('pool')
 local addToSelMode = name:match('Add.+to selection')
 local prevMode = name:match('previous')
 local entireBucketMode = name:match('all')
+local unselectMode = name:match('Unselect')
 
--- local poolMode = false
--- local addToSelMode = false
--- local prevMode = false
--- local entireBucketMode = false
+-- poolMode = false
+-- addToSelMode = false
+-- prevMode = false
+-- entireBucketMode = false
+-- unselectMode = false
 
 local env = reaper.GetSelectedEnvelope(0)
 if not env then
@@ -126,7 +130,7 @@ end
 
 reaper.Undo_BeginBlock()
 
-if not addToSelMode then
+if not addToSelMode and not unselectMode then
   for _,ai in ipairs(currentSel) do
     reaper.GetSetAutomationItemInfo(env, ai, 'D_UISEL', 0, true)
   end
@@ -136,12 +140,14 @@ if not addToSelMode then
   end
 end
 
+local sel = unselectMode and 0 or 1
+
 if entireBucketMode then
   for _,ai in ipairs(bucket) do
-    reaper.GetSetAutomationItemInfo(env, ai.id, 'D_UISEL', 1, true)
+    reaper.GetSetAutomationItemInfo(env, ai.id, 'D_UISEL', sel, true)
   end
 else
-  reaper.GetSetAutomationItemInfo(env, bucket[target].id, 'D_UISEL', 1, true)
+  reaper.GetSetAutomationItemInfo(env, bucket[target].id, 'D_UISEL', sel, true)
 end
 
 reaper.Undo_EndBlock(name, UNDO_STATE_TRACKCFG)
