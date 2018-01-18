@@ -1,6 +1,6 @@
 -- @description Copy/paste project markers and/or regions
--- @version 1.1
--- @changelog Add an action for pasting at edit cursor [p=1942248]
+-- @version 1.1.1
+-- @changelog Fix markers being copied past the end of the time selection [p=1942313]
 -- @author cfillion
 -- @links
 --   cfillion.ca https://cfillion.ca/
@@ -148,7 +148,11 @@ end
 function testPos(startpos, endpos)
   local tstart, tend = reaper.GetSet_LoopTimeRange(false, false, 0, 0, false)
 
-  return startpos >= tstart and (tend == 0 or endpos == 0 or endpos <= tend)
+  if endpos == 0 then
+    endpos = startpos
+  end
+
+  return startpos >= tstart and (tend == 0 or endpos <= tend)
 end
 
 (script_name:match('Copy') and copy or paste)()
