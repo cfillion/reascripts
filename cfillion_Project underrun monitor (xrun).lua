@@ -1,10 +1,23 @@
+-- @description Project underrun monitor (xrun)
+-- @version 1.0
+-- @author cfillion
+-- @website
+--   cfillion.ca https://cfillion.ca
+--   Request Thread https://forum.cockos.com/showthread.php?p=1942953
+-- @screenshot https://i.imgur.com/ECoEWks.gif
+-- @donate https://www.paypal.com/cgi-bin/webscr?business=T3DEWBQJAV7WL&cmd=_donations&currency_code=CAD&item_name=ReaScript%3A+Project+underrun+monitor+(xrun)
+-- @about
+--   # Project underrun monitor
+--
+--   This script keeps track of the project time where an audio or media buffer
+--   underrun occured. Markers can optionally be created. The reported time and
+--   marker position accuracy is limited by the polling speed of ReaScripts
+--   which is around 30Hz.
+
 local EXT_SECTION      = 'cfillion_underrun_monitor'
 local EXT_WINDOW_STATE = 'window_state'
 local EXT_MARKER_TYPE  = 'marker_type'
 local EXT_MARKER_WHEN  = 'marker_when'
-
-local AUDIO_MARKER = 'audio xrun'
-local MEDIA_MARKER = 'media xrun'
 
 local WIN_PADDING = 10
 local BOX_PADDING = 7
@@ -13,19 +26,25 @@ local TIME_WIDTH  = 100
 
 local KEY_ESCAPE = 0x1b
 
+local AUDIO_XRUN = 1
+local MEDIA_XRUN = 2
+
+local AUDIO_MARKER = 'audio xrun'
+local MEDIA_MARKER = 'media xrun'
+
 local AUDIO_COLOR = reaper.ColorToNative(255, 0, 0)|0x1000000
 local MEDIA_COLOR = reaper.ColorToNative(255, 255, 0)|0x1000000
 
 local DEFAULT_SETTINGS = {
-  [EXT_MARKER_TYPE]=3,
+  [EXT_MARKER_TYPE]=AUDIO_XRUN|MEDIA_XRUN,
   [EXT_MARKER_WHEN]=4,
 }
 
 local MARKER_TYPE_MENU = {
-  {str='(off)', val=0},
-  {str='any',        val=3},
-  {str='audio',      val=1},
-  {str='media',      val=2},
+  {str='(off)',      val=0},
+  {str='any',        val=AUDIO_XRUN|MEDIA_XRUN},
+  {str='audio',      val=AUDIO_XRUN},
+  {str='media',      val=MEDIA_XRUN},
 }
 
 local MARKER_WHEN_MENU = {
@@ -67,23 +86,23 @@ function probeUnderruns()
     prev_audio = audio_xrun
     audio_time = position()
 
-    if markerType & 1 ~= 0 then
+    if markerType & AUDIO_XRUN ~= 0 then
       reaper.AddProjectMarker2(0, 0, audio_time, 0, AUDIO_MARKER, -1, AUDIO_COLOR)
     end
   end
 
   if media_xrun > 0 and media_xrun ~= prev_media then
-    prev_audio = audio_xrun
+    prev_media = media_xrun
     media_time = position()
 
-    if markerType & 2 ~= 0 then
+    if markerType & MEDIA_XRUN ~= 0 then
       reaper.AddProjectMarker2(0, 0, media_time, 0, MEDIA_MARKER, -1, MEDIA_COLOR)
     end
   end
 end
 
 function eraseMarkers(name)
-  if not last_project then return end
+  if not last_project or not reaper.ValidatePtr(last_project, 'ReaProject*') then return end
 
   local index  = 0
 
@@ -101,12 +120,12 @@ function eraseMarkers(name)
 end
 
 function reset(xrunType)
-  if xrunType & 1 ~= 0 then
+  if xrunType & AUDIO_XRUN ~= 0 then
     audio_time = nil
     eraseMarkers(AUDIO_MARKER)
   end
 
-  if xrunType & 2 ~= 1 then
+  if xrunType & MEDIA_XRUN ~= 1 then
     media_time = nil
     eraseMarkers(MEDIA_MARKER)
   end
@@ -116,7 +135,7 @@ function detectProjectChange()
   local current_project = reaper.EnumProjects(-1, '')
 
   if last_project ~= current_project then
-    reset(3)
+    reset(AUDIO_XRUN | MEDIA_XRUN)
     last_project = current_project
   end
 end
@@ -236,7 +255,7 @@ function draw()
   box({text="Jump", callback=audio_time and function()
     reaper.SetEditCurPos(audio_time, true, false)
   end})
-  box({text="Reset", callback=function() reset(1) end})
+  box({text="Reset", callback=audio_time and function() reset(AUDIO_XRUN) end})
 
   gfx.x, gfx.y = WIN_PADDING, (WIN_PADDING+LINE_HEIGHT)
 
@@ -245,7 +264,7 @@ function draw()
   box({text="Jump", callback=media_time and function()
     reaper.SetEditCurPos(media_time, true, false)
   end})
-  box({text="Reset", callback=function() reset(2) end})
+  box({text="Reset", callback=media_time and function() reset(MEDIA_XRUN) end})
 
   gfx.x, gfx.y = WIN_PADDING, (WIN_PADDING+LINE_HEIGHT)*2
   box({text='Create markers on', noborder=true})
@@ -325,7 +344,7 @@ end
 
 reaper.atexit(function()
   saveWindowState()
-  reset(3)
+  reset(AUDIO_XRUN|MEDIA_XRUN)
 end)
 
 loop()
