@@ -1,8 +1,8 @@
 -- @description Automation item selection bundle
--- @version 1.1
+-- @version 1.2
 -- @changelog
---   Add actions for unselecting all automations items (+ in pool)
---   Add actions selecting/adding to selection the automation item under edit and mouse cursor
+--   Add "all tracks" variants to select/unselect all scripts
+--   Improve "under mouse cursor" variants to work over any envelope
 -- @author cfillion
 -- @provides
 --   . > cfillion_Select and move to next automation item.lua
@@ -20,16 +20,24 @@
 --   . > cfillion_Select all automation items.lua
 --   . > cfillion_Select all automation items in pool.lua
 --   . > cfillion_Select all automation items under edit cursor.lua
---   . > cfillion_Select all automation items under mouse cursor.lua
 --
 --   . > cfillion_Unselect all automation items.lua
 --   . > cfillion_Unselect all automation items in pool.lua
---   . > cfillion_Unselect all automation items under edit cursor.lua
---   . > cfillion_Unselect all automation items under mouse cursor.lua
+
+--   . > cfillion_Select all automation items (all tracks).lua
+--   . > cfillion_Select all automation items in pool (all tracks).lua
+--   . > cfillion_Select all automation items under edit cursor (all tracks).lua
+--
+--   . > cfillion_Unselect all automation items (all tracks).lua
+--   . > cfillion_Unselect all automation items in pool (all tracks).lua
+--   . > cfillion_Unselect all automation items under edit cursor (all tracks).lua
+--
+--   . > cfillion_Select all automation items under mouse cursor (any envelope).lua
+--   . > cfillion_Unselect all automation items under mouse cursor (any envelope).lua
 -- @about
 --   # Automation item selection bundle
 --
---   This package provides a total of 18 actions for selecting or unselecting
+--   This package provides many actions for selecting or unselecting
 --   automation items in the selected envelope lane. See the Contents tab for
 --   the list and for the exact name of the actions.
 --
@@ -51,10 +59,11 @@ local moveMode = name:match('move to')
 local poolMode = name:match('pool')
 local addToSelMode = name:match('Add.+to selection')
 local prevMode = name:match('previous')
-local entireBucketMode = name:match('all')
+local entireBucketMode = name:match('all automation')
 local unselectMode = name:match('Unselect')
 local editCursorMode = name:match('under edit cursor')
 local mouseCursorMode = name:match('under mouse cursor')
+local allTracksMode = name:match('all tracks') or name:match('any envelope')
 
 function testCursorPosition(env, startTime, endTime)
   local curPos
@@ -77,12 +86,9 @@ end
 
 function enumSelectedEnvelope()
   local env = reaper.GetSelectedEnvelope(0)
-  if not env then return end
+  if not env then return function() end end
 
-  local count = reaper.CountAutomationItems(env)
-  if count < 1 then return end
-
-  local i = -1
+  local i, count = -1, reaper.CountAutomationItems(env)
 
   return function()
     i = i + 1
@@ -126,7 +132,7 @@ end
 local buckets = {}
 local currentSel, currentBucket = {}, 0
 
-for env, i in enumAllEnvelopes() do
+for env, i in (allTracksMode and enumAllEnvelopes or enumSelectedEnvelope)() do
   local selected = 1 == reaper.GetSetAutomationItemInfo(env, i, 'D_UISEL', 0, false)
   local bucketId = 0
   local startTime = reaper.GetSetAutomationItemInfo(env, i, 'D_POSITION', 0, false)
