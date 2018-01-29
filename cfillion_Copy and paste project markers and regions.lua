@@ -10,7 +10,7 @@
 -- @screenshots
 --   Basic usage https://i.imgur.com/dSyRnKe.gif
 --   Paste at edit cursor https://i.imgur.com/Zdu5VIF.gif
--- @donate https://www.paypal.com/cgi-bin/webscr?business=T3DEWBQJAV7WL&cmd=_donations&currency_code=CAD&item_name=ReaScript%3A+Set+item+playback+rate+from+semitones
+-- @donate https://www.paypal.com/cgi-bin/webscr?business=T3DEWBQJAV7WL&cmd=_donations&currency_code=CAD
 -- @provides
 --   . > cfillion_Copy project markers and regions in time selection.lua
 --   . > cfillion_Copy project markers in time selection.lua
