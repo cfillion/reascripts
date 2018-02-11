@@ -44,9 +44,40 @@
 --
 --   Send patches at <https://github.com/cfillion/reascripts>.
 
-local string, table, math, os = string, table, math, os
+local string, table, math, os, utf8 = string, table, math, os, utf8
 local load, xpcall, pairs, ipairs = load, xpcall, pairs, ipairs, select
 local reaper, gfx = reaper, gfx
+
+function utf8.sub(s, i, j)
+  i = utf8.offset(s, i)
+
+  if j then
+    j = utf8.offset(s, j + 1) or 0
+    j = j - 1
+  end
+
+  return string.sub(s, i, j)
+end
+
+function utf8.reverse(s)
+  local ns = ''
+  for p, c in utf8.codes(s) do
+    ns = utf8.char(c) .. ns
+  end
+  return ns
+end
+
+function utf8.find(s, p, i)
+  if i then
+    i = utf8.offset(s, i)
+
+    if not i then
+      return
+    end
+  end
+
+  return string.find(s, p, i)
+end
 
 local ireascript = {
   -- settings
@@ -254,11 +285,11 @@ function ireascript.keyboard()
 
   if char == ireascript.KEY_BACKSPACE then
     local before, after = ireascript.splitInput()
-    ireascript.input = string.sub(before, 0, -2) .. after
+    ireascript.input = utf8.sub(before, 0, -2) .. after
     ireascript.moveCaret(ireascript.caret - 1)
   elseif char == ireascript.KEY_DELETE then
     local before, after = ireascript.splitInput()
-    ireascript.input = before .. string.sub(after, 2)
+    ireascript.input = before .. utf8.sub(after, 2)
     ireascript.scrollTo(0)
     ireascript.prompt()
   elseif char == ireascript.KEY_CLEAR then
@@ -283,8 +314,8 @@ function ireascript.keyboard()
     local pos
 
     if gfx.mouse_cap & 8 == 8 then
-      local length = ireascript.input:len()
-      pos = length - ireascript.nextBoundary(ireascript.input:reverse(),
+      local length = utf8.len(ireascript.input)
+      pos = length - ireascript.nextBoundary(utf8.reverse(ireascript.input),
         length - ireascript.caret + 1)
       if pos > 0 then pos = pos + 1 end
     else
@@ -303,7 +334,7 @@ function ireascript.keyboard()
 
     ireascript.moveCaret(pos)
   elseif char == ireascript.KEY_END then
-    ireascript.moveCaret(ireascript.input:len())
+    ireascript.moveCaret(utf8.len(ireascript.input))
   elseif char == ireascript.KEY_UP then
     ireascript.historyJump(ireascript.hindex + 1)
   elseif char == ireascript.KEY_DOWN then
@@ -326,7 +357,7 @@ function ireascript.keyboard()
     ireascript.selection = nil
   elseif char >= ireascript.KEY_INPUTRANGE_FIRST and char <= ireascript.KEY_INPUTRANGE_LAST then
     local before, after = ireascript.splitInput()
-    ireascript.input = before .. string.char(char) .. after
+    ireascript.input = before .. utf8.char(char) .. after
     ireascript.moveCaret(ireascript.caret + 1)
   end
 
@@ -334,12 +365,12 @@ function ireascript.keyboard()
 end
 
 function ireascript.nextBoundary(input, from)
-  local boundary = input:find('%W%w', from + 1)
+  local boundary = utf8.find(input, '%W%w', from + 1)
 
   if boundary then
-    return boundary
+    return utf8.len(string.sub(input, 1, boundary))
   else
-    return input:len()
+    return utf8.len(input)
   end
 end
 
@@ -786,7 +817,11 @@ function ireascript.prompt()
 
   if ireascript.input:len() > 0 then
     ireascript.push(ireascript.input)
-    ireascript.buffer[#ireascript.buffer].caret = ireascript.caret
+    if ireascript.caret > 0 then
+      ireascript.buffer[#ireascript.buffer].caret = utf8.offset(ireascript.input, ireascript.caret)
+    else
+      ireascript.buffer[#ireascript.buffer].caret = ireascript.caret
+    end
   else
     local promptLen = ireascript.buffer[#ireascript.buffer].text:len()
     ireascript.buffer[#ireascript.buffer].caret = promptLen
@@ -863,7 +898,7 @@ end
 function ireascript.moveCaret(pos)
   ireascript.scrollTo(0)
 
-  if pos >= 0 and pos <= ireascript.input:len() then
+  if pos >= 0 and pos <= utf8.len(ireascript.input) then
     ireascript.caret = pos
     ireascript.lastMove = os.time()
     ireascript.prompt()
@@ -919,7 +954,7 @@ function ireascript.historyJump(pos)
 
   ireascript.hindex = pos
   ireascript.input = ireascript.history[ireascript.hindex]
-  ireascript.moveCaret(ireascript.input:len())
+  ireascript.moveCaret(utf8.len(ireascript.input))
   ireascript.prompt()
 end
 
@@ -1199,8 +1234,8 @@ function ireascript.formatTable(value, size)
 end
 
 function ireascript.splitInput()
-  local before = ireascript.input:sub(0, ireascript.caret)
-  local after = ireascript.input:sub(ireascript.caret + 1)
+  local before = utf8.sub(ireascript.input, 0, ireascript.caret)
+  local after = utf8.sub(ireascript.input, ireascript.caret + 1)
   return before, after
 end
 
@@ -1258,7 +1293,7 @@ function ireascript.paste(selection)
 
       local before, after = ireascript.splitInput()
       ireascript.input = before .. line .. after
-      ireascript.moveCaret(ireascript.caret + line:len())
+      ireascript.moveCaret(ireascript.caret + utf8.len(line))
     end
   end
 end
