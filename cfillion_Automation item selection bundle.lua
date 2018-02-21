@@ -1,7 +1,7 @@
 -- @description Automation item selection bundle
--- @version 1.3
+-- @version 1.3.1
 -- @changelog
---   Add selection actions for AIs inside time selection
+--   Improve mouse cursor hit detection when envelope is not shown in lane
 -- @author cfillion
 -- @provides
 --   . > cfillion_Select and move to next automation item.lua
@@ -67,14 +67,34 @@ local mouseCursorMode = name:match('under mouse cursor')
 local allTracksMode = name:match('all tracks') or name:match('any envelope')
 local timeMode = name:match('time selection')
 
+function testUnderMouse(env)
+  local _, chunk = reaper.GetEnvelopeStateChunk(env, '')
+  local inLane = chunk:match('VIS %d (%d) %d') == '1'
+
+  local window, segment, details = reaper.BR_GetMouseCursorContext()
+
+  if inLane then
+    return reaper.BR_GetMouseCursorContext_Envelope() == env
+  elseif segment == 'track' then
+    -- BR_GetMouseCursorContext_Envelope doesn't return the envelope if it's
+    -- not shown in a lane but over the items and the cursor is not right over
+    -- a envelope segment or point.
+
+    local track = reaper.Envelope_GetParentTrack(env)
+
+    return reaper.BR_GetMouseCursorContext_Track() == track
+  else
+    return false
+  end
+end
+
 function testCursorPosition(env, startTime, endTime)
   local curPos
 
   if editCursorMode then
     curPos = reaper.GetCursorPosition()
   elseif mouseCursorMode then
-    reaper.BR_GetMouseCursorContext()
-    if reaper.BR_GetMouseCursorContext_Envelope() == env then
+    if testUnderMouse(env) then
       curPos = reaper.BR_GetMouseCursorContext_Position()
     else
       return false
