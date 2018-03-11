@@ -1,17 +1,6 @@
 -- @description Song Switcher
--- @version 1.4
--- @changelog
---   * only show mousedown button effect for the left button
---   * show a context menu on right click
---   * stop transport before switching songs rather than after
---   * toggle filter box with single click rather than double click
---   Web Interface:
---   * add Lock button to enable read-only mode
---   * change the color of the play button on pause/record
---   * confirm tab close in locked mode
---   * disable pixel interpolation when scaling the timeline
---   * enhance noscript and fix loading flickering
---   * implement precise seek on mouse drag in timeline
+-- @version 1.4.1
+-- @changelog Increase font size in the song list [p=1965158]
 -- @author cfillion
 -- @provides
 --   [main] cfillion_Song Switcher/*.lua
@@ -368,7 +357,7 @@ function drawFilter()
 end
 
 function songList(y)
-  gfx.setfont(FONT_DEFAULT)
+  gfx.setfont(FONT_SMALL)
   gfx.y = y - scrollOffset
 
   local lastIndex, line, bottom, newScrollOffset
