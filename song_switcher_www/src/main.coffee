@@ -31,7 +31,7 @@ class SongSwitcherWWW
       @_setVisible @_prevBtn, state.currentIndex > 1
       @_setVisible @_nextBtn, state.currentIndex < state.songCount
       @_setClass @_ctrlBar, 'invalid', state.invalid
-      @_setText @_songName, state.title || '## No Song Selected ##'
+      @_setText @_songName, state.title
       @_timeline.update @_client.data
     @_client.on 'positionChanged', => @_timeline.update @_client.data
     @_client.on 'markerListChanged', => @_timeline.update @_client.data

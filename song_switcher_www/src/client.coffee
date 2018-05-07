@@ -14,20 +14,23 @@ parseTime = (str) ->
 
 class State
   constructor: (data) ->
-    if data then @_unpack(data) else @_fallback()
+    if typeof(data) == 'object'
+      @_unpack data
+    else
+      @_fallback data || '## No data from host ##'
 
   _unpack: (data) ->
     i = 0
     @currentIndex = parseInt data[i++]
     @songCount = parseInt data[i++]
-    @title = data[i++]
+    @title = data[i++] || '## No song selected ##'
     @startTime = parseTime data[i++]
     @endTime = parseTime data[i++]
     @invalid = data[i++] == 'true'
 
-  _fallback: ->
+  _fallback: (title) ->
     @currentIndex = @songCount = @startTime = @endTime = 0
-    [@title, @invalid] = ['## No data from Song Switcher ##', true]
+    [@title, @invalid] = [title, true]
 
 class Marker
   constructor: (data) ->
@@ -75,7 +78,7 @@ class Client extends EventEmitter
         if req.status == 200
           @_parse req.responseText
         else
-          @_resetData()
+          @_resetData '## Network error ##'
     req.open 'GET', "/_/#{cmd};#{CMD_UPDATE}", true
     req.send null
 
