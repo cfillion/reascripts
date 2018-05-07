@@ -3,7 +3,7 @@ Timeline = require './timeline'
 
 class SongSwitcherWWW
   constructor: ->
-    @_client = new Client 1000
+    @_client = new Client 100
 
     @_timeline = new Timeline document.getElementById('timeline')
     @_lockOverlay = document.getElementById 'lock-overlay'
