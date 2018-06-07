@@ -312,7 +312,7 @@ function drawTextLine(line)
 end
 
 function drawName(song)
-  local name = '## No Song Selected ##'
+  local name = '## No song selected ##'
 
   if song ~= nil then
     name = song.name
