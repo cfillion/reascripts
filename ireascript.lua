@@ -50,10 +50,11 @@ local reaper, gfx = reaper, gfx
 
 function utf8.sub(s, i, j)
   i = utf8.offset(s, i)
+  if not i then return '' end -- i is out of bounds
 
-  if j then
-    j = utf8.offset(s, j + 1) or 0
-    j = j - 1
+  if j and (j > 0 or j < -1) then
+    j = utf8.offset(s, j + 1)
+    if j then j = j - 1 end
   end
 
   return string.sub(s, i, j)
@@ -61,13 +62,15 @@ end
 
 function utf8.reverse(s)
   local ns = ''
+
   for p, c in utf8.codes(s) do
     ns = utf8.char(c) .. ns
   end
+
   return ns
 end
 
-function utf8.find(s, p, i)
+function utf8.find(s, pattern, i, plain)
   if i then
     i = utf8.offset(s, i)
 
@@ -76,7 +79,18 @@ function utf8.find(s, p, i)
     end
   end
 
-  return string.find(s, p, i)
+  local startPos = string.find(s, pattern, i, plain)
+  if startPos then
+    return utf8.len(s:sub(1, startPos))
+  end
+end
+
+function utf8.rfind(str, pattern, plain)
+  local pos = utf8.find(utf8.reverse(str), pattern, nil, plain)
+
+  if pos then
+    return utf8.len(str) - pos + 1
+  end
 end
 
 local ireascript = {
@@ -155,7 +169,7 @@ local ireascript = {
   HISTORY_FILE = ({reaper.get_action_context()})[2] .. '.history',
   HISTORY_LIMIT = 1000,
 
-  WORD_SEPARATORS = '%s"\'<>:;,!&|=/\\%(%)%%%+%-%*%?%[%]%^%$',
+  WORD_SEPARATOR = '[%s"\'<>:;,!&|=/\\%(%)%%%+%-%*%?%[%]%^%$]',
 
   NO_CLIPBOARD_API = 'Copy/paste requires SWS v2.9.6 or newer',
   NO_REAPACK_API = 'ReaPack v1.2+ is required to use this feature',
@@ -368,7 +382,7 @@ function ireascript.nextBoundary(input, from)
   local boundary = utf8.find(input, '%W%w', from + 1)
 
   if boundary then
-    return utf8.len(string.sub(input, 1, boundary))
+    return utf8.len(utf8.sub(input, 1, boundary))
   else
     return utf8.len(input)
   end
@@ -1420,8 +1434,8 @@ function ireascript.characterAt(segment, xpos)
 
   ireascript.useFont(segment.font)
 
-  for i=1,segment.text:len() do
-    local charRight = gfx.measurestr(segment.text:sub(1, i))
+  for i=1,utf8.len(segment.text) do
+    local charRight = gfx.measurestr(utf8.sub(segment.text, 1, i))
 
     if charLeft <= xpos and charRight >= xpos then
       return i, charLeft
@@ -1467,7 +1481,7 @@ function ireascript.pointUnderMouse()
     end
 
     if type(segment) == 'table' then
-      return {segment=line.back, char=segment.text:len() + 1, offset=segment.w}
+      return {segment=line.back, char=utf8.len(segment.text) + 1, offset=segment.w}
     else
       return {segment=line.back, char=0, offset=0}
     end
@@ -1496,25 +1510,31 @@ function ireascript.selectWord(point)
   local segment = ireascript.wrappedBuffer[point.segment]
   if type(segment) ~= 'table' then return end
 
-  local match = string.format('[%s]', ireascript.WORD_SEPARATORS)
-  if segment.text:sub(point.char, point.char):match(match) then
-    -- select only whitespace if the point is between words
-    match = string.format('[^%s]', ireascript.WORD_SEPARATORS)
-  end
+  local char = utf8.sub(segment.text, point.char, point.char)
+  local wordStart, wordEnd
 
-  local before = segment.text:sub(1, point.char):reverse()
-  local wordStart = before:find(match)
-  if wordStart then
-    wordStart = before:len() - wordStart + 2
+  if char:match(ireascript.WORD_SEPARATOR) then
+    -- select only repeated same separator characters
+    wordStart, wordEnd = point.char - 1, point.char + 1
+
+    while wordStart > 0 and utf8.sub(segment.text, wordStart, wordStart) == char do
+      wordStart = wordStart - 1
+    end
+
+    while utf8.sub(segment.text, wordEnd, wordEnd) == char do
+      wordEnd = wordEnd + 1
+    end
   else
-    wordStart = 1
+    wordStart = utf8.rfind(utf8.sub(segment.text, 1, point.char), ireascript.WORD_SEPARATOR)
+    wordEnd = utf8.find(segment.text, ireascript.WORD_SEPARATOR, point.char, plain)
   end
 
-  local wordEnd = segment.text:find(match, point.char) or (segment.text:len() + 1)
+  wordStart = (wordStart or 0) + 1
+  wordEnd = wordEnd or (utf8.len(segment.text) + 1)
 
   ireascript.useFont(segment.font)
-  local startOffset = gfx.measurestr(segment.text:sub(1, wordStart - 1))
-  local stopOffset = gfx.measurestr(segment.text:sub(1, wordEnd - 1))
+  local startOffset = gfx.measurestr(utf8.sub(segment.text, 1, wordStart - 1))
+  local stopOffset = gfx.measurestr(utf8.sub(segment.text, 1, wordEnd - 1))
 
   local start = {segment=point.segment, char=wordStart, offset=startOffset}
   local stop = {segment=point.segment, char=wordEnd, offset=stopOffset}
@@ -1542,10 +1562,10 @@ function ireascript.selectedText()
       if i == ireascript.selection[2].segment then
         stop = ireascript.selection[2].char - 1
       else
-        stop = segment.text:len()
+        stop = utf8.len(segment.text)
       end
 
-      text = text .. segment.text:sub(start, stop)
+      text = text .. utf8.sub(segment.text, start, stop)
     elseif segment == ireascript.SG_BUFNEWLINE then
       text = text .. "\n"
     end
