@@ -713,7 +713,7 @@ end
 
 function ireascript.loop()
   if ireascript.keyboard() then
-    reaper.defer(ireascript.loop)
+    reaper.defer(function() ireascript.try(ireascript.loop) end)
   end
 
   ireascript.mouseWheel()
@@ -1690,8 +1690,20 @@ else
   gfx.setfont(ireascript.FONT_BOLD, 'Courier', 14, string.byte('b'))
 end
 
+function ireascript.try(callback)
+  local report
+
+  xpcall(callback, function(errObject)
+    report = string.format('%s\n%s', errObject, debug.traceback())
+  end)
+
+  if report then
+    error(report)
+  end
+end
+
 -- GO!!
-ireascript.run()
+ireascript.try(ireascript.run)
 
 reaper.atexit(function()
   ireascript.saveWindowState()
