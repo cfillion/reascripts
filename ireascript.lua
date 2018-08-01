@@ -1309,7 +1309,7 @@ function ireascript.complete()
 
   local code = ireascript.prepend .. "\x20" .. before
   local matches, source = {}
-  local var, word = code:match("([%a$d_]+)%s*%.%s*([%a%d_]*)$")
+  local var, word = code:match("([%a%d_]+)%s*%.%s*([%a%d_]*)$")
 
   if word then
     source = _G[var]
