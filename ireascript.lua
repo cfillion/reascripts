@@ -422,6 +422,8 @@ function ireascript.wrappedLines()
 end
 
 function ireascript.draw(offset)
+  ireascript.redraw = false
+
   ireascript.useColor(ireascript.COLOR_BLACK)
   gfx.rect(0, 0, gfx.w, gfx.h)
 
@@ -605,14 +607,10 @@ function ireascript.update()
         local count = utf8.len(segment.text)
         local resized = false
 
-        resizeBy = function(chars)
-          count = count - chars
+        while w + left > gfx.w do
+          count = count - 1
           w, h = gfx.measurestr(utf8.sub(segment.text, 1, count))
           resized = true
-        end
-
-        while w + left > gfx.w do
-          resizeBy(1)
         end
 
         left = left + w
@@ -644,6 +642,7 @@ function ireascript.update()
   end
 
   ireascript.from = {buffer=#ireascript.buffer + 1, wrapped=#ireascript.wrappedBuffer + 1}
+  ireascript.redraw = true
 end
 
 function ireascript.contextMenu()
@@ -736,10 +735,10 @@ function ireascript.loop()
     ireascript.update()
   end
 
-  ireascript.draw()
-  ireascript.scrollTo(ireascript.scroll) -- refreshed bound check
-
+  if ireascript.redraw then ireascript.draw() end
   gfx.update()
+
+  ireascript.scrollTo(ireascript.scroll) -- refreshed bound check
 end
 
 function ireascript.isMouseDown(flag)
@@ -961,7 +960,12 @@ end
 
 function ireascript.scrollTo(pos)
   local max = ireascript.wrappedBuffer.lines - (ireascript.page - 1)
-  ireascript.scroll = math.max(0, math.min(pos, max))
+  local newscroll = math.max(0, math.min(pos, max))
+
+  if newscroll ~= ireascript.scroll then
+    ireascript.scroll = newscroll
+    ireascript.redraw = true
+  end
 end
 
 function ireascript.eval(nested)
@@ -1495,6 +1499,8 @@ function ireascript.selectRange(a, b)
     ireascript.selection = {a, b}
     table.sort(ireascript.selection, ireascript.comparePoints)
   end
+
+  ireascript.redraw = true
 end
 
 function ireascript.selectWord(point)
@@ -1567,6 +1573,7 @@ end
 
 function ireascript.selectAll()
   ireascript.selection = {ireascript.bufferStartPoint(), ireascript.bufferEndPoint()}
+  ireascript.redraw = true
 end
 
 function ireascript.iswindows()
