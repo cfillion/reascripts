@@ -179,11 +179,15 @@ local ireascript = {
 IREASCRIPT_ENV = _ENV -- environment of evaluated code
 
 print = function(...)
+  ireascript.backtrack()
+
   for i=1,select('#', ...) do
     if i > 1 then ireascript.push("\t") end
     ireascript.format(select(i, ...))
   end
   ireascript.nl()
+
+  ireascript.doprompt = true
 end
 
 function ireascript.help()
@@ -712,6 +716,11 @@ function ireascript.mouseBtnEvent()
 end
 
 function ireascript.loop()
+  if ireascript.doprompt then
+    ireascript.doprompt = false
+    ireascript.prompt()
+  end
+
   if ireascript.keyboard() then
     reaper.defer(function() ireascript.try(ireascript.loop) end)
   end
