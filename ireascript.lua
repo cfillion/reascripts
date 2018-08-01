@@ -418,8 +418,6 @@ function ireascript.wrappedLines()
 end
 
 function ireascript.draw(offset)
-  ireascript.redraw = false
-
   ireascript.useColor(ireascript.COLOR_BLACK)
   gfx.rect(0, 0, gfx.w, gfx.h)
 
@@ -731,7 +729,11 @@ function ireascript.loop()
     ireascript.update()
   end
 
-  if ireascript.redraw then ireascript.draw() end
+  if ireascript.redraw then
+    ireascript.redraw = false
+    ireascript.draw()
+  end
+
   gfx.update()
 
   ireascript.scrollTo(ireascript.scroll) -- refreshed bound check
