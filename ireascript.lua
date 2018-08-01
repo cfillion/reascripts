@@ -1,11 +1,17 @@
 -- @description Interactive ReaScript (iReaScript)
--- @version 0.7.1
+-- @version 0.8
 -- @author cfillion
 -- @changelog
---   don't select to the buffer end when a partial line is diplayed at the bottom
---   fix crash when displaying table with mixed key types
---   fix length counting of tables containing mixed key types
---   use Lua-compatible syntax for displaying keys in tables
+--   added support for multibyte characters!
+--   iReaScript and print(...) can now be used from external scripts for debugging
+--
+--   allow reaper and gfx to be overwritten without crashing
+--   autocomplete multi-dimensional tables
+--   fix table autocompletion when the variable name contains digits
+--   fix table autocompletion when there are more than one spaces surrounding the dot
+--   fix {[1]=1, [255]=2} being displayed as just {1}
+--   redraw the screen only when necessary for reduced CPU usage
+--   show a full traceback when iReaScript crashes
 -- @links
 --   cfillion.ca https://cfillion.ca
 --   Forum Thread https://forum.cockos.com/showthread.php?t=177324
@@ -97,12 +103,12 @@ local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript (iReaScript)',
   NAME = 'Interactive ReaScript',
-  VERSION = '0.7.1',
+  VERSION = '0.8',
 
   MARGIN = 3,
   MAXLINES = 2048,
   MAXDEPTH = 3, -- maximum array depth
-  MAXLEN = 2048, -- maximum array size
+  MAXLEN = 2048, -- maximum array and string size
   INDENT = 2,
   INDENT_THRESHOLD = 5,
   PROMPT = '> ',
