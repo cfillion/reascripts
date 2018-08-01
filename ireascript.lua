@@ -1322,18 +1322,17 @@ function ireascript.complete()
   local before, after = ireascript.splitInput()
 
   local code = ireascript.prepend .. "\x20" .. before
-  local matches, source = {}
-  local var, word = code:match("([%a%d_]+)%s*%.%s*([^%s%p]*)$")
+  local matches, source = {}, _G
+  local prefix, word = code:match("([%a%d_%s%.]*[%a%d_]+)%s*%.%s*([^%s%p]*)$")
 
   if word then
-    source = _G[var]
-    if type(source) ~= 'table' then return end
+    for key in prefix:gmatch('[^%.%s]+') do
+      source = source[key]
+      if type(source) ~= 'table' then return end
+    end
   else
-    var = before:match("([%a%d_]+)$")
-    if not var then return end
-
-    source = _G
-    word = var
+    word = before:match("([%a%d_]+)$")
+    if not word then return end
   end
 
   local wordLength = utf8.len(word)
@@ -1374,8 +1373,8 @@ function ireascript.complete()
 
   if exact then
     if exact:match('[^%a%d_]') then
-      local dot = utf8.find(before, '%.')
-      before = utf8.sub(before, 1, utf8.find(before, '%.') - 1)
+      local dot = utf8.rfind(before, '%.')
+      before = utf8.sub(before, 1, dot - 1)
       exact = string.format('[%s]', ireascript.tostringliteral(exact))
     else
       before = utf8.sub(before, 1, -(wordLength + 1))
