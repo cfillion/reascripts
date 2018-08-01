@@ -1120,11 +1120,18 @@ function ireascript.format(value)
   elseif t == 'string' then
     ireascript.foreground = ireascript.COLOR_GREEN
 
-    if utf8.len(value) > ireascript.MAXLEN then
+    local len = utf8.len(value)
+    local illformed = not len
+
+    if (len or value:len()) > ireascript.MAXLEN then
       value = utf8.sub(value, 1, ireascript.MAXLEN) .. '...'
     end
 
     value = ireascript.tostringliteral(value)
+
+    if illformed then
+      value = ireascript.repairUTF8(value)
+    end
   end
 
   ireascript.push(tostring(value))
@@ -1135,6 +1142,12 @@ function ireascript.tostringliteral(value)
     gsub("\\\n", '\\n'):
     gsub('\\0*13', '\\r'):
     gsub("\\0*9", '\\t')
+end
+
+function ireascript.repairUTF8(value)
+  return value:gsub('[\128-\255]', function(c)
+    return string.format('\\%03d', c:byte())
+  end)
 end
 
 function ireascript.formatAnyTable(value)
