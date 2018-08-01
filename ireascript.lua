@@ -1129,13 +1129,17 @@ function ireascript.format(value)
       value = utf8.sub(value, 1, ireascript.MAXLEN) .. '...'
     end
 
-    value = string.format('%q', value):
-      gsub("\\\n", '\\n'):
-      gsub('\\0*13', '\\r'):
-      gsub("\\0*9", '\\t')
+    value = ireascript.tostringliteral(value)
   end
 
   ireascript.push(tostring(value))
+end
+
+function ireascript.tostringliteral(value)
+  return string.format('%q', value):
+    gsub("\\\n", '\\n'):
+    gsub('\\0*13', '\\r'):
+    gsub("\\0*9", '\\t')
 end
 
 function ireascript.formatAnyTable(value)
@@ -1319,7 +1323,7 @@ function ireascript.complete()
 
   local code = ireascript.prepend .. "\x20" .. before
   local matches, source = {}
-  local var, word = code:match("([%a%d_]+)%s*%.%s*([%a%d_]*)$")
+  local var, word = code:match("([%a%d_]+)%s*%.%s*([^%s%p]*)$")
 
   if word then
     source = _G[var]
@@ -1332,11 +1336,12 @@ function ireascript.complete()
     word = var
   end
 
+  local wordLength = utf8.len(word)
   word = word:lower()
 
   for k, _ in pairs(source) do
     local test = k:lower()
-    if test:sub(1, word:len()) == word then
+    if utf8.sub(test, 1, wordLength) == word then
       matches[#matches + 1] = k
     end
   end
@@ -1351,10 +1356,10 @@ function ireascript.complete()
   else
     table.sort(matches)
 
-    len = matches[1]:len()
+    local len = utf8.len(matches[1])
     for i=1,#matches-1 do
-      while len > word:len() do
-        if matches[i]:sub(1, len) == matches[i + 1]:sub(1, len) then
+      while len > wordLength do
+        if utf8.sub(matches[i], 1, len) == utf8.sub(matches[i + 1], 1, len) then
           break
         else
           len = len - 1
@@ -1362,15 +1367,21 @@ function ireascript.complete()
       end
     end
 
-    if len >= word:len() then
-      exact = matches[1]:sub(1, len)
+    if len >= wordLength then
+      exact = utf8.sub(matches[1], 1, len)
     end
   end
 
   if exact then
-    before = before:sub(1, -(word:len() + 1))
+    if exact:match('[^%a%d_]') then
+      local dot = utf8.find(before, '%.')
+      before = utf8.sub(before, 1, utf8.find(before, '%.') - 1)
+      exact = string.format('[%s]', ireascript.tostringliteral(exact))
+    else
+      before = utf8.sub(before, 1, -(wordLength + 1))
+    end
     ireascript.input = before .. exact .. after
-    ireascript.caret = ireascript.caret + (exact:len() - word:len())
+    ireascript.caret = utf8.len(before .. exact)
   end
 
   if #matches > 0 then
