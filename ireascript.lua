@@ -293,11 +293,6 @@ function ireascript.keyboard()
     return false
   end
 
-  -- if char ~= 0 then
-  --   reaper.ShowConsoleMsg(char)
-  --   reaper.ShowConsoleMsg("\n")
-  -- end
-
   if char == ireascript.KEY_BACKSPACE then
     local before, after = ireascript.splitInput()
     ireascript.input = utf8.sub(before, 0, -2) .. after
