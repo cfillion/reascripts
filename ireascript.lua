@@ -602,22 +602,13 @@ function ireascript.update()
 
       while text:len() > 0 do
         local w, h = gfx.measurestr(text)
-        local count = segment.text:len()
+        local count = utf8.len(segment.text)
         local resized = false
 
         resizeBy = function(chars)
           count = count - chars
-          w, h = gfx.measurestr(segment.text:sub(0, count))
+          w, h = gfx.measurestr(utf8.sub(segment.text, 1, count))
           resized = true
-        end
-
-        -- rough first try for speed
-        local overflow = (w + left) - gfx.w
-        if overflow > 0 then
-          local firstCharWidth, _ = gfx.measurestr(segment.text:match("%w"))
-          if firstCharWidth > 0 then
-            resizeBy(math.floor(overflow / firstCharWidth))
-          end
         end
 
         while w + left > gfx.w do
@@ -627,7 +618,7 @@ function ireascript.update()
         left = left + w
 
         local newSeg = ireascript.dup(segment)
-        newSeg.text = text:sub(0, count)
+        newSeg.text = utf8.sub(text, 1, count)
         newSeg.w = w
         newSeg.h = h
 
@@ -646,7 +637,7 @@ function ireascript.update()
           left = leftmost
         end
 
-        text = text:sub(count + 1)
+        text = utf8.sub(text, count + 1)
         startpos = startpos + count
       end
     end
@@ -1129,8 +1120,8 @@ function ireascript.format(value)
   elseif t == 'string' then
     ireascript.foreground = ireascript.COLOR_GREEN
 
-    if value:len() > ireascript.MAXLEN then
-      value = value:sub(1, ireascript.MAXLEN) .. '...'
+    if utf8.len(value) > ireascript.MAXLEN then
+      value = utf8.sub(value, 1, ireascript.MAXLEN) .. '...'
     end
 
     value = string.format('%q', value):
