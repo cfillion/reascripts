@@ -507,7 +507,7 @@ function ireascript.drawLine(line)
       ireascript.useColor(segment.fg)
 
       if segment.caret and (now % 2 == 0 or now - ireascript.lastMove < 1) then
-        local w, _ = gfx.measurestr(segment.text:sub(0, segment.caret))
+        local w, _ = gfx.measurestr(utf8.sub(segment.text, 0, segment.caret))
         ireascript.drawCaret(gfx.x + w, gfx.y, line.height)
       end
 
@@ -817,11 +817,7 @@ function ireascript.prompt()
 
   if ireascript.input:len() > 0 then
     ireascript.push(ireascript.input)
-    if ireascript.caret > 0 then
-      ireascript.buffer[#ireascript.buffer].caret = utf8.offset(ireascript.input, ireascript.caret)
-    else
-      ireascript.buffer[#ireascript.buffer].caret = ireascript.caret
-    end
+    ireascript.buffer[#ireascript.buffer].caret = ireascript.caret
   else
     local promptLen = ireascript.buffer[#ireascript.buffer].text:len()
     ireascript.buffer[#ireascript.buffer].caret = promptLen
