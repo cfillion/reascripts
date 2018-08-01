@@ -176,8 +176,6 @@ local ireascript = {
   MANUALLY_INSTALLED = 'iReaScript must be installed through ReaPack to use this feature',
 }
 
-IREASCRIPT_ENV = _ENV -- environment of evaluated code
-
 print = function(...)
   ireascript.backtrack()
 
@@ -1057,7 +1055,7 @@ function ireascript.lua(code)
   local scope = 'eval' -- arbitrary value to have consistent error messages
 
   local ok, values = xpcall(function()
-    local func, err = load('return ' .. code, scope, 't', IREASCRIPT_ENV)
+    local func, err = load('return ' .. code, scope)
 
     if not func then
       -- hack: reparse without the implicit return
@@ -1343,7 +1341,7 @@ function ireascript.complete()
   local before, after = ireascript.splitInput()
 
   local code = ireascript.prepend .. "\x20" .. before
-  local matches, source = {}, IREASCRIPT_ENV
+  local matches, source = {}, _G
   local prefix, word = code:match("([%a%d_%s%.]*[%a%d_]+)%s*%.%s*([^%s]*)$")
 
   if word then
