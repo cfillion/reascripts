@@ -279,8 +279,9 @@ function ireascript.run()
   ireascript.mouseCap = 0
   ireascript.selection = nil
   ireascript.lastClick = 0.0
-
   ireascript.reset(true)
+
+  ireascript.initgfx()
   ireascript.loop()
 end
 
@@ -1690,24 +1691,6 @@ function ireascript.saveWindowState()
     string.format("%d %d %d %d %d", w, h, dockState, xpos, ypos), true)
 end
 
-local w, h, dockState, x, y = ireascript.previousWindowState()
-
-if w then
-  gfx.init(ireascript.TITLE, w, h, dockState, x, y)
-else
-  gfx.init(ireascript.TITLE, 550, 350)
-end
-
-gfx.setcursor(ireascript.IDC_IBEAM)
-
-if ireascript.iswindows() then
-  gfx.setfont(ireascript.FONT_NORMAL, 'Consolas', 16)
-  gfx.setfont(ireascript.FONT_BOLD, 'Consolas', 16, string.byte('b'))
-else
-  gfx.setfont(ireascript.FONT_NORMAL, 'Courier', 14)
-  gfx.setfont(ireascript.FONT_BOLD, 'Courier', 14, string.byte('b'))
-end
-
 function ireascript.try(callback)
   local report
 
@@ -1717,6 +1700,27 @@ function ireascript.try(callback)
 
   if report then
     error(report)
+  end
+end
+
+function ireascript.initgfx()
+  local w, h, dockState, x, y = ireascript.previousWindowState()
+
+  if w then
+    gfx.init(ireascript.TITLE, w, h, dockState, x, y)
+  else
+    gfx.init(ireascript.TITLE, 550, 350)
+  end
+
+  gfx.setcursor(ireascript.IDC_IBEAM)
+  gfx.clear = -1
+
+  if ireascript.iswindows() then
+    gfx.setfont(ireascript.FONT_NORMAL, 'Consolas', 16)
+    gfx.setfont(ireascript.FONT_BOLD, 'Consolas', 16, string.byte('b'))
+  else
+    gfx.setfont(ireascript.FONT_NORMAL, 'Courier', 14)
+    gfx.setfont(ireascript.FONT_BOLD, 'Courier', 14, string.byte('b'))
   end
 end
 
