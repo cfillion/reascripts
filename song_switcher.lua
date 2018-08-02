@@ -1,6 +1,16 @@
 -- @description Song switcher
--- @version 1.4.1
--- @changelog Increase font size in the song list [p=1965158]
+-- @version 1.4.2
+-- @changelog
+--   add help button in windowed mode and in the context menu
+--   add onswitch mode toggles to the context menu and allow stop-only mode
+--   rename installed scripts to use sentence case
+--   use sentence case for the "No song selected" message
+--
+--   Web interface changes:
+--   fix spelling of "oops" in the noscript error message
+--   improve host connection error messages
+--   multiply the refresh rate by 10
+--   use sentence case for all buttons
 -- @author cfillion
 -- @provides
 --   [main] cfillion_Song switcher/*.lua
