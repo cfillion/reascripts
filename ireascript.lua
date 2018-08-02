@@ -1539,35 +1539,39 @@ function ireascript.selectRange(a, b)
   ireascript.redraw = true
 end
 
-function ireascript.selectWord(point)
-  local segment = ireascript.wrappedBuffer[point.segment]
-  if type(segment) ~= 'table' then return end
-
-  local char = utf8.sub(segment.text, point.char, point.char)
+function ireascript.surroundingBoundaries(str, pos)
+  local char = utf8.sub(str, pos, pos)
   local wordStart, wordEnd
 
   if char:match(ireascript.WORD_SEPARATOR) then
     -- select only repeated same separator characters
-    wordStart, wordEnd = point.char - 1, point.char + 1
+    wordStart, wordEnd = pos - 1, pos + 1
 
-    while wordStart > 0 and utf8.sub(segment.text, wordStart, wordStart) == char do
+    while wordStart > 0 and utf8.sub(str, wordStart, wordStart) == char do
       wordStart = wordStart - 1
     end
 
-    while utf8.sub(segment.text, wordEnd, wordEnd) == char do
+    while utf8.sub(str, wordEnd, wordEnd) == char do
       wordEnd = wordEnd + 1
     end
   else
-    wordStart = utf8.rfind(utf8.sub(segment.text, 1, point.char), ireascript.WORD_SEPARATOR)
-    wordEnd = utf8.find(segment.text, ireascript.WORD_SEPARATOR, point.char, plain)
+    wordStart = utf8.rfind(utf8.sub(str, 1, pos), ireascript.WORD_SEPARATOR) or 0
+    wordEnd = utf8.find(str, ireascript.WORD_SEPARATOR, pos, plain)
+    wordEnd = wordEnd or (utf8.len(str) + 1)
   end
 
-  wordStart = (wordStart or 0) + 1
-  wordEnd = wordEnd or (utf8.len(segment.text) + 1)
+  return (wordStart or 0), wordEnd - 1
+end
+
+function ireascript.selectWord(point)
+  local segment = ireascript.wrappedBuffer[point.segment]
+  if type(segment) ~= 'table' then return end
+
+  local wordStart, wordEnd = ireascript.surroundingBoundaries(segment.text, point.char)
 
   ireascript.useFont(segment.font)
-  local startOffset = gfx.measurestr(utf8.sub(segment.text, 1, wordStart - 1))
-  local stopOffset = gfx.measurestr(utf8.sub(segment.text, 1, wordEnd - 1))
+  local startOffset = gfx.measurestr(utf8.sub(segment.text, 1, wordStart))
+  local stopOffset = gfx.measurestr(utf8.sub(segment.text, 1, wordEnd))
 
   local start = {segment=point.segment, char=wordStart, offset=startOffset}
   local stop = {segment=point.segment, char=wordEnd, offset=stopOffset}
