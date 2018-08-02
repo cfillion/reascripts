@@ -1,10 +1,10 @@
--- @description Song Switcher
+-- @description Song switcher
 -- @version 1.4.1
 -- @changelog Increase font size in the song list [p=1965158]
 -- @author cfillion
 -- @provides
---   [main] cfillion_Song Switcher/*.lua
---   [webinterface] cfillion_Song Switcher/song_switcher.html > song_switcher.html
+--   [main] cfillion_Song switcher/*.lua
+--   [webinterface] cfillion_Song switcher/song_switcher.html > song_switcher.html
 -- @link Forum Thread https://forum.cockos.com/showthread.php?t=181159
 -- @donation https://www.paypal.me/cfillion
 -- @screenshot
@@ -12,7 +12,7 @@
 --   Windowed Mode https://i.imgur.com/KOP2yK3.png
 --   Web Interface https://i.imgur.com/DPcRCGh.png
 -- @about
---   # Song Switcher
+--   # Song switcher
 --
 --   The purpose of this script is to quickly switch between songs in a single
 --   project during live shows. It is a replacement for the slow
@@ -23,10 +23,10 @@
 --   Each song must be in a top-level folder track named "#. Song Name"
 --   ("#" being any number).
 --
---   After selecting a song, Song Switcher mutes and hides all songs in the
+--   After selecting a song, Song switcher mutes and hides all songs in the
 --   project except for the current one. Other tracks/folders that are not part
 --   of a song's top-level folder are left untouched.  
---   Song Switcher can also optionally stop playback and/or seek to the
+--   Song switcher can also optionally stop playback and/or seek to the
 --   first item in the song when switching.
 --
 --   This script works best with REAPER settings "**Do not process muted tracks**"
@@ -34,11 +34,11 @@
 --
 --   The following actions are included:
 --
---   - **cfillion_Song Switcher.lua**:
+--   - **cfillion_Song switcher.lua**:
 --     This is the main script. It must be open to use the others.
---   - **cfillion_Song Switcher (previous).lua**: Goes to the previous song
---   - **cfillion_Song Switcher (next).lua**: Goes to the next song
---   - **cfillion_Song Switcher (reset).lua**: Rebuilds the song list
+--   - **cfillion_Song switcher (previous).lua**: Goes to the previous song
+--   - **cfillion_Song switcher (next).lua**: Goes to the next song
+--   - **cfillion_Song switcher (reset).lua**: Rebuilds the song list
 --
 --   A web browser interface is also installed as **song_switcher.html** for
 --   remote use (this feature requires REAPER v5.30+ and ReaPack v1.1+).
@@ -46,7 +46,7 @@
 --   This means that even if a song starts at 7:45 in the project and ends at 9:12,
 --   it's displayed as 00:00 to 01:26 on the web interface for convenience.
 
-WINDOW_TITLE = 'Song Switcher'
+WINDOW_TITLE = 'Song switcher'
 
 FONT_DEFAULT = 0
 FONT_LARGE = 1
