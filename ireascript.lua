@@ -929,7 +929,9 @@ function ireascript.readHistory()
 
   for line in file:lines() do
     if #ireascript.history >= ireascript.HISTORY_LIMIT then break end
-    table.insert(ireascript.history, line)
+    if utf8.len(line) then
+      table.insert(ireascript.history, line)
+    end
   end
 
   file:close()
