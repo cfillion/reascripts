@@ -1584,8 +1584,8 @@ function ireascript.selectWord(point)
   local startOffset = gfx.measurestr(utf8.sub(segment.text, 1, wordStart))
   local stopOffset = gfx.measurestr(utf8.sub(segment.text, 1, wordEnd))
 
-  local start = {segment=point.segment, char=wordStart, offset=startOffset}
-  local stop = {segment=point.segment, char=wordEnd, offset=stopOffset}
+  local start = {segment=point.segment, char=wordStart + 1, offset=startOffset}
+  local stop = {segment=point.segment, char=wordEnd + 1, offset=stopOffset}
 
   ireascript.selectRange(start, stop)
 end
