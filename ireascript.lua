@@ -148,6 +148,7 @@ local ireascript = {
   KEY_CTRLL = 12,
   KEY_CTRLU = 21,
   KEY_CTRLV = 22,
+  KEY_CTRLW = 23,
   KEY_DELETE = 6579564,
   KEY_DOWN = 1685026670,
   KEY_END = 6647396,
@@ -321,6 +322,11 @@ function ireascript.keyboard()
     local before, after = ireascript.splitInput()
     ireascript.input = after
     ireascript.moveCaret(0)
+  elseif char == ireascript.KEY_CTRLW then
+    local before, after = ireascript.splitInput()
+    local wordStart = ireascript.lastWord(before)
+    ireascript.input = utf8.sub(before, 1, wordStart) .. after
+    ireascript.moveCaret(wordStart)
   elseif char == ireascript.KEY_ENTER then
     ireascript.removeCaret()
     ireascript.nl()
