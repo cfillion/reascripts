@@ -106,9 +106,9 @@ EXT_RESET = 'reset'
 EXT_STATE = 'state'
 EXT_FILTER = 'filter'
 
-SWITCH_NOACTION = 0
 SWITCH_SEEK = 1
-SWITCH_SEEKSTOP = 2
+SWITCH_STOP = 2
+SWITCH_ALL  = SWITCH_SEEK | SWITCH_STOP
 
 function loadTracks()
   local songs = {}
@@ -218,7 +218,7 @@ function setCurrentIndex(index)
 
   local mode = getSwitchMode()
 
-  if mode == SWITCH_SEEKSTOP then
+  if mode & SWITCH_STOP ~= 0 then
     reaper.CSurf_OnStop()
   end
 
@@ -230,7 +230,7 @@ function setCurrentIndex(index)
     currentIndex = index
     setNextIndex(index)
 
-    if mode == SWITCH_SEEK or mode == SWITCH_SEEKSTOP then
+    if mode & SWITCH_SEEK ~= 0 then
       reaper.SetEditCurPos(song.startTime, true, true)
     end
   end
@@ -431,25 +431,27 @@ function switchModeButton()
   gfx.x = 0
   gfx.y = LIST_START - (MARGIN / 2)
 
-  local mode, action = getSwitchMode()
+  local mode, actions = getSwitchMode(), {}
 
-  if mode == SWITCH_SEEK then
-    action = 'seek'
-  elseif mode == SWITCH_SEEKSTOP then
-    action = 'stop+seek'
-  else
-    action = 'onswitch'
+  if mode & SWITCH_STOP ~= 0 then
+    table.insert(actions, 'stop')
+  end
+  if mode & SWITCH_SEEK ~= 0 then
+    table.insert(actions, 'seek')
+  end
+  if #actions < 1 then
+    table.insert(actions, 'onswitch')
   end
 
-  btn = textLine(action)
+  btn = textLine(table.concat(actions, '+'))
   btn.tx = btn.rect.w - btn.tw
   btn.ty = btn.ty - btn.rect.h
   btn.rect.w = btn.tw
   btn.rect.x = btn.tx
   btn.rect.y = btn.ty
 
-  if button(btn, mode > SWITCH_NOACTION, false, false) then
-    setSwitchMode((mode + 1) % (SWITCH_SEEKSTOP + 1))
+  if button(btn, mode > 0, false, false) then
+    setSwitchMode((mode + 1) % (SWITCH_ALL + 1))
   end
 end
 
@@ -823,10 +825,10 @@ end
 function getSwitchMode()
   local mode = tonumber(reaper.GetExtState(EXT_SECTION, EXT_SWITCH_MODE))
 
-  if mode and mode <= SWITCH_SEEKSTOP then
+  if mode then
     return mode
   else
-    return SWITCH_NOACTION
+    return 0
   end
 end
 
@@ -859,18 +861,22 @@ function toggleDock(dockState)
 end
 
 function contextMenu()
+  function checkbox(bool) if bool then return '!' else return '' end end
+
   local dockState = gfx.dock(-1)
-  local dockFlag
-  if dockState > 0 then dockFlag = '!' else dockFlag = '' end
+  local mode = getSwitchMode()
 
   local menu = string.format(
-    '%sDock window|Reset data',
-    dockFlag
+    '%sDock window|Reset data|>onswitch|%sStop|<%sSeek',
+    checkbox(dockState > 0), checkbox(mode & SWITCH_STOP ~= 0),
+    checkbox(mode & SWITCH_SEEK ~= 0)
   )
 
   local actions = {
     function() toggleDock(dockState) end,
     reset,
+    function() setSwitchMode(mode ~ SWITCH_STOP) end,
+    function() setSwitchMode(mode ~ SWITCH_SEEK) end,
   }
 
   gfx.x, gfx.y = gfx.mouse_x, gfx.mouse_y
