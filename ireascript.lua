@@ -168,6 +168,8 @@ local ireascript = {
   RIGHT_BTN = 2,
   DOUBLECLICK_TIME = 0.2,
 
+  MOD_SHIFT = 8,
+
   EXT_SECTION = 'cfillion_ireascript',
   EXT_WINDOW_STATE = 'window_state',
   EXT_LAST_DOCK = 'last_dock',
@@ -333,11 +335,8 @@ function ireascript.keyboard()
   elseif char == ireascript.KEY_LEFT then
     local pos
 
-    if gfx.mouse_cap & 8 == 8 then
-      local length = utf8.len(ireascript.input)
-      pos = length - ireascript.nextBoundary(utf8.reverse(ireascript.input),
-        length - ireascript.caret + 1)
-      if pos > 0 then pos = pos + 1 end
+    if gfx.mouse_cap & ireascript.MOD_SHIFT ~= 0 then
+      pos = ireascript.lastWord(ireascript.splitInput())
     else
       pos = ireascript.caret - 1
     end
@@ -346,8 +345,8 @@ function ireascript.keyboard()
   elseif char == ireascript.KEY_RIGHT then
     local pos
 
-    if gfx.mouse_cap & 8 == 8 then
-      pos = ireascript.nextBoundary(ireascript.input, ireascript.caret)
+    if gfx.mouse_cap & ireascript.MOD_SHIFT ~= 0 then
+      pos = ireascript.nextWord(ireascript.input, ireascript.caret)
     else
       pos = ireascript.caret + 1
     end
@@ -384,14 +383,18 @@ function ireascript.keyboard()
   return true
 end
 
-function ireascript.nextBoundary(input, from)
-  local boundary = utf8.find(input, '%W%w', from + 1)
+function ireascript.lastWord(str)
+  local pos = utf8.rfind(str, '[^%s]%s')
 
-  if boundary then
-    return utf8.len(utf8.sub(input, 1, boundary))
+  if pos then
+    return pos - 1
   else
-    return utf8.len(input)
+    return 0
   end
+end
+
+function ireascript.nextWord(str, pos)
+  return utf8.find(str, '%s[^%s]', pos + 1) or utf8.len(str)
 end
 
 function ireascript.wrappedLines()
