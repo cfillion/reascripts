@@ -470,6 +470,24 @@ function dockButton()
   end
 end
 
+function helpButton()
+  gfx.setfont(FONT_DEFAULT)
+  gfx.x = 0
+  gfx.y = LIST_START - (MARGIN / 2)
+
+  btn = textLine('help', 0)
+  btn.ty = btn.ty - btn.rect.h
+  btn.rect.w = btn.tw
+  btn.rect.x = btn.tx
+  btn.rect.y = btn.ty
+
+  local dockState = gfx.dock(-1)
+
+  if button(btn, dockState ~= 0, false, false) then
+    about()
+  end
+end
+
 function navButtons()
   gfx.setfont(FONT_HUGE)
 
@@ -694,8 +712,9 @@ function loop()
     useColor(COLOR_BORDER)
     gfx.line(0, gfx.y, gfx.w, gfx.y)
 
-    dockButton()
     switchModeButton()
+    helpButton()
+    dockButton()
     resetButton()
 
     gfx.setfont(FONT_LARGE)
@@ -867,9 +886,10 @@ function contextMenu()
   local mode = getSwitchMode()
 
   local menu = string.format(
-    '%sDock window|Reset data|>onswitch|%sStop|<%sSeek',
+    '%sDock window|Reset data|>onswitch|%sStop|<%sSeek||Help',
     checkbox(dockState > 0), checkbox(mode & SWITCH_STOP ~= 0),
-    checkbox(mode & SWITCH_SEEK ~= 0)
+    checkbox(mode & SWITCH_SEEK ~= 0),
+    about
   )
 
   local actions = {
@@ -877,11 +897,20 @@ function contextMenu()
     reset,
     function() setSwitchMode(mode ~ SWITCH_STOP) end,
     function() setSwitchMode(mode ~ SWITCH_SEEK) end,
+    about,
   }
 
   gfx.x, gfx.y = gfx.mouse_x, gfx.mouse_y
   local index = gfx.showmenu(menu)
   if actions[index] then actions[index]() end
+end
+
+function about()
+  local owner = reaper.ReaPack_GetOwner(({reaper.get_action_context()})[2])
+  if owner then
+    reaper.ReaPack_AboutInstalledPackage(owner)
+    reaper.ReaPack_FreeEntry(owner)
+  end
 end
 
 -- graphics initialization
