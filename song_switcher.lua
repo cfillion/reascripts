@@ -837,23 +837,36 @@ function contextMenu()
   local dockState = gfx.dock(-1)
   local mode = getSwitchMode()
 
-  local menu = string.format(
-    '%sDock window|Reset data|>onswitch|%sStop|<%sSeek||Help',
-    checkbox(dockState > 0), checkbox(mode & SWITCH_STOP ~= 0),
-    checkbox(mode & SWITCH_SEEK ~= 0),
-    about
-  )
+  local separator = ''
+
+  local menu = {
+    string.format('%sDock window', checkbox(dockState > 0)),
+    'Reset data',
+    '>onswitch',
+      string.format('%sStop', checkbox(mode & SWITCH_STOP ~= 0)),
+      string.format('<%sSeek', checkbox(mode & SWITCH_SEEK ~= 0)),
+    separator,
+  }
 
   local actions = {
     function() toggleDock(dockState) end,
     reset,
     function() setSwitchMode(mode ~ SWITCH_STOP) end,
     function() setSwitchMode(mode ~ SWITCH_SEEK) end,
-    about,
   }
 
+  for index, song in ipairs(songs) do
+    table.insert(menu, string.format('%s%s',
+      checkbox(index == currentIndex), song.name))
+    table.insert(actions, function() setCurrentIndex(index) end)
+  end
+
+  if #songs > 0 then table.insert(menu, separator) end
+  table.insert(menu, 'Help')
+  table.insert(actions, about)
+
   gfx.x, gfx.y = gfx.mouse_x, gfx.mouse_y
-  local index = gfx.showmenu(menu)
+  local index = gfx.showmenu(table.concat(menu, '|'))
   if actions[index] then actions[index]() end
 end
 
