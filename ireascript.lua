@@ -1033,16 +1033,21 @@ function ireascript.execAction(name)
     name, midi = name:sub(2), true
   end
 
-  local id = reaper.NamedCommandLookup(name)
+  local id, section = reaper.NamedCommandLookup(name), 0
 
   if id > 0 then
     if midi then
       reaper.MIDIEditor_LastFocused_OnCommand(id, false)
+      section = 32060
     else
       reaper.Main_OnCommand(id, 0)
     end
 
     ireascript.format(id)
+    if reaper.CF_GetCommandText then -- SWS v2.10+
+      ireascript.push('\x20')
+      ireascript.format(reaper.CF_GetCommandText(section, id))
+    end
     ireascript.nl()
   else
     ireascript.errorFormat()
