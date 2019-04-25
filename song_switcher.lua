@@ -75,7 +75,7 @@ function loadTracks()
     if depth == 0 and track_depth == 1 then
       local _, name = reaper.GetSetMediaTrackInfo_String(track, 'P_NAME', '', false)
 
-      if name:find("%d+%.") then
+      if parseSongName(name) then
         isSong = true
         table.insert(songs, {name=name, folder=track, tracks={track}})
       else
@@ -111,17 +111,22 @@ function loadTracks()
   return songs
 end
 
-function getSongNum(song)
-  return tonumber(string.match(song.name, '^%d+'))
+function parseSongName(trackName)
+  local number, separator, name = string.match(trackName, '^(%d+)(%W+)(.+)$')
+  number = tonumber(number)
+
+  if number and separator and name then
+    return {number=number, separator=separator, name=name}
+  end
 end
 
 function compareSongs(a, b)
-  local anum, bnum = getSongNum(a), getSongNum(b)
+  local aparts, bparts = parseSongName(a.name), parseSongName(b.name)
 
-  if anum and bnum then
-    return anum < bnum
+  if aparts.number == bparts.number then
+    return aparts.name < bparts.name
   else
-    return a.name < b.name
+    return aparts.number < bparts.number
   end
 end
 
