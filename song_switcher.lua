@@ -62,6 +62,8 @@ local SWITCH_SEEK = 1
 local SWITCH_STOP = 2
 local SWITCH_ALL  = SWITCH_SEEK | SWITCH_STOP
 
+local UNDO_STATE_TRACKCFG = 1
+
 function loadTracks()
   local songs = {}
   local depth = 0
@@ -216,6 +218,39 @@ function setNextIndex(index)
   end
 end
 
+function moveSong(from, to)
+  song = songs[from]
+  table.remove(songs, from)
+  table.insert(songs, to, song)
+
+  if currentIndex == from then
+    currentIndex = to
+  elseif to <= currentIndex and from > currentIndex then
+    currentIndex = currentIndex + 1
+  elseif from < currentIndex and to >= currentIndex then
+    currentIndex = currentIndex - 1
+  end
+
+  if nextIndex == from then
+    nextIndex = to
+  elseif to <= nextIndex and from > nextIndex then
+    nextIndex = nextIndex + 1
+  elseif from < nextIndex and to >= nextIndex then
+    nextIndex = nextIndex - 1
+  end
+
+  reaper.Undo_BeginBlock()
+  local maxNumLength = math.max(2, tostring(#songs):len())
+  for index, song in ipairs(songs) do
+    local nameParts = parseSongName(song.name)
+    local newName = string.format('%0' .. maxNumLength .. 'd%s%s',
+      index, nameParts.separator, nameParts.name)
+    song.name = newName
+    reaper.GetSetMediaTrackInfo_String(song.folder, 'P_NAME', newName, true)
+  end
+  reaper.Undo_EndBlock("Song switcher: Change song order", UNDO_STATE_TRACKCFG)
+end
+
 function findSong(buffer)
   if string.len(buffer) == 0 then return end
   buffer = string.upper(buffer)
@@ -325,8 +360,17 @@ function songList(y)
     bottom = line.rect.y + line.rect.h
 
     if line.rect.y >= y - line.rect.h and bottom < gfx.h + line.rect.h then
-      if button(line, index == currentIndex, index == nextIndex) then
-        setCurrentIndex(index)
+      local triggered, mouseDown = button(line,
+        index == currentIndex, index == nextIndex)
+
+      if triggered then
+        if drag and drag ~= index then
+          moveSong(drag, index)
+        else
+          setCurrentIndex(index)
+        end
+      elseif mouseDown and not drag then
+        drag = index -- initiate drag and drop
       end
     else
       gfx.y = bottom
@@ -476,7 +520,7 @@ function navButtons()
 end
 
 function button(line, active, highlight, danger)
-  local color, triggered = COLOR_BUTTON, false
+  local color, triggered, mouseDown = COLOR_BUTTON, false, false
 
   if active then
     useColor(COLOR_ACTIVEBG)
@@ -486,6 +530,8 @@ function button(line, active, highlight, danger)
 
   if isUnderMouse(line.rect.x, line.rect.y, line.rect.w, line.rect.h) then
     if (mouseState & MOUSE_LEFT_BTN) == MOUSE_LEFT_BTN then
+      mouseDown = true
+
       if danger then
         useColor(COLOR_DANGERBG)
         color = COLOR_DANGERFG
@@ -516,7 +562,7 @@ function button(line, active, highlight, danger)
   useColor(color)
   drawTextLine(line)
 
-  return triggered
+  return triggered, mouseDown
 end
 
 function shouldShowHighlight()
@@ -653,6 +699,11 @@ end
 
 function loop()
   execRemoteActions()
+  mouse()
+
+  if keyboard() then
+    reaper.defer(loop)
+  end
 
   local fullUI = gfx.h > LIST_START + MARGIN
 
@@ -690,13 +741,13 @@ function loop()
     navButtons()
   end
 
-  gfx.update()
-
-  if keyboard() then
-    reaper.defer(loop)
+  if mouseClick then
+    -- cancel drag and drop on mouse release
+    -- only after processing it in drawing functions
+    drag = nil
   end
 
-  mouse()
+  gfx.update()
 end
 
 function execRemoteActions()
@@ -888,6 +939,7 @@ mouseState = 0
 mouseClick = false
 highlightTime = 0
 scrollTo = 0
+drag = nil
 
 local w, h, dockState, x, y = previousWindowState()
 
