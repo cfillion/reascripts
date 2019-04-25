@@ -246,7 +246,10 @@ function moveSong(from, to)
     local newName = string.format('%0' .. maxNumLength .. 'd%s%s',
       index, nameParts.separator, nameParts.name)
     song.name = newName
-    reaper.GetSetMediaTrackInfo_String(song.folder, 'P_NAME', newName, true)
+
+    if reaper.ValidatePtr(song.folder, 'MediaTrack*') then
+      reaper.GetSetMediaTrackInfo_String(song.folder, 'P_NAME', newName, true)
+    end
   end
   reaper.Undo_EndBlock("Song switcher: Change song order", UNDO_STATE_TRACKCFG)
 end
