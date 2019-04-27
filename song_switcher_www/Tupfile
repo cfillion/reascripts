@@ -3,14 +3,14 @@ export GEM_HOME
 NODE_BIN = "`npm bin`"
 
 BROWSERIFY = $(NODE_BIN)/browserify -s SongSwitcherWWW -p bundle-collapser/plugin
-COFFEE = $(NODE_BIN)/coffee
+COFFEE = $(NODE_BIN)/coffee --bare
 UGLIFY = $(NODE_BIN)/uglifyjs -m --mangle-props --mangle-regex='/^_/'
 SASS = $GEM_HOME/bin/sass -C --sourcemap=none -t compressed
 SLIM = $GEM_HOME/bin/slimrb
 PREFIXER = $(NODE_BIN)/postcss --use autoprefixer
 
 # script files
-: foreach src/*.coffee |> ^o^ $(COFFEE) -bp %f > %o |> build/modules/%B.js
+: foreach src/*.coffee |> ^o^ $(COFFEE) -o build/modules %f |> build/modules/%B.js
 : build/modules/*.js |> $(BROWSERIFY) build/modules/main.js | $(UGLIFY) -o %o |> build/script.js
 
 # stylesheet
