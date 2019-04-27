@@ -38,7 +38,8 @@ class Marker
     @name = data[i++]
     @id = data[i++]
     @time = parseTime data[i++]
-    @color = parseInt data[i++]
+    @rawColor = parseInt data[i++]
+    @color = '#' + Number(@rawColor & 0xFFFFFF).toString(16).padStart(6, '0') if @rawColor
 
 class Client extends EventEmitter
   makeSetExtState = (key, value) ->

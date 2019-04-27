@@ -74,8 +74,8 @@ class Timeline extends EventEmitter
     @_gridLine 0
     @_gridLine @_data.state.endTime - @_data.state.startTime
 
-    [@_ctx.strokeStyle, @_ctx.fillStyle] = [MARKER_BG, MARKER_BG]
-    for marker in @_data.markerList when marker.time >= @_data.state.startTime and marker.time <= @_data.state.endTime
+    for marker in @_data.markerList \
+        when marker.time >= @_data.state.startTime and marker.time <= @_data.state.endTime
       @_marker marker
 
     @_editCursor @_data.position - @_data.state.startTime
@@ -126,7 +126,7 @@ class Timeline extends EventEmitter
     @_ctx.fillStyle = RULER_BACKGROUND
     @_ctx.fillRect blankerPos, @_rulerTop, @_canvas.width - pos, @_rulerHeight
 
-    @_ctx.strokeStyle = @_ctx.fillStyle = MARKER_BG
+    @_ctx.strokeStyle = @_ctx.fillStyle = marker.color || MARKER_BG
     @_ctx.lineWidth = MARKER_WIDTH
     @_rulerTick time
 
