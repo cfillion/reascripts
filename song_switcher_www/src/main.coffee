@@ -1,6 +1,8 @@
 Client = require './client'
 Timeline = require './timeline'
 
+LS_LOCK = 'cfillion_song_switcher_lock'
+
 class SongSwitcherWWW
   constructor: ->
     @_client = new Client 100
@@ -44,9 +46,13 @@ class SongSwitcherWWW
     @_panicBtn.addEventListener 'click', => @_client.panic()
     @_resetBtn.addEventListener 'click', => @_client.reset()
     @_lockBtn.addEventListener 'click', =>
-      if !@_isLocked() || confirm('Are you sure?')
-        @_lockOverlay.classList.toggle 'hidden'
-        @_lockBtn.classList.toggle 'active'
+      if @_isLocked()
+        return unless confirm('Are you sure?')
+        localStorage.removeItem LS_LOCK
+      else
+        localStorage.setItem LS_LOCK, true
+
+      @_toggleLock()
     @_songName.addEventListener 'click', =>
       @_setClass @_songBox, 'edit', true
       @_filter.focus()
@@ -71,6 +77,9 @@ class SongSwitcherWWW
         text = 'Are you sure?'
         e.returnValue = text
 
+    if localStorage.getItem LS_LOCK
+      @_toggleLock()
+
   _setText: (node, text) ->
     if(textNode = node.lastChild)
       textNode.nodeValue = text
@@ -93,5 +102,9 @@ class SongSwitcherWWW
 
   _isLocked: ->
     @_lockBtn.classList.contains 'active'
+
+  _toggleLock: ->
+    @_lockOverlay.classList.toggle 'hidden'
+    @_lockBtn.classList.toggle 'active'
 
 module.exports = SongSwitcherWWW
