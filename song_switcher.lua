@@ -53,10 +53,7 @@ local EXT_SECTION = 'cfillion_song_switcher'
 local EXT_SWITCH_MODE = 'onswitch'
 local EXT_WINDOW_STATE = 'window_state'
 local EXT_LAST_DOCK = 'last_dock'
-local EXT_REL_MOVE = 'relative_move'
-local EXT_RESET = 'reset'
 local EXT_STATE = 'state'
-local EXT_FILTER = 'filter'
 
 local SWITCH_SEEK   = 1<<0
 local SWITCH_STOP   = 1<<1
@@ -64,6 +61,27 @@ local SWITCH_SCROLL = 1<<2
 local SWITCH_ALL    = SWITCH_SEEK | SWITCH_STOP | SWITCH_SCROLL
 
 local UNDO_STATE_TRACKCFG = 1
+
+local SIGNALS = {
+  relative_move=function(move)
+    move = tonumber(move)
+
+    if move then
+      trySetCurrentIndex(currentIndex + move)
+    end
+  end,
+  absolute_move=function(index)
+    trySetCurrentIndex(tonumber(index))
+  end,
+  reset=function() reset() end,
+  filter=function(filter)
+    local index = findSong(filter)
+
+    if index then
+      setCurrentIndex(index)
+    end
+  end,
+}
 
 function loadTracks()
   local songs = {}
@@ -762,28 +780,11 @@ function loop()
 end
 
 function execRemoteActions()
-  if reaper.HasExtState(EXT_SECTION, EXT_REL_MOVE) then
-    local move = tonumber(reaper.GetExtState(EXT_SECTION, EXT_REL_MOVE))
-    reaper.DeleteExtState(EXT_SECTION, EXT_REL_MOVE, false);
-
-    if move then
-      trySetCurrentIndex(currentIndex + move)
-    end
-  end
-
-  if reaper.HasExtState(EXT_SECTION, EXT_RESET) then
-    reaper.DeleteExtState(EXT_SECTION, EXT_RESET, false);
-    reset()
-  end
-
-  if reaper.HasExtState(EXT_SECTION, EXT_FILTER) then
-    local filter = reaper.GetExtState(EXT_SECTION, EXT_FILTER)
-    reaper.DeleteExtState(EXT_SECTION, EXT_FILTER, false);
-
-    local index, _ = findSong(filter)
-
-    if index then
-      setCurrentIndex(index)
+  for signal, handler in pairs(SIGNALS) do
+    if reaper.HasExtState(EXT_SECTION, signal) then
+      local value = reaper.GetExtState(EXT_SECTION, signal)
+      reaper.DeleteExtState(EXT_SECTION, signal, false);
+      handler(value)
     end
   end
 end
@@ -825,9 +826,9 @@ function reset()
   filterBuffer = ''
 
   -- clear previous pending external commands
-  reaper.DeleteExtState(EXT_SECTION, EXT_REL_MOVE, false)
-  reaper.DeleteExtState(EXT_SECTION, EXT_RESET, false)
-  reaper.DeleteExtState(EXT_SECTION, EXT_FILTER, false)
+  for signal, _ in pairs(SIGNALS) do
+    reaper.DeleteExtState(EXT_SECTION, signal, false)
+  end
 
   if activeCount == 1 then
     if visibleCount == 0 then
