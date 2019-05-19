@@ -19,9 +19,9 @@ local destination = scriptName:match("destination")
 
 local selected = {}
 
-local function wasSelected(match)
-  for i,track in ipairs(selected) do
-    if track == match then
+local function inArray(haystack, match)
+  for i,item in ipairs(haystack) do
+    if item == match then
       return true
     end
   end
@@ -70,12 +70,16 @@ local function enumDirectChildTracks(track)
   end
 end
 
-local function highlight(track, select)
+local function highlight(track, select, seenTracks)
+  if not seenTracks then seenTracks = {} end
+  if inArray(seenTracks, track) then return end
+  table.insert(seenTracks, track)
+
   for target in enumSendTracks(track) do
     reaper.SetTrackSelected(target, select)
 
     if select then
-      highlight(target, select)
+      highlight(target, select, seenTracks)
     end
   end
 
@@ -84,12 +88,12 @@ local function highlight(track, select)
     local parent = parentSend and reaper.GetParentTrack(track)
     if parent then
       reaper.SetTrackSelected(parent, select)
-      highlight(parent, select)
+      highlight(parent, select, seenTracks)
     end
   else
     for child in enumDirectChildTracks(track) do
       reaper.SetTrackSelected(child, select)
-      highlight(child, select)
+      highlight(child, select, seenTracks)
     end
   end
 end
@@ -98,7 +102,7 @@ local function main()
   for i=0,reaper.CountSelectedTracks(0)-1 do
     local track = reaper.GetSelectedTrack(0, i)
 
-    if not wasSelected(track) then
+    if not inArray(selected, track) then
       table.insert(selected, track)
     end
   end
