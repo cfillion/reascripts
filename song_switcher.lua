@@ -73,7 +73,11 @@ local SIGNALS = {
   absolute_move=function(index)
     trySetCurrentIndex(tonumber(index))
   end,
-  reset=function() reset() end,
+  activate_queued=function()
+    if currentIndex ~= nextIndex then
+      setCurrentIndex(nextIndex)
+    end
+  end,
   filter=function(filter)
     local index = findSong(filter)
 
@@ -81,6 +85,7 @@ local SIGNALS = {
       setCurrentIndex(index)
     end
   end,
+  reset=function() reset() end,
 }
 
 function loadTracks()
