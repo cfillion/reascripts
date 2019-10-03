@@ -21,8 +21,6 @@ function enumEnvelopePoints()
     local point = {reaper.GetEnvelopePoint(state.env, pi)}
     if point[1] then -- retval
       point[1] = pi
-      point[3] = reaper.ScaleFromEnvelopeMode(state.scalingMode, point[3])
-
       pi = pi + 1
       return point
     end
@@ -81,10 +79,9 @@ function loadState(count)
   state.timeSpan = state.lastPos - state.firstPos
   state.xscale = (state.lastPos - state.firstPos) / w
 
-  state.minValue, state.maxValue = envprops[7], envprops[8]
-  state.valueDelta = state.maxValue - state.minValue
-  state.yscale = state.valueDelta / h
-  if state.yscale <= 0 then state.yscale = 1 end
+  state.minValue = reaper.ScaleToEnvelopeMode(state.scalingMode, envprops[7])
+  state.maxValue = reaper.ScaleToEnvelopeMode(state.scalingMode, envprops[8])
+  state.yscale = (state.maxValue - state.minValue) / h
 end
 
 function adjustValue(point)
@@ -103,17 +100,11 @@ function adjustValue(point)
   return math.min(math.max(value, state.minValue), state.maxValue)
 end
 
-function formatValue(value)
-  value = reaper.ScaleToEnvelopeMode(state.scalingMode, value)
-  return reaper.Envelope_FormatValue(state.env, value)
-end
-
 function applyAdjustment()
   reaper.Undo_BeginBlock()
 
   for _, point in ipairs(state.selectedPoints) do
     local value = adjustValue(point)
-    value = reaper.ScaleToEnvelopeMode(state.scalingMode, value)
     reaper.SetEnvelopePoint(state.env, point[1], nil, value, nil, nil, nil, true)
   end
 
@@ -193,7 +184,7 @@ function drawPoint(i, point, nextPoint, adjust)
     end
   end
 
-  local humanValue = formatValue(value)
+  local humanValue = reaper.Envelope_FormatValue(state.env, value)
   gfx.x, gfx.y = x + 3, y + 3
 
   local strW, strY = gfx.measurestr(humanValue)
