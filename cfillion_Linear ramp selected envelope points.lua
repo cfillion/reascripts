@@ -81,7 +81,9 @@ function loadState(count)
 
   state.minValue = reaper.ScaleToEnvelopeMode(state.scalingMode, envprops[7])
   state.maxValue = reaper.ScaleToEnvelopeMode(state.scalingMode, envprops[8])
-  state.yscale = (state.maxValue - state.minValue) / h
+  state.centerValue = reaper.ScaleToEnvelopeMode(state.scalingMode, envprops[9])
+  state.yscale_low = (state.centerValue - state.minValue) / (h/2)
+  state.yscale_high = (state.maxValue - state.centerValue) / (h/2)
 end
 
 function adjustValue(point)
@@ -150,7 +152,14 @@ function mouseEvents()
 
   if gfx.mouse_cap & 1 == 1 then
     if mouseDownY then -- if the mousedown happened in the clickable area
-      adjustment = (mouseDownY - gfx.mouse_y) * state.yscale
+      local pointIndex = adjustmentDir == ADJ_LEFT and 1 or #state.selectedPoints
+      local point = state.selectedPoints[pointIndex]
+      local yscale = adjustValue(point) > state.centerValue
+        and state.yscale_high
+        or state.yscale_low
+      local mouseDelta = mouseDownY - gfx.mouse_y
+      adjustment = adjustment + mouseDelta * yscale
+      mouseDownY = gfx.mouse_y
     end
   elseif adjustment then
     applyAdjustment()
@@ -163,7 +172,19 @@ function timeToPixel(time)
 end
 
 function valueToPixel(value)
-  return MARGIN + h - (value - state.minValue) / state.yscale
+  local yscale, baseline, bottom
+
+  if value > state.centerValue then
+    yscale = state.yscale_high
+    baseline = state.centerValue
+    bottom = h/2
+  else
+    yscale = state.yscale_low
+    baseline = state.minValue
+    bottom = h
+  end
+
+  return MARGIN + bottom - (value - baseline) / yscale
 end
 
 function drawPoint(i, point, nextPoint, adjust)
