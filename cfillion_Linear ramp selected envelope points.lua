@@ -81,9 +81,7 @@ function loadState(count)
 
   state.minValue = reaper.ScaleToEnvelopeMode(state.scalingMode, envprops[7])
   state.maxValue = reaper.ScaleToEnvelopeMode(state.scalingMode, envprops[8])
-  state.centerValue = reaper.ScaleToEnvelopeMode(state.scalingMode, envprops[9])
-  state.yscale_low = (state.centerValue - state.minValue) / (h/2)
-  state.yscale_high = (state.maxValue - state.centerValue) / (h/2)
+  state.yscale = (state.maxValue - state.minValue) / h
 end
 
 function adjustValue(point)
@@ -98,21 +96,7 @@ function adjustValue(point)
     force = 1 - force
   end
 
-  local localAdjust = adjustment * force
-  local scaled_high, scaled_low
-
-  if adjustment < 0 then
-    local adj_high_max = math.min(0, state.centerValue - value) / state.yscale_high
-    scaled_high = math.max(localAdjust, adj_high_max) * state.yscale_high
-    scaled_low = math.min(0, localAdjust - adj_high_max) * state.yscale_low
-  else
-    local adj_low_max = math.max(0, state.centerValue - value) / state.yscale_low
-    scaled_low = math.min(localAdjust, adj_low_max) * state.yscale_low
-    scaled_high = math.max(0, localAdjust - adj_low_max) * state.yscale_high
-  end
-
-  local scaledAdjustment = scaled_high + scaled_low
-  value = value + scaledAdjustment
+  value = value + (adjustment * force)
   return math.min(math.max(value, state.minValue), state.maxValue)
 end
 
@@ -166,7 +150,7 @@ function mouseEvents()
 
   if gfx.mouse_cap & 1 == 1 then
     if mouseDownY then
-      adjustment = mouseDownY - gfx.mouse_y
+      adjustment = (mouseDownY - gfx.mouse_y) * state.yscale
     end
   elseif adjustment then
     if adjustment ~= 0 then
@@ -182,19 +166,7 @@ function timeToPixel(time)
 end
 
 function valueToPixel(value)
-  local yscale, baseline, bottom
-
-  if value > state.centerValue then
-    yscale = state.yscale_high
-    baseline = state.centerValue
-    bottom = h/2
-  else
-    yscale = state.yscale_low
-    baseline = state.minValue
-    bottom = h
-  end
-
-  return MARGIN + bottom - (value - baseline) / yscale
+  return MARGIN + h - (value - state.minValue) / state.yscale
 end
 
 function drawPoint(i, point, nextPoint, adjust)
