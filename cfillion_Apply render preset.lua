@@ -1,7 +1,7 @@
 -- @description Apply render preset
 -- @author cfillion
--- @version 1.0.3
--- @changelog Allow loading presets named "create action" from an action
+-- @version 1.0.4
+-- @changelog Remove quotes from the generated action's filenames
 -- @provides
 --   [main] .
 --   [main] . > cfillion_Apply render preset (create action).lua
@@ -77,7 +77,7 @@ local function tokenize(line)
       eat = 1
     end
 
-    if pos < line:len() then
+    if pos <= line:len() then
       table.insert(tokens, line:sub(pos, tail and tail - 1))
     end
 
@@ -200,7 +200,7 @@ local function selectRenderPreset(presets)
 end
 
 local function createAction(presetName, scriptInfo)
-  local actionName = string.format('Apply render preset "%s"', presetName)
+  local actionName = string.format('Apply render preset: %s', presetName)
   local outputFn = string.format('%s/Scripts/%s.lua',
     reaper.GetResourcePath(), actionName)
   local baseName = scriptInfo.path:match('([^/\\]+)$')
@@ -210,7 +210,7 @@ local function createAction(presetName, scriptInfo)
   local code = string.format(
 [[-- This file was created by %s on %s
 
-ApplyPresetByName = ({reaper.get_action_context()})[2]:match('"(.+)"%%.lua$')
+ApplyPresetByName = ({reaper.get_action_context()})[2]:match(': (.+)%%.lua$')
 dofile(string.format(]]..'[[%%s/%s]]'..[[, reaper.GetResourcePath()))
 ]], baseName, os.date('%c'), relPath)
 
@@ -225,7 +225,20 @@ dofile(string.format(]]..'[[%%s/%s]]'..[[, reaper.GetResourcePath()))
   end
 
   reaper.ShowMessageBox(
-    string.format('Action created: %s', actionName), scriptInfo.name, 0)
+    string.format('Created the action "%s".', actionName), scriptInfo.name, 0)
+end
+
+local function gfxdo(callback)
+  local app = reaper.GetAppVersion()
+  if app:match('OSX') or app:match('linux') then
+    return callback()
+  end
+
+  local x, y = reaper.GetMousePosition()
+  gfx.init("", 0, 0, 0, x, y)
+  local value = callback()
+  gfx.quit()
+  return value
 end
 
 local function getScriptInfo()
@@ -239,7 +252,9 @@ end
 
 local scriptInfo = getScriptInfo()
 local presets = getRenderPresets()
-local presetName = ApplyPresetByName or selectRenderPreset(presets)
+local presetName = ApplyPresetByName or gfxdo(function()
+  return selectRenderPreset(presets)
+end)
 
 if presetName then
   if scriptInfo.name:match('%(create action%)$') then
