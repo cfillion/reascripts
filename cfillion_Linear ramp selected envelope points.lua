@@ -4,14 +4,20 @@
 -- @screenshot https://i.imgur.com/KwqzjfC.gif
 -- @donation https://www.paypal.com/cgi-bin/webscr?business=T3DEWBQJAV7WL&cmd=_donations&currency_code=CAD
 
+local EXT_SECTION = 'cfillion_ramp_envelope_points'
+local EXT_WINDOW_STATE = 'window_state'
 local MARGIN = 10
+
+local UNDO_STATE_TRACKCFG = 1
+
 local IDC_ARROW = 32512
 local IDC_SIZENS = 32645
+
 local HCENTER = 1
 local VCENTER = 1<<2
-local ADJ_RIGHT = 0
+
 local ADJ_LEFT  = 1
-local UNDO_STATE_TRACKCFG = 1
+local ADJ_RIGHT = 0
 
 function enumEnvelopePoints()
   local pi = 0
@@ -244,14 +250,38 @@ function loop()
   reaper.defer(loop)
 end
 
+function previousWindowState()
+  local state = tostring(reaper.GetExtState(EXT_SECTION, EXT_WINDOW_STATE))
+  return state:match("^(%d+) (%d+) (%d+) (-?%d+) (-?%d+)$")
+end
+
+function saveWindowState()
+  local dockState, xpos, ypos = gfx.dock(-1, 0, 0, 0, 0)
+  local w, h = gfx.w, gfx.h
+  if dockState > 0 then
+    w, h = previousWindowState()
+  end
+
+  reaper.SetExtState(EXT_SECTION, EXT_WINDOW_STATE,
+    string.format("%d %d %d %d %d", w, h, dockState, xpos, ypos), true)
+end
+
 state = {}
 scriptName = ({reaper.get_action_context()})[2]:match("([^/\\_]+)%.lua$")
 
-gfx.init(scriptName, 600, 100)
+local w, h, dockState, x, y = previousWindowState()
+
+if w then
+  gfx.init(scriptName, w, h, dockState, x, y)
+else
+  gfx.init(scriptName, 600, 100)
+end
+
 if reaper.GetAppVersion():match('OSX') then
   gfx.setfont(1, 'sans-serif', 12)
 else
   gfx.setfont(1, 'sans-serif', 15)
 end
 
-reaper.defer(loop)
+reaper.atexit(saveWindowState)
+loop()
