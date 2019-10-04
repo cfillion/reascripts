@@ -77,7 +77,7 @@ function loadState(count)
   state.lastPos = state.selectedPoints[#state.selectedPoints][2]
 
   state.timeSpan = state.lastPos - state.firstPos
-  state.xscale = (state.lastPos - state.firstPos) / w
+  state.xscale = state.timeSpan / w
 
   state.minValue = reaper.ScaleToEnvelopeMode(state.scalingMode, envprops[7])
   state.maxValue = reaper.ScaleToEnvelopeMode(state.scalingMode, envprops[8])
@@ -89,7 +89,7 @@ end
 function adjustValue(point)
   local value = point[3]
 
-  if not adjustment then
+  if not adjustment or adjustment == 0 then
     return value
   end
 
@@ -98,7 +98,21 @@ function adjustValue(point)
     force = 1 - force
   end
 
-  value = value + (adjustment * force)
+  local localAdjust = adjustment * force
+  local scaled_high, scaled_low
+
+  if adjustment < 0 then
+    local adj_high_max = math.min(0, state.centerValue - value) / state.yscale_high
+    scaled_high = math.max(localAdjust, adj_high_max) * state.yscale_high
+    scaled_low = math.min(0, localAdjust - adj_high_max) * state.yscale_low
+  else
+    local adj_low_max = math.max(0, state.centerValue - value) / state.yscale_low
+    scaled_low = math.min(localAdjust, adj_low_max) * state.yscale_low
+    scaled_high = math.max(0, localAdjust - adj_low_max) * state.yscale_high
+  end
+
+  local scaledAdjustment = scaled_high + scaled_low
+  value = value + scaledAdjustment
   return math.min(math.max(value, state.minValue), state.maxValue)
 end
 
@@ -151,18 +165,14 @@ function mouseEvents()
   end
 
   if gfx.mouse_cap & 1 == 1 then
-    if mouseDownY then -- if the mousedown happened in the clickable area
-      local pointIndex = adjustmentDir == ADJ_LEFT and 1 or #state.selectedPoints
-      local point = state.selectedPoints[pointIndex]
-      local yscale = adjustValue(point) > state.centerValue
-        and state.yscale_high
-        or state.yscale_low
-      local mouseDelta = mouseDownY - gfx.mouse_y
-      adjustment = adjustment + mouseDelta * yscale
-      mouseDownY = gfx.mouse_y
+    if mouseDownY then
+      adjustment = mouseDownY - gfx.mouse_y
     end
   elseif adjustment then
-    applyAdjustment()
+    if adjustment ~= 0 then
+      applyAdjustment()
+    end
+
     clearAdjustment()
   end
 end
