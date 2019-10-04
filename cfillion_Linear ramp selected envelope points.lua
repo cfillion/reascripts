@@ -1,6 +1,9 @@
 -- @description Linear ramp selected envelope points
 -- @author cfillion
--- @version 1.0
+-- @version 1.0.1
+-- @changelog
+--   Fix value scaling in fader scaling mode
+--   Remember the window position, size and dock state
 -- @screenshot https://i.imgur.com/KwqzjfC.gif
 -- @donation https://www.paypal.com/cgi-bin/webscr?business=T3DEWBQJAV7WL&cmd=_donations&currency_code=CAD
 
