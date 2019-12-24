@@ -255,8 +255,18 @@ local function gfxdo(callback)
     return callback()
   end
 
-  local x, y = reaper.GetMousePosition()
-  gfx.init("", 0, 0, 0, x, y)
+  local curx, cury = reaper.GetMousePosition()
+  gfx.init("", 0, 0, 0, curx, cury)
+
+  if reaper.JS_Window_SetStyle then
+    local window = reaper.JS_Window_GetFocus()
+    local winx, winy = reaper.JS_Window_ClientToScreen(window, 0, 0)
+    gfx.x = gfx.x - (winx - curx)
+    gfx.y = gfx.y - (winy - cury)
+    reaper.JS_Window_SetStyle(window, "POPUP")
+    reaper.JS_Window_SetOpacity(window, 'ALPHA', 0)
+  end
+
   local value = callback()
   gfx.quit()
   return value
