@@ -16,6 +16,13 @@ local MIDI_EDITOR_SECTION = 32060
 local NATIVE_STEP_RECORD  = 40481
 local NOTE_BUFFER_START = 1
 
+local EXT_SECTION = 'cfillion_stepRecordReplace'
+local EXT_MODE_KEY = 'mode'
+
+local MODE_CHAN = 1<<0
+local MODE_PITCH = 1<<1
+local MODE_VEL = 1<<2
+
 local jsfx
 local jsfxName = 'ReaTeam Scripts/MIDI Editor/cfillion_Step sequencing (replace mode).jsfx'
 local scriptName = ({reaper.get_action_context()})[2]:match("([^/\\_]+)%.lua$")
@@ -35,6 +42,19 @@ local function getActiveTake()
   if me then
     return reaper.MIDIEditor_GetTake(me), me
   end
+end
+
+local function getModes()
+  local modes
+  if reaper.HasExtState(EXT_SECTION, EXT_MODE_KEY) then
+    modes = tonumber(reaper.GetExtState(EXT_SECTION, EXT_MODE_KEY))
+  end
+
+  if not modes then
+    modes = MODE_CHAN | MODE_PITCH | MODE_VEL
+  end
+
+  return modes
 end
 
 local function projects()
@@ -163,14 +183,21 @@ local function insertReplaceNotes(take, newNotes)
   local ppqTime = reaper.MIDI_GetPPQPosFromProjTime(take, curPos)
   local ppqNextTime = ppqTime
   local notesUnderCursor = findNotesAtTime(take, ppqTime)
+  local modes = getModes()
 
   -- replace existing notes (lowest first)
   for ni = 1, math.min(#newNotes, #notesUnderCursor) do
     local note = notesUnderCursor[ni]
     ppqNextTime = math.max(ppqNextTime, note[5])
-    note[6] = newNotes[ni].chan
-    note[7] = newNotes[ni].pitch
-    note[8] = newNotes[ni].vel
+    if modes & MODE_CHAN ~= 0 then
+      note[6] = newNotes[ni].chan
+    end
+    if modes & MODE_PITCH ~= 0 then
+      note[7] = newNotes[ni].pitch
+    end
+    if modes & MODE_VEL ~= 0 then
+      note[8] = newNotes[ni].vel
+    end
     table.insert(note, 1, take)
     table.insert(note, true) -- noSort
     reaper.MIDI_SetNote(table.unpack(note))
@@ -227,6 +254,49 @@ local function loop()
   end
 
   reaper.defer(loop)
+end
+
+local function gfxdo(callback)
+  local app = reaper.GetAppVersion()
+  if app:match('OSX') or app:match('linux') then
+    return callback()
+  end
+
+  local x, y = reaper.GetMousePosition()
+  gfx.init("", 0, 0, 0, x, y)
+  local value = callback()
+  gfx.quit()
+  return value
+end
+
+local function optionsMenu()
+  local modes = getModes()
+
+  local menu = {
+    {MODE_CHAN,  'Replace channel'},
+    {MODE_PITCH, 'Replace pitch'},
+    {MODE_VEL,   'Replace velocity'},
+  }
+
+  local options = {}
+  for id, option in ipairs(menu) do
+    if type(option) == 'table' then
+      local checkbox = modes & option[1] ~= 0 and '!' or ''
+      menu[id] = checkbox .. option[2]
+      table.insert(options, option[1])
+    end
+  end
+
+  local choice = gfx.showmenu(table.concat(menu, '|'))
+  if not options[choice] then return end
+
+  modes = modes ~ options[choice]
+  reaper.SetExtState(EXT_SECTION, EXT_MODE_KEY, modes, true)
+end
+
+if scriptName:match('%(options%)') then
+  gfxdo(optionsMenu)
+  return
 end
 
 if reaper.GetToggleCommandStateEx(scriptSection, scriptId) > 0 then
