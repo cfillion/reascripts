@@ -1,13 +1,25 @@
 -- @description Step sequencing (replace mode)
 -- @author cfillion
--- @version 1.0alpha
--- @provides [effect] cfillion_Step sequencing (replace mode).jsfx
--- @screenshot https://i.imgur.com/4azf7CN.gif
+-- @version 1.0alpha2
+-- @changelog
+--   add options to individually toggle replacing pitch/channel/velocity [t=228799]
+--   add an option to skip unselected notes [t=228799]
+--   read/write the edit cursor position in the correct project tab
+--   support removal of the helper JSFX across project tabs
+-- @provides
+--   .
+--   [effect] cfillion_Step sequencing (replace mode).jsfx
+--   [main] . > cfillion_Step sequencing (options).lua
+-- @screenshot
+--   Inserting and replacing notes https://i.imgur.com/4azf7CN.gif
+--   Options menu https://i.imgur.com/YFHLRWM.png
 -- @donation https://paypal.me/cfillion
 -- @about
 --   ## Step sequencing (replace mode)
 --
---   This script is an alternative to the native step recording feature. Existing notes under the edit cursor are replaced (lowest first). The MIDI editor's active note row is automatically updated as new notes are played.
+--   This script is an alternative to the native step recording feature. Existing notes under the edit cursor are replaced (lowest first). The MIDI editor's active note row is updated as new notes are played.
+--
+--   An options action is provided to individually toggle replacing channel/pitch/velocity and skipping unselected notes.
 --
 --   Note that this script automatically inserts and removes an helper JSFX in the active track's input FX chain in order to receive live MIDI input.
 
