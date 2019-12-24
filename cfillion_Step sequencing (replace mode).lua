@@ -37,6 +37,15 @@ local function getActiveTake()
   end
 end
 
+local function projects()
+  local i = -1
+
+  return function()
+    i = i + 1
+    return reaper.EnumProjects(i)
+  end
+end
+
 local function findFXByGUID(track, targetGUID, recFX)
   local i, offset = 0, recFX and 0x1000000 or 0
   local guid = reaper.TrackFX_GetFXGUID(track, offset + i)
@@ -69,8 +78,20 @@ local function findNotesAtTime(take, ppqTime)
   return notes
 end
 
+local function getParentProject(track)
+  local search = reaper.GetMediaTrackInfo_Value(track, 'P_PROJECT')
+
+  for project in projects() do
+    local master = reaper.GetMasterTrack(project)
+    if search == reaper.GetMediaTrackInfo_Value(master, 'P_PROJECT') then
+      return project
+    end
+  end
+end
+
 local function teardownJSFX()
-  if not jsfx then return end
+  if not jsfx or not reaper.ValidatePtr2(0, jsfx.project, 'ReaProject*') or
+    not reaper.ValidatePtr2(jsfx.project, jsfx.track, 'MediaTrack*') then return end
 
   local index = findFXByGUID(jsfx.track, jsfx.guid, true)
   if index then
@@ -89,6 +110,7 @@ local function installJSFX(take)
   local index = reaper.TrackFX_AddByName(track, jsfxName, true, 1)
   jsfx = {
     guid  = reaper.TrackFX_GetFXGUID(track, index | 0x1000000),
+    project = getParentProject(track),
     track = track,
   }
   reaper.gmem_write(0, NOTE_BUFFER_START)
