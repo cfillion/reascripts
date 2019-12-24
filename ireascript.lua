@@ -751,11 +751,11 @@ function ireascript.loop()
   if now - ireascript.lastRedraw >= 1 then
     -- let the cursor caret blink
     ireascript.redraw = true
-    ireascript.lastRedraw = now
   end
 
   if ireascript.redraw then
     ireascript.redraw = false
+    ireascript.lastRedraw = now
     ireascript.draw()
   end
 
