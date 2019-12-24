@@ -1,11 +1,9 @@
 -- @description Apply render preset
 -- @author cfillion
--- @version 1.0.5
--- @changelog
---   Add support for "Tracks with only mono media to mono files" and "Multichannel tracks to multichannel files" (REAPER v5.984+dev1106 or later only)
---   Don't report an error if no render presets were created yet
+-- @version 1.0.6
+-- @changelog "Create action": Improve menu position and styling on Windows
 -- @provides
---   [main] .
+--   .
 --   [main] . > cfillion_Apply render preset (create action).lua
 -- @link https://cfillion.ca
 -- @screenshot https://i.imgur.com/Xy44ZlR.gif
