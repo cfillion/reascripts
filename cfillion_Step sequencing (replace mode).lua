@@ -159,7 +159,7 @@ end
 local function insertReplaceNotes(take, newNotes)
   local updated = false
   local qnGrid = reaper.MIDI_GetGrid(take)
-  local curPos = reaper.GetCursorPosition()
+  local curPos = reaper.GetCursorPositionEx(jsfx.project)
   local ppqTime = reaper.MIDI_GetPPQPosFromProjTime(take, curPos)
   local ppqNextTime = ppqTime
   local notesUnderCursor = findNotesAtTime(take, ppqTime)
@@ -194,7 +194,7 @@ local function insertReplaceNotes(take, newNotes)
 
   if ppqNextTime > ppqTime then
     local nextTime = reaper.MIDI_GetProjTimeFromPPQPos(take, ppqNextTime)
-    reaper.SetEditCurPos(nextTime, false, false)
+    reaper.SetEditCurPos2(jsfx.project, nextTime, false, false)
   end
 end
 
