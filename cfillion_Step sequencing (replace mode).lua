@@ -110,7 +110,7 @@ local function readNoteBuffer()
   while bi < be do
     local noteSize  = 4
     local noteCount = reaper.gmem_read(nextIndex()) / noteSize
-    printf("received chord\tnotes=%d\n", noteCount)
+    printf("received chord\tnotes=%s\n", noteCount)
 
     local notes = {}
     for ni = 1, noteCount do
@@ -121,7 +121,7 @@ local function readNoteBuffer()
         isDown = reaper.gmem_read(nextIndex()), -- unused
       }
 
-      printf(">\tnote %d\tchan=%d vel=%d\n", note.pitch, note.chan, note.vel)
+      printf(">\tnote %d\tchan=%s vel=%s\n", note.pitch, note.chan, note.vel)
       table.insert(notes, note)
     end
 
