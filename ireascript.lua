@@ -1,12 +1,15 @@
 -- @description Interactive ReaScript (iReaScript)
--- @version 0.8.2
 -- @author cfillion
--- @changelog Use the default monospace font on Linux and Menlo on macOS.
--- @links
+-- @version 0.8.3
+-- @changelog
+--   Fix blinking caret
+--   Fix initial blank window on macOS and REAPER 5
+--   Print the command name when running actions (SWS v2.10+ only)
+-- @link
 --   cfillion.ca https://cfillion.ca
 --   Forum Thread https://forum.cockos.com/showthread.php?t=177324
--- @donation https://www.paypal.me/cfillion
 -- @screenshot https://i.imgur.com/RrGfulR.gif
+-- @donation https://www.paypal.me/cfillion
 -- @about
 --   # Interactive ReaScript (iReaScript)
 --
@@ -93,7 +96,7 @@ local ireascript = {
   -- settings
   TITLE = 'Interactive ReaScript (iReaScript)',
   NAME = 'Interactive ReaScript',
-  VERSION = '0.8.2',
+  VERSION = '0.8.3',
 
   MARGIN = 3,
   MAXLINES = 2048,
@@ -279,6 +282,7 @@ function ireascript.run()
   ireascript.history = {}
   ireascript.hindex = 0
   ireascript.lastMove = os.time()
+  ireascript.lastRedraw = os.time()
   ireascript.mouseCap = 0
   ireascript.selection = nil
   ireascript.lastClick = 0.0
@@ -741,6 +745,13 @@ function ireascript.loop()
   if ireascript.wrappedBuffer.w ~= gfx.w then
     ireascript.from = nil -- full reflow
     ireascript.update()
+  end
+
+  local now = os.time()
+  if now - ireascript.lastRedraw >= 1 then
+    -- let the cursor caret blink
+    ireascript.redraw = true
+    ireascript.lastRedraw = now
   end
 
   if ireascript.redraw then
@@ -1774,6 +1785,12 @@ end
 
 -- GO!!
 ireascript.try(ireascript.run)
+
+-- since some v5.XX update the first frame is blank on macOS
+-- this got fixed v6.0rc9: https://forum.cockos.com/showthread.php?t=227788
+if not reaper.reduce_open_files then -- REAPER < 6
+  reaper.defer(ireascript.draw)
+end
 
 reaper.atexit(function()
   ireascript.saveWindowState()
