@@ -72,5 +72,5 @@ while(midirecv(offset, msg, pitch, vel)) (
   allNotesReleased = notes[0] > 0 && releasedNotes == notes[0];
   allNotesReleased && gmem[0] > 0 ? flushNoteBuffer();
 
-  midisend(offset, msg, note, vel);
+  midisend(offset, msg, pitch, vel);
 );
