@@ -143,6 +143,11 @@ local function getParentProject(track)
   end
 end
 
+local function updateJSFXCursor(ppq)
+  reaper.TrackFX_SetParam(jsfx.track, jsfx.index | 0x1000000, 0, ppq)
+  jsfx.ppqTime = ppq
+end
+
 local function teardownJSFX()
   if not jsfx or not reaper.ValidatePtr2(0, jsfx.project, 'ReaProject*') or
     not reaper.ValidatePtr2(jsfx.project, jsfx.track, 'MediaTrack*') then return end
@@ -159,6 +164,8 @@ local function installJSFX(take)
   local track = reaper.GetMediaItemTake_Track(take)
   if jsfx and track == jsfx.track then return true end
 
+  reaper.Undo_BeginBlock2(0)
+
   teardownJSFX()
 
   local index = reaper.TrackFX_AddByName(track, jsfxName, true, 1)
@@ -166,8 +173,16 @@ local function installJSFX(take)
     guid  = reaper.TrackFX_GetFXGUID(track, index | 0x1000000),
     project = getParentProject(track),
     track = track,
+    index = index
   }
   reaper.gmem_write(0, NOTE_BUFFER_START)
+
+  -- Initialize JSFX with current cursor position for undo.
+  local curPos = reaper.GetCursorPositionEx(project)
+  local ppqTime = reaper.MIDI_GetPPQPosFromProjTime(take, curPos)
+  updateJSFXCursor(ppqTime)
+
+  reaper.Undo_EndBlock2(0, "Install step-record JSFX",  2)
 
   return index >= 0
 end
@@ -219,6 +234,17 @@ local function insertReplaceNotes(take, newNotes)
   local mode = getMode()
   local notesUnderCursor = findNotesAtTime(take, ppqTime, mode & MODE_SEL ~= 0)
 
+  if ppqTime ~= jsfx.ppqTime then
+    -- We're about to insert notes at a position different than the JSFX
+    -- has stored.  Explicitly create an undo point with the current cursor
+    -- position so that if the soon-to-be-inserted notes are undone, the
+    -- cursor is restored to this position.
+    reaper.Undo_BeginBlock2(0)
+    updateJSFXCursor(ppqTime)
+    reaper.Undo_EndBlock2(0, "Move cursor before step input",  2) -- FX
+  end
+
+  reaper.Undo_BeginBlock2(0)
   -- replace existing notes (lowest first)
   for ni = 1, math.min(#newNotes, #notesUnderCursor) do
     local note = notesUnderCursor[ni]
@@ -262,13 +288,20 @@ local function insertReplaceNotes(take, newNotes)
 
   if updated then
     reaper.MIDI_Sort(take)
+    updateJSFXCursor(ppqNextTime)
+    local item = reaper.GetMediaItemTake_Item(take)
+    reaper.UpdateItemInProject(item)
+    reaper.MarkTrackItemsDirty(jsfx.track, item)
   end
 
   if ppqNextTime > ppqTime then
     local nextTime = reaper.MIDI_GetProjTimeFromPPQPos(take, ppqNextTime)
     reaper.SetEditCurPos2(jsfx.project, nextTime, false, false)
   end
+
+  reaper.Undo_EndBlock2(0, "Insert notes",  2 | 4) -- FX | items
 end
+
 
 local function loop()
   local take, me = getActiveTake()
@@ -282,10 +315,23 @@ local function loop()
     reaper.MB('Fatal error: Failed to install helper effect in the input chain.',
       scriptName, MB_OK)
     return
+  elseif jsfx.guid ~= reaper.TrackFX_GetFXGUID(jsfx.track, jsfx.index | 0x1000000) then
+    -- The JSFX instance we think is installed is invalid.  It was likely removed via
+    -- undo. Terminate the script.
+    return
   end
 
   if 0 < reaper.GetToggleCommandStateEx(MIDI_EDITOR_SECTION, NATIVE_STEP_RECORD) then
     return -- terminate the script
+  end
+
+  local fxPPQTime, _, _ = reaper.TrackFX_GetParam(jsfx.track, jsfx.index | 0x1000000, 0)
+  if fxPPQTime > -1 and jsfx.ppqTime and jsfx.ppqTime ~= fxPPQTime then
+    -- Note insertion was undone.  Restore cursor position based on undo point.
+    local curPos = reaper.GetCursorPositionEx(jsfx.project)
+    local fxTime = reaper.MIDI_GetProjTimeFromPPQPos(take, fxPPQTime)
+    reaper.MoveEditCursor(fxTime - curPos, false)
+    jsfx.ppqTime = fxPPQTime
   end
 
   local chords, lastNote = readNoteBuffer()
