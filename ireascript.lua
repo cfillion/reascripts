@@ -812,6 +812,10 @@ function ireascript.nl()
   ireascript.buffer[#ireascript.buffer + 1] = ireascript.SG_NEWLINE
 end
 
+function ireascript.stripTabs(contents)
+  return contents:gsub("\t", string.rep("\x20", ireascript.INDENT))
+end
+
 function ireascript.push(contents)
   if contents == nil then
     error('content is nil')
@@ -827,7 +831,7 @@ function ireascript.push(contents)
       ireascript.buffer[#ireascript.buffer + 1] = {
         font=ireascript.font,
         fg=ireascript.foreground, bg=ireascript.background,
-        text=line:gsub("\t", string.rep("\x20", ireascript.INDENT)),
+        text=ireascript.stripTabs(line),
       }
     end
   end
@@ -1330,6 +1334,7 @@ function ireascript.paste(selection)
     clipboard = ireascript.selectedText()
   else
     clipboard = reaper.CF_GetClipboard('')
+    clipboard = ireascript.stripTabs(clipboard)
   end
 
   for line in ireascript.lines(clipboard) do
