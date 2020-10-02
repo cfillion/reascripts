@@ -1370,7 +1370,7 @@ function ireascript.complete()
 
   local code = ireascript.prepend .. "\x20" .. before
   local matches, source = {}, _G
-  local prefix, word = code:match("([%a%d_%s%.]*[%a%d_]+)%s*%.%s*([^%s]*)$")
+  local prefix, word = code:match("([%a%d_%s%.]*[%a%d_]+)%s*%.%s*([^(%s]*)$")
 
   if word then
     for key in prefix:gmatch('[^%.%s]+') do
