@@ -77,7 +77,7 @@ local RO        = r.ImGui_InputTextFlags_ReadOnly()
 local WND_FLAGS = r.ImGui_WindowFlags_NoDecoration() |
                   r.ImGui_WindowFlags_NoScrollWithMouse()
 
-local FLT_MIN, FLT_MAX = 1.17549e-38, 3.40282e+38
+local FLT_MIN, FLT_MAX = r.ImGui_NumericLimits_Float()
 local EXT_SECTION, EXT_LAST_SLOT = 'cfillion_show_nudge_settings', 'last_slot'
 
 local isEditing  = false
