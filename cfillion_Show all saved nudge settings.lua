@@ -73,11 +73,11 @@ local KEY_LEFT   = 0x25
 local KEY_RIGHT  = 0x27
 local KEY_F1     = 0x70
 
+local FLT_MIN, FLT_MAX = r.ImGui_NumericLimits_Float()
 local RO        = r.ImGui_InputTextFlags_ReadOnly()
 local WND_FLAGS = r.ImGui_WindowFlags_NoDecoration() |
                   r.ImGui_WindowFlags_NoScrollWithMouse()
 
-local FLT_MIN, FLT_MAX = r.ImGui_NumericLimits_Float()
 local EXT_SECTION, EXT_LAST_SLOT = 'cfillion_show_nudge_settings', 'last_slot'
 
 local isEditing  = false
@@ -336,7 +336,7 @@ function draw()
     r.ImGui_SameLine(ctx, rtlPos(rightWidth))
     if button(rightText, KEY_RIGHT) then nudge(RNUDGE_ACTIONS) end
   else
-    local text = 'Cannot nudge in Set mode'
+    local text = '(Nudge unavailable in Set mode)'
     r.ImGui_SameLine(ctx, rtlPos(calcItemWidth(text)))
     r.ImGui_TextDisabled(ctx, text)
   end
@@ -367,6 +367,7 @@ function loop()
 
   detectEdit()
 
+  r.ImGui_PushFont(ctx, font)
   r.ImGui_PushStyleColor(ctx, r.ImGui_Col_Border(),        0x2a2a2aff)
   r.ImGui_PushStyleColor(ctx, r.ImGui_Col_Button(),        0xdcdcdcff)
   r.ImGui_PushStyleColor(ctx, r.ImGui_Col_ButtonActive(),  0x787878ff)
@@ -391,6 +392,7 @@ function loop()
 
   r.ImGui_PopStyleVar(ctx, 5)
   r.ImGui_PopStyleColor(ctx, 9)
+  r.ImGui_PopFont(ctx)
 
   r.defer(loop)
 end
@@ -416,5 +418,10 @@ end
 r.defer(function()
   ctx = r.ImGui_CreateContext(scriptName, 475, 97)
   viewport = r.ImGui_GetMainViewport(ctx)
+
+  local size = reaper.GetAppVersion():match('OSX') and 12 or 14
+  font = r.ImGui_CreateFont('sans-serif', size)
+  r.ImGui_AttachFont(ctx, font)
+
   loop()
 end)

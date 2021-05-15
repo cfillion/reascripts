@@ -25,6 +25,7 @@ local EXT_SECTION      = 'cfillion_underrun_monitor'
 local EXT_MARKER_TYPE  = 'marker_type'
 local EXT_MARKER_WHEN  = 'marker_when'
 
+local FLT_MIN, FLT_MAX = r.ImGui_NumericLimits_Float()
 local RO        = r.ImGui_InputTextFlags_ReadOnly()
 local WND_FLAGS = r.ImGui_WindowFlags_NoDecoration() |
                   r.ImGui_WindowFlags_NoScrollWithMouse()
@@ -183,8 +184,8 @@ function drawXrun(name, flag, time)
   r.ImGui_PushID(ctx, flag)
   r.ImGui_AlignTextToFramePadding(ctx)
   r.ImGui_Text(ctx, ('Last %s xrun position:'):format(name))
-  r.ImGui_SameLine(ctx, 195)
-  r.ImGui_SetNextItemWidth(ctx, 95)
+  r.ImGui_SameLine(ctx, 179)
+  r.ImGui_SetNextItemWidth(ctx, 115)
   r.ImGui_InputText(ctx, '##time', formatTime(time), RO)
   r.ImGui_SameLine(ctx)
   if not time then
@@ -212,12 +213,12 @@ function draw()
   r.ImGui_AlignTextToFramePadding(ctx)
   r.ImGui_Text(ctx, 'Create markers on')
   r.ImGui_SameLine(ctx)
-  r.ImGui_SetNextItemWidth(ctx, 60)
+  r.ImGui_SetNextItemWidth(ctx, 80)
   combo(EXT_MARKER_TYPE, MARKER_TYPE_MENU)
   r.ImGui_SameLine(ctx)
   r.ImGui_Text(ctx, 'xruns, when')
   r.ImGui_SameLine(ctx)
-  r.ImGui_SetNextItemWidth(ctx, 107)
+  r.ImGui_SetNextItemWidth(ctx, -FLT_MIN)
   combo(EXT_MARKER_WHEN, MARKER_WHEN_MENU)
 end
 
@@ -262,6 +263,7 @@ function loop()
   probeUnderruns()
   if r.ImGui_IsKeyPressed(ctx, KEY_F1) then about() end
 
+  r.ImGui_PushFont(ctx, font)
   r.ImGui_PushStyleColor(ctx, r.ImGui_Col_Border(),         0x2a2a2aff)
   r.ImGui_PushStyleColor(ctx, r.ImGui_Col_Button(),         0xdcdcdcff)
   r.ImGui_PushStyleColor(ctx, r.ImGui_Col_ButtonActive(),   0x787878ff)
@@ -288,6 +290,7 @@ function loop()
 
   r.ImGui_PopStyleVar(ctx, 5)
   r.ImGui_PopStyleColor(ctx, 11)
+  r.ImGui_PopFont(ctx)
 
   r.defer(loop)
 end
@@ -303,7 +306,12 @@ r.atexit(function()
 end)
 
 r.defer(function()
-  ctx = r.ImGui_CreateContext(scriptName, 406, 107)
+  ctx = r.ImGui_CreateContext(scriptName, 412, 107)
   viewport = r.ImGui_GetMainViewport(ctx)
+
+  local size = reaper.GetAppVersion():match('OSX') and 12 or 14
+  font = r.ImGui_CreateFont('sans-serif', size)
+  r.ImGui_AttachFont(ctx, font)
+
   loop()
 end)
