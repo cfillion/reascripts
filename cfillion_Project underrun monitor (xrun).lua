@@ -16,10 +16,6 @@
 --   which is around 30Hz.
 
 local r = reaper
-if not r.ImGui_CreateContext then
-  r.MB('This script requires ReaImGui. Install it from ReaPack > Browse packages.', scriptName, 0)
-  return
-end
 
 local EXT_SECTION      = 'cfillion_underrun_monitor'
 local EXT_MARKER_TYPE  = 'marker_type'
@@ -304,6 +300,11 @@ end
 r.atexit(function()
   reset(AUDIO_XRUN|MEDIA_XRUN)
 end)
+
+if not r.ImGui_CreateContext then
+  r.MB('This script requires ReaImGui. Install it from ReaPack > Browse packages.', scriptName, 0)
+  return
+end
 
 r.defer(function()
   ctx = r.ImGui_CreateContext(scriptName, 412, 107)

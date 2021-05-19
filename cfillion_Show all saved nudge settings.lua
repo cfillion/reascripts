@@ -48,10 +48,6 @@
 --   nudge left/right actions are unavailable.
 
 local r = reaper
-if not r.ImGui_CreateContext then
-  r.MB('This script requires ReaImGui. Install it from ReaPack > Browse packages.', scriptName, 0)
-  return
-end
 
 local WHAT_MAP = {'position', 'left trim', 'left edge', 'right trim', 'contents',
   'duplicate', 'edit cursor', 'end position'}
@@ -412,6 +408,11 @@ loadSetting(previousSlot())
 if scriptName:match('Nudge.+by selected') then
   r.defer(function() end) -- disable automatic undo point
   nudge(scriptName:match('left') and LNUDGE_ACTIONS or RNUDGE_ACTIONS)
+  return
+end
+
+if not r.ImGui_CreateContext then
+  r.MB('This script requires ReaImGui. Install it from ReaPack > Browse packages.', scriptName, 0)
   return
 end
 
