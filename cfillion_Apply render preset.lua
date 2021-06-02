@@ -1,7 +1,7 @@
 -- @description Apply render preset
 -- @author cfillion
--- @version 1.0.7
--- @changelog Fix action creation on drives not using NTFS on Windows [p=2240471]
+-- @version 1.0.10
+-- @changelog Add support for the "Use project sample rate for mixing and FX/synth processing" option
 -- @provides
 --   .
 --   [main] . > cfillion_Apply render preset (create action).lua
@@ -35,9 +35,6 @@
 --
 --   - Render speed
 --   - Resample mode
---
---   These settings are NOT applied:
---
 --   - Use project sample rate for mixing and FX/synth processing
 
 local function insertPreset(presets, name)
@@ -71,15 +68,22 @@ local function tokenize(line)
   local pos, tokens = 1, {}
 
   while pos do
-    local tail, eat
+    local tail, eat = nil, 1
 
     if line:sub(pos, pos) == '"' then
       pos = pos + 1 -- eat the opening quote
-      tail = assert(line:find('"%s', pos), 'missing closing quote')
+      tail = line:find('"%s', pos)
       eat = 2
+
+      if not tail then
+        if line:sub(-1) == '"' then
+          tail = line:len()
+        else
+          error('missing closing quote')
+        end
+      end
     else
       tail = line:find('%s', pos)
-      eat = 1
     end
 
     if pos <= line:len() then
@@ -97,6 +101,8 @@ function parseDefault(presets, line)
 
   if tokens[1] == '<RENDERPRESET' then
     return parseFormatPreset(presets, tokens)
+  elseif tokens[1] == '<RENDERPRESET2' then
+    return parseFormatPreset2(presets, tokens)
   elseif tokens[1] == 'RENDERPRESET_OUTPUT' then
     return parseOutputPreset(presets, tokens)
   end
@@ -105,18 +111,33 @@ function parseDefault(presets, line)
     'reaper-render.ini: found unknown preset type: %s', tokens[1])
 end
 
+function nodeContentExtractor(preset, key)
+  local function parser(_, line)
+    if line:sub(1, 1) == '>' then
+      -- reached the end of the RENDERPRESET tag
+      return parseDefault
+    end
+
+    preset[key] = (preset[key] or '') .. line:match('[^%s]+')
+
+    return parser
+  end
+
+  return parser
+end
+
 function parseFormatPreset(presets, tokens)
   local ok, err = checkTokenCount(tokens, 8, 9)
   if not ok then return nil, err end
 
   local preset = insertPreset(presets, tokens[2])
-  preset.RENDER_SRATE       = tonumber(tokens[3])
-  preset.RENDER_CHANNELS    = tonumber(tokens[4])
-  preset.projrenderlimit    = tonumber(tokens[5]) -- render speed
-  preset._useProjSRate      = tonumber(tokens[6])
-  preset.projrenderresample = tonumber(tokens[7])
-  preset.RENDER_DITHER      = tonumber(tokens[8])
-  preset.RENDER_FORMAT      = '' -- filled below
+  preset.RENDER_SRATE           = tonumber(tokens[3])
+  preset.RENDER_CHANNELS        = tonumber(tokens[4])
+  preset.projrenderlimit        = tonumber(tokens[5]) -- render speed
+  preset.projrenderrateinternal = tonumber(tokens[6])
+  preset.projrenderresample     = tonumber(tokens[7])
+  preset.RENDER_DITHER          = tonumber(tokens[8])
+  preset.RENDER_FORMAT2         = '' -- reset when no <RENDERPRESET2 node exists
 
   -- Added in v5.984+dev1106:
   -- "Tracks with only mono media to mono files" and
@@ -127,18 +148,15 @@ function parseFormatPreset(presets, tokens)
       | (preset.RENDER_SETTINGS or 0)
   end
 
-  local function parseFormat(_, line)
-    if line:sub(1, 1) == '>' then
-      -- reached the end of the RENDERPRESET tag
-      return parseDefault
-    end
+  return nodeContentExtractor(preset, 'RENDER_FORMAT')
+end
 
-    preset.RENDER_FORMAT = preset.RENDER_FORMAT .. line:match('[^%s]+')
+function parseFormatPreset2(presets, tokens)
+  local ok, err = checkTokenCount(tokens, 1)
+  if not ok then return nil, err end
 
-    return parseFormat
-  end
-
-  return parseFormat
+  local preset = insertPreset(presets, tokens[2])
+  return nodeContentExtractor(preset, 'RENDER_FORMAT2')
 end
 
 function parseOutputPreset(presets, tokens)
@@ -230,14 +248,13 @@ local function createAction(presetName, scriptInfo)
     reaper.GetResourcePath(), actionName)
   local baseName = scriptInfo.path:match('([^/\\]+)$')
   local relPath = scriptInfo.path:sub(reaper.GetResourcePath():len() + 2)
-  assert(not (presetName..relPath):match('%]%]'))
 
-  local code = string.format([=[
+  local code = string.format([[
 -- This file was created by %s on %s
 
-ApplyPresetByName = [[%s]]
-dofile(string.format([[%%s/%s]], reaper.GetResourcePath()))
-]=], baseName, os.date('%c'), presetName, relPath)
+ApplyPresetByName = %q
+dofile(string.format(%q, reaper.GetResourcePath()))
+]], baseName, os.date('%c'), presetName, '%s/'..relPath)
 
   local file = assert(io.open(outputFn, 'w'))
   file:write(code)
