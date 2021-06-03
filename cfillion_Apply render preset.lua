@@ -1,7 +1,7 @@
 -- @description Apply render preset
 -- @author cfillion
--- @version 1.0.10
--- @changelog Add support for the "Use project sample rate for mixing and FX/synth processing" option
+-- @version 1.1.1
+-- @changelog Immediately apply render normalization settings when the render dialog is open (requires v6.29+dev0603 or newer)
 -- @provides
 --   .
 --   [main] . > cfillion_Apply render preset (create action).lua
@@ -105,6 +105,8 @@ function parseDefault(presets, line)
     return parseFormatPreset2(presets, tokens)
   elseif tokens[1] == 'RENDERPRESET_OUTPUT' then
     return parseOutputPreset(presets, tokens)
+  elseif tokens[1] == 'RENDERPRESET_EXT' then
+    return parseNormalizePreset(presets, tokens)
   end
 
   return nil, string.format(
@@ -134,7 +136,7 @@ function parseFormatPreset(presets, tokens)
   preset.RENDER_SRATE           = tonumber(tokens[3])
   preset.RENDER_CHANNELS        = tonumber(tokens[4])
   preset.projrenderlimit        = tonumber(tokens[5]) -- render speed
-  preset.projrenderrateinternal = tonumber(tokens[6])
+  preset.projrenderrateinternal = tonumber(tokens[6]) -- use proj splrate
   preset.projrenderresample     = tonumber(tokens[7])
   preset.RENDER_DITHER          = tonumber(tokens[8])
   preset.RENDER_FORMAT2         = '' -- reset when no <RENDERPRESET2 node exists
@@ -172,6 +174,17 @@ function parseOutputPreset(presets, tokens)
   preset._unknown          = tokens[7]           -- what is this (always 0)?
   preset.RENDER_PATTERN    = tostring(tokens[8]) -- file name
   preset.RENDER_TAILFLAG   = tonumber(tokens[9])
+
+  return parseDefault
+end
+
+function parseNormalizePreset(presets, tokens)
+  local ok, err = checkTokenCount(tokens, 3)
+  if not ok then return nil, err end
+
+  local preset = insertPreset(presets, tokens[2])
+  preset.RENDER_NORMALIZE        = tonumber(tokens[3])
+  preset.RENDER_NORMALIZE_TARGET = tonumber(tokens[4])
 
   return parseDefault
 end
