@@ -149,7 +149,7 @@ local function updateJSFXCursor(ppq)
 end
 
 local function teardownJSFX()
-  if not jsfx or not reaper.ValidatePtr2(0, jsfx.project, 'ReaProject*') or
+  if not jsfx or not reaper.ValidatePtr2(nil, jsfx.project, 'ReaProject*') or
     not reaper.ValidatePtr2(jsfx.project, jsfx.track, 'MediaTrack*') then return end
 
   local index = findFXByGUID(jsfx.track, jsfx.guid, true)
@@ -164,7 +164,7 @@ local function installJSFX(take)
   local track = reaper.GetMediaItemTake_Track(take)
   if jsfx and track == jsfx.track then return true end
 
-  reaper.Undo_BeginBlock2(0)
+  reaper.Undo_BeginBlock2(nil)
 
   teardownJSFX()
 
@@ -182,7 +182,7 @@ local function installJSFX(take)
   local ppqTime = reaper.MIDI_GetPPQPosFromProjTime(take, curPos)
   updateJSFXCursor(ppqTime)
 
-  reaper.Undo_EndBlock2(0, "Install step-record JSFX",  2)
+  reaper.Undo_EndBlock2(nil, "Install step-record JSFX", 2)
 
   return index >= 0
 end
@@ -239,12 +239,12 @@ local function insertReplaceNotes(take, newNotes)
     -- has stored.  Explicitly create an undo point with the current cursor
     -- position so that if the soon-to-be-inserted notes are undone, the
     -- cursor is restored to this position.
-    reaper.Undo_BeginBlock2(0)
+    reaper.Undo_BeginBlock2(nil)
     updateJSFXCursor(ppqTime)
-    reaper.Undo_EndBlock2(0, "Move cursor before step input",  2) -- FX
+    reaper.Undo_EndBlock2(nil, "Move cursor before step input", 2) -- FX
   end
 
-  reaper.Undo_BeginBlock2(0)
+  reaper.Undo_BeginBlock2(nil)
   -- replace existing notes (lowest first)
   for ni = 1, math.min(#newNotes, #notesUnderCursor) do
     local note = notesUnderCursor[ni]
@@ -299,7 +299,7 @@ local function insertReplaceNotes(take, newNotes)
     reaper.SetEditCurPos2(jsfx.project, nextTime, false, false)
   end
 
-  reaper.Undo_EndBlock2(0, "Insert notes",  2 | 4) -- FX | items
+  reaper.Undo_EndBlock2(nil, "Insert notes",  2 | 4) -- FX | items
 end
 
 
