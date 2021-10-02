@@ -79,17 +79,17 @@ local function projects()
   end
 end
 
-local function findFXByGUID(track, targetGUID, recFX)
-  local i, offset = 0, recFX and 0x1000000 or 0
-  local guid = reaper.TrackFX_GetFXGUID(track, offset + i)
+local function findJSFX()
+  local i, offset = 0, 0x1000000
+  local guid = reaper.TrackFX_GetFXGUID(jsfx.track, offset + i)
 
   while guid do
-    if guid == targetGUID then
+    if guid == jsfx.guid then
       return i
     end
 
     i = i + 1
-    guid = reaper.TrackFX_GetFXGUID(track, offset + i)
+    guid = reaper.TrackFX_GetFXGUID(jsfx.track, offset + i)
   end
 end
 
@@ -147,7 +147,7 @@ local function getParentProject(track)
 end
 
 local function updateJSFXCursor(ppq)
-  local index = findFXByGUID(jsfx.track, jsfx.guid, true)
+  local index = findJSFX()
   reaper.TrackFX_SetParam(jsfx.track, index | 0x1000000, 0, ppq)
   jsfx.ppqTime = ppq
 end
@@ -156,7 +156,7 @@ local function teardownJSFX()
   if not jsfx or not reaper.ValidatePtr2(nil, jsfx.project, 'ReaProject*') or
     not reaper.ValidatePtr2(jsfx.project, jsfx.track, 'MediaTrack*') then return end
 
-  local index = findFXByGUID(jsfx.track, jsfx.guid, true)
+  local index = findJSFX()
   if index then
     reaper.TrackFX_Delete(jsfx.track, index | 0x1000000)
   end
@@ -324,14 +324,12 @@ local function loop()
     return -- terminate the script
   end
 
-  local index = findFXByGUID(jsfx.track, jsfx.guid, true)
-
+  local index = findJSFX()
   if not index then
     -- The JSFX instance we think is installed is invalid.  It was likely removed via
     -- undo. Terminate the script.
     return
   end
-
   local fxPPQTime = reaper.TrackFX_GetParam(jsfx.track, index | 0x1000000, 0)
   if fxPPQTime > -1 and jsfx.ppqTime and jsfx.ppqTime ~= fxPPQTime then
     -- Note insertion was undone.  Restore cursor position based on undo point.
