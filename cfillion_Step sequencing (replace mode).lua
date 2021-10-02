@@ -22,15 +22,18 @@
 local MB_OK = 0
 local MIDI_EDITOR_SECTION = 32060
 local NATIVE_STEP_RECORD  = 40481
-local NOTE_BUFFER_START = 1
+local NOTE_BUFFER_START   = 1
 
 local EXT_SECTION = 'cfillion_stepRecordReplace'
 local EXT_MODE_KEY = 'mode'
 
-local MODE_CHAN = 1<<0
+local MODE_CHAN  = 1<<0
 local MODE_PITCH = 1<<1
-local MODE_VEL = 1<<2
-local MODE_SEL = 1<<3
+local MODE_VEL   = 1<<2
+local MODE_SEL   = 1<<3
+
+local UNDO_STATE_FX    = 1<<1
+local UNDO_STATE_ITEMS = 1<<2
 
 local jsfx
 local jsfxName = 'ReaTeam Scripts/MIDI Editor/cfillion_Step sequencing (replace mode).jsfx'
@@ -182,7 +185,7 @@ local function installJSFX(take)
   local ppqTime = reaper.MIDI_GetPPQPosFromProjTime(take, curPos)
   updateJSFXCursor(ppqTime)
 
-  reaper.Undo_EndBlock2(nil, "Install step-record JSFX", 2)
+  reaper.Undo_EndBlock2(nil, 'Install step-record JSFX', UNDO_STATE_FX)
 
   return index >= 0
 end
@@ -241,7 +244,7 @@ local function insertReplaceNotes(take, newNotes)
     -- cursor is restored to this position.
     reaper.Undo_BeginBlock2(nil)
     updateJSFXCursor(ppqTime)
-    reaper.Undo_EndBlock2(nil, "Move cursor before step input", 2) -- FX
+    reaper.Undo_EndBlock2(nil, 'Move cursor before step input', UNDO_STATE_FX)
   end
 
   reaper.Undo_BeginBlock2(nil)
@@ -299,7 +302,7 @@ local function insertReplaceNotes(take, newNotes)
     reaper.SetEditCurPos2(jsfx.project, nextTime, false, false)
   end
 
-  reaper.Undo_EndBlock2(nil, "Insert notes",  2 | 4) -- FX | items
+  reaper.Undo_EndBlock2(nil, 'Insert notes', UNDO_STATE_FX | UNDO_STATE_ITEMS)
 end
 
 
