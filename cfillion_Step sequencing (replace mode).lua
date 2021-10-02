@@ -147,7 +147,8 @@ local function getParentProject(track)
 end
 
 local function updateJSFXCursor(ppq)
-  reaper.TrackFX_SetParam(jsfx.track, jsfx.index | 0x1000000, 0, ppq)
+  local index = findFXByGUID(jsfx.track, jsfx.guid, true)
+  reaper.TrackFX_SetParam(jsfx.track, index | 0x1000000, 0, ppq)
   jsfx.ppqTime = ppq
 end
 
@@ -176,7 +177,6 @@ local function installJSFX(take)
     guid  = reaper.TrackFX_GetFXGUID(track, index | 0x1000000),
     project = getParentProject(track),
     track = track,
-    index = index
   }
   reaper.gmem_write(0, NOTE_BUFFER_START)
 
@@ -318,17 +318,21 @@ local function loop()
     reaper.MB('Fatal error: Failed to install helper effect in the input chain.',
       scriptName, MB_OK)
     return
-  elseif jsfx.guid ~= reaper.TrackFX_GetFXGUID(jsfx.track, jsfx.index | 0x1000000) then
-    -- The JSFX instance we think is installed is invalid.  It was likely removed via
-    -- undo. Terminate the script.
-    return
   end
 
   if 0 < reaper.GetToggleCommandStateEx(MIDI_EDITOR_SECTION, NATIVE_STEP_RECORD) then
     return -- terminate the script
   end
 
-  local fxPPQTime, _, _ = reaper.TrackFX_GetParam(jsfx.track, jsfx.index | 0x1000000, 0)
+  local index = findFXByGUID(jsfx.track, jsfx.guid, true)
+
+  if not index then
+    -- The JSFX instance we think is installed is invalid.  It was likely removed via
+    -- undo. Terminate the script.
+    return
+  end
+
+  local fxPPQTime = reaper.TrackFX_GetParam(jsfx.track, index | 0x1000000, 0)
   if fxPPQTime > -1 and jsfx.ppqTime and jsfx.ppqTime ~= fxPPQTime then
     -- Note insertion was undone.  Restore cursor position based on undo point.
     local curPos = reaper.GetCursorPositionEx(jsfx.project)
