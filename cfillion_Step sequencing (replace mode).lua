@@ -185,7 +185,7 @@ local function installJSFX(take)
   local ppqTime = reaper.MIDI_GetPPQPosFromProjTime(take, curPos)
   updateJSFXCursor(ppqTime)
 
-  reaper.Undo_EndBlock2(nil, 'Install step-record JSFX', UNDO_STATE_FX)
+  reaper.Undo_EndBlock2(nil, 'Install step sequencing (replace mode) input FX', UNDO_STATE_FX)
 
   return index >= 0
 end
@@ -244,7 +244,7 @@ local function insertReplaceNotes(take, newNotes)
     -- cursor is restored to this position.
     reaper.Undo_BeginBlock2(nil)
     updateJSFXCursor(ppqTime)
-    reaper.Undo_EndBlock2(nil, 'Move cursor before step input', UNDO_STATE_FX)
+    reaper.Undo_EndBlock2(nil, 'Move cursor before step sequencing input', UNDO_STATE_FX)
   end
 
   reaper.Undo_BeginBlock2(nil)
@@ -302,9 +302,9 @@ local function insertReplaceNotes(take, newNotes)
     reaper.SetEditCurPos2(jsfx.project, nextTime, false, false)
   end
 
-  reaper.Undo_EndBlock2(nil, 'Insert notes', UNDO_STATE_FX | UNDO_STATE_ITEMS)
+  reaper.Undo_EndBlock2(nil, 'Insert notes via step sequencing (replace mode)',
+    UNDO_STATE_FX | UNDO_STATE_ITEMS)
 end
-
 
 local function loop()
   local take, me = getActiveTake()
