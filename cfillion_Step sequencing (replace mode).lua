@@ -35,6 +35,8 @@ local MODE_SEL   = 1<<3
 local UNDO_STATE_FX    = 1<<1
 local UNDO_STATE_ITEMS = 1<<2
 
+local KEY_ESCAPE = 0x1B
+
 local jsfx
 local jsfxName = 'ReaTeam Scripts/MIDI Editor/cfillion_Step sequencing (replace mode).jsfx'
 local scriptName = ({reaper.get_action_context()})[2]:match("([^/\\_]+)%.lua$")
@@ -375,8 +377,74 @@ local function gfxdo(callback)
   return value
 end
 
-local function optionsMenu()
-  local mode, options, menu = getMode(), {}, {
+local function optionsMenu(mode, items)
+  local ctx = reaper.ImGui_CreateContext(scriptName,
+    reaper.ImGui_ConfigFlags_NavEnableKeyboard() |
+    reaper.ImGui_ConfigFlags_NoSavedSettings())
+
+  local size = reaper.GetAppVersion():match('OSX') and 12 or 14
+  local font = reaper.ImGui_CreateFont('sans-serif', size)
+  reaper.ImGui_AttachFont(ctx, font)
+
+  local function loop()
+    reaper.ImGui_PushFont(ctx, font)
+
+    if reaper.ImGui_IsWindowAppearing(ctx) then
+      reaper.ImGui_SetNextWindowPos(ctx,
+        reaper.ImGui_PointConvertNative(ctx, reaper.GetMousePosition()))
+    end
+
+    if reaper.ImGui_Begin(ctx, scriptName, false,
+        reaper.ImGui_WindowFlags_AlwaysAutoResize() |
+        reaper.ImGui_WindowFlags_NoDecoration() |
+        reaper.ImGui_WindowFlags_TopMost()) then
+      for id, item in ipairs(items) do
+        if type(item) == 'table' then
+          if reaper.ImGui_MenuItem(ctx, item[2], nil, mode & item[1]) then
+            mode = mode ~ item[1]
+            reaper.SetExtState(EXT_SECTION, EXT_MODE_KEY, mode, true)
+          end
+        else
+          reaper.ImGui_Separator(ctx)
+        end
+      end
+      reaper.ImGui_End(ctx)
+    end
+
+    reaper.ImGui_PopFont(ctx)
+
+    if not reaper.ImGui_IsKeyPressed(ctx, KEY_ESCAPE) and
+        reaper.ImGui_IsWindowFocused(ctx, reaper.ImGui_FocusedFlags_AnyWindow()) then
+      reaper.defer(loop)
+    else
+      reaper.ImGui_DestroyContext(ctx)
+    end
+  end
+
+  reaper.defer(loop)
+end
+
+local function legacyOptionsMenu(mode, items)
+  local menu = {}
+
+  for id, item in ipairs(items) do
+    if type(item) == 'table' then
+      local checkbox = mode & item[1] ~= 0 and '!' or ''
+      table.insert(menu, checkbox .. item[2])
+    else
+      table.insert(menu, item)
+    end
+  end
+
+  local choice = gfx.showmenu(table.concat(menu, '|'))
+  if not items[choice] then return end
+
+  mode = mode ~ items[choice][1]
+  reaper.SetExtState(EXT_SECTION, EXT_MODE_KEY, mode, true)
+end
+
+if scriptName:match('%(options%)') then
+  local mode, items = getMode(), {
     {MODE_CHAN,  'Replace channel'},
     {MODE_PITCH, 'Replace pitch'},
     {MODE_VEL,   'Replace velocity'},
@@ -384,23 +452,11 @@ local function optionsMenu()
     {MODE_SEL,   'Skip unselected notes'},
   }
 
-  for id, option in ipairs(menu) do
-    if type(option) == 'table' then
-      local checkbox = mode & option[1] ~= 0 and '!' or ''
-      menu[id] = checkbox .. option[2]
-      table.insert(options, option[1])
-    end
+  if reaper.ImGui_CreateContext then
+    optionsMenu(mode, items)
+  else
+    gfxdo(function() legacyOptionsMenu(mode, items) end)
   end
-
-  local choice = gfx.showmenu(table.concat(menu, '|'))
-  if not options[choice] then return end
-
-  mode = mode ~ options[choice]
-  reaper.SetExtState(EXT_SECTION, EXT_MODE_KEY, mode, true)
-end
-
-if scriptName:match('%(options%)') then
-  gfxdo(optionsMenu)
   return
 end
 
