@@ -1,7 +1,9 @@
 -- @description Step sequencing (replace mode)
 -- @author cfillion
--- @version 1.0alpha3
--- @changelog improve options menu position and styling on Windows when js_ReaScript API is present
+-- @version 1.1
+-- @changelog
+--   Add undo support (by jtackaberry, thank you!)
+--   Use ReaImGui for displaying the options menu (if installed)
 -- @provides
 --   .
 --   [main] . > cfillion_Step sequencing (options).lua
@@ -170,14 +172,15 @@ local function installJSFX(take)
   local track = reaper.GetMediaItemTake_Track(take)
   if jsfx and track == jsfx.track then return true end
 
-  reaper.Undo_BeginBlock2(nil)
+  local project = getParentProject(track)
+  reaper.Undo_BeginBlock2(project)
 
   teardownJSFX()
 
   local index = reaper.TrackFX_AddByName(track, jsfxName, true, 1)
   jsfx = {
     guid  = reaper.TrackFX_GetFXGUID(track, index | 0x1000000),
-    project = getParentProject(track),
+    project = project,
     track = track,
   }
   reaper.gmem_write(0, NOTE_BUFFER_START)
@@ -187,7 +190,8 @@ local function installJSFX(take)
   local ppqTime = reaper.MIDI_GetPPQPosFromProjTime(take, curPos)
   updateJSFXCursor(ppqTime)
 
-  reaper.Undo_EndBlock2(nil, 'Install step sequencing (replace mode) input FX', UNDO_STATE_FX)
+  reaper.Undo_EndBlock2(jsfx.project,
+    'Install step sequencing (replace mode) input FX', UNDO_STATE_FX)
 
   return index >= 0
 end
@@ -244,12 +248,13 @@ local function insertReplaceNotes(take, newNotes)
     -- has stored.  Explicitly create an undo point with the current cursor
     -- position so that if the soon-to-be-inserted notes are undone, the
     -- cursor is restored to this position.
-    reaper.Undo_BeginBlock2(nil)
+    reaper.Undo_BeginBlock2(jsfx.project)
     updateJSFXCursor(ppqTime)
-    reaper.Undo_EndBlock2(nil, 'Move cursor before step sequencing input', UNDO_STATE_FX)
+    reaper.Undo_EndBlock2(jsfx.project,
+      'Move cursor before step sequencing input', UNDO_STATE_FX)
   end
 
-  reaper.Undo_BeginBlock2(nil)
+  reaper.Undo_BeginBlock2(jsfx.project)
   -- replace existing notes (lowest first)
   for ni = 1, math.min(#newNotes, #notesUnderCursor) do
     local note = notesUnderCursor[ni]
@@ -304,7 +309,8 @@ local function insertReplaceNotes(take, newNotes)
     reaper.SetEditCurPos2(jsfx.project, nextTime, false, false)
   end
 
-  reaper.Undo_EndBlock2(nil, 'Insert notes via step sequencing (replace mode)',
+  reaper.Undo_EndBlock2(jsfx.project,
+    'Insert notes via step sequencing (replace mode)',
     UNDO_STATE_FX | UNDO_STATE_ITEMS)
 end
 
