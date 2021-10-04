@@ -1,7 +1,9 @@
 -- @description Apply render preset
 -- @author cfillion
--- @version 1.3.1
--- @changelog Enable keyboard navigation in the new ReaImGui menu
+-- @version 1.3.2
+-- @changelog
+--   Clamp the new menu to monitor boundaries (ReaImGui v0.5.7+) [p=2485297]
+--   Fix the new menu crashing if there are new saved render presets
 -- @provides
 --   .
 --   [main] . > cfillion_Apply render preset (create action).lua
@@ -345,7 +347,6 @@ elseif reaper.ImGui_CreateContext then
   local font = reaper.ImGui_CreateFont('sans-serif', size)
   reaper.ImGui_AttachFont(ctx, font)
 
-  local selected = false
   local menu = {}
   for name, preset in pairs(presets) do
     table.insert(menu, name)
@@ -353,19 +354,16 @@ elseif reaper.ImGui_CreateContext then
   table.sort(menu)
 
   local function loop()
-    reaper.ImGui_PushFont(ctx, font)
-
     if reaper.ImGui_IsWindowAppearing(ctx) then
       reaper.ImGui_SetNextWindowPos(ctx,
         reaper.ImGui_PointConvertNative(ctx, reaper.GetMousePosition()))
+      reaper.ImGui_OpenPopup(ctx, scriptInfo.name)
     end
 
-    if reaper.ImGui_Begin(ctx, scriptInfo.name, false,
-        reaper.ImGui_WindowFlags_AlwaysAutoResize() |
-        reaper.ImGui_WindowFlags_NoDecoration() |
-        reaper.ImGui_WindowFlags_TopMost()) then
+    if reaper.ImGui_BeginPopup(ctx, scriptInfo.name, reaper.ImGui_WindowFlags_TopMost()) then
+      reaper.ImGui_PushFont(ctx, font)
       if #menu == 0 then
-        reaper.ImGui_DisabledText(ctx, 'No render presets found.')
+        reaper.ImGui_TextDisabled(ctx, 'No render presets found.')
       else
         if isCreateAction then
           reaper.ImGui_Text(ctx, 'Select a render preset for the new action:')
@@ -376,20 +374,14 @@ elseif reaper.ImGui_CreateContext then
           for i, name in ipairs(menu) do
             if reaper.ImGui_Selectable(ctx, name) then
               main(name)
-              selected = true
+              reaper.ImGui_CloseCurrentPopup(ctx)
             end
           end
           reaper.ImGui_EndListBox(ctx)
         end
       end
-      reaper.ImGui_End(ctx)
-    end
-
-    reaper.ImGui_PopFont(ctx)
-
-    local KEY_ESCAPE = 0x1B
-    if not selected and not reaper.ImGui_IsKeyPressed(ctx, KEY_ESCAPE) and
-        reaper.ImGui_IsWindowFocused(ctx, reaper.ImGui_FocusedFlags_AnyWindow()) then
+      reaper.ImGui_PopFont(ctx)
+      reaper.ImGui_EndPopup(ctx)
       reaper.defer(loop)
     else
       reaper.ImGui_DestroyContext(ctx)
