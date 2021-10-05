@@ -46,6 +46,25 @@ local REAPER_BEFORE_V6 = tonumber(r.GetAppVersion():match('^%d+')) < 6
 local SETTINGS_SOURCE_MASK  = 0x10EB
 local SETTINGS_OPTIONS_MASK = 0x0F14
 
+local function getScriptInfo()
+  local path = ({r.get_action_context()})[2]
+
+  local isCreate = false
+  local first, last = path:find(' %(create action%)')
+  if first and last then
+    isCreate = true
+    path = path:sub(1, first  - 1) .. path:sub(last + 1)
+  end
+
+  return {
+    path = path,
+    name = path:match("([^/\\_]+)%.lua$"),
+    isCreate = isCreate,
+  }
+end
+
+local scriptInfo = getScriptInfo()
+
 local function insertPreset(presets, name)
   local preset = presets[name]
 
@@ -259,7 +278,7 @@ local function sanitizeFilename(name)
   return name:gsub('[*\\:<>?/|"%c]+', '-')
 end
 
-local function createAction(presetName, scriptInfo)
+local function createAction(presetName)
   local fnPresetName = sanitizeFilename(presetName)
   local actionName = string.format('Apply render preset - %s', fnPresetName)
   local outputFn = string.format('%s/Scripts/%s.lua',
@@ -271,7 +290,7 @@ local function createAction(presetName, scriptInfo)
 -- This file was created by %s on %s
 
 ApplyPresetByName = %q
-dofile(string.format(%q, r.GetResourcePath()))
+dofile(string.format(%q, reaper.GetResourcePath()))
 ]], baseName, os.date('%c'), presetName, '%s/'..relPath)
 
   local file = assert(io.open(outputFn, 'w'))
@@ -289,8 +308,8 @@ dofile(string.format(%q, r.GetResourcePath()))
 end
 
 local function main(presetName, preset)
-  if isCreateAction then
-    createAction(presetName, scriptInfo)
+  if scriptInfo.isCreate then
+    createAction(presetName)
   else
     applyRenderPreset(nil, preset)
   end
@@ -317,15 +336,6 @@ local function gfxdo(callback)
   local value = callback()
   gfx.quit()
   return value
-end
-
-local function getScriptInfo()
-  local path = ({r.get_action_context()})[2]
-
-  return {
-    path = path,
-    name = path:match("([^/\\_]+)%.lua$"),
-  }
 end
 
 local function boolText(ctx, bool)
@@ -609,8 +619,6 @@ end
 assert(r.GetSetProjectInfo,   'REAPER v5.975 or newer is required')
 assert(r.SNM_SetIntConfigVar, 'The SWS extension is not installed')
 
-local scriptInfo = getScriptInfo()
-local isCreateAction = scriptInfo.name:match('%(create action%)$')
 local presets = getRenderPresets()
 
 if ApplyPresetByName then
@@ -676,7 +684,7 @@ local function popup()
   if #names == 0 then
     r.ImGui_TextDisabled(ctx, 'No render presets found.')
   else
-    if isCreateAction then
+    if scriptInfo.isCreate then
       r.ImGui_Text(ctx, 'Select a render preset for the new action:')
     else
       r.ImGui_Text(ctx, 'Select a render preset to apply:')
