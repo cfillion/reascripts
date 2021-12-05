@@ -1,12 +1,14 @@
 -- @description Apply render preset
 -- @author cfillion
--- @version 2.0.1
+-- @version 2.0.2
 -- @changelog Fix restoration of the tail checkbox
 -- @provides
 --   .
 --   [main] . > cfillion_Apply render preset (create action).lua
 -- @link https://cfillion.ca
--- @screenshot https://i.imgur.com/Xy44ZlR.gif
+-- @screenshot
+--   https://i.imgur.com/Xy44ZlR.gif
+--   Interface customization https://i.imgur.com/vKa8oc9.gif
 -- @donation https://paypal.me/cfillion
 -- @about
 --   # Apply render preset
@@ -205,7 +207,7 @@ function parseOutputPreset(presets, tokens)
   addPresetSettings(preset, settingsMask, tonumber(tokens[6]))
   preset._unknown          = tokens[7]           -- what is this (always 0)?
   preset.RENDER_PATTERN    = tostring(tokens[8]) -- file name
-  preset.RENDER_TAILFLAG   = tonumber(tokens[9]) << 1
+  preset.RENDER_TAILFLAG   = tonumber(tokens[9]) == 0 and 0 or 0xFF
 
   return parseDefault
 end
@@ -595,7 +597,7 @@ local function presetRow(ctx, name, preset)
     sourceCell,
     boundsCell,
     function()
-      if preset.RENDER_TAILFLAG then boolText(ctx, preset.RENDER_TAILFLAG & 2 ~= 0) end
+      if preset.RENDER_TAILFLAG then boolText(ctx, preset.RENDER_TAILFLAG ~= 0) end
     end,
     'RENDER_PATTERN', -- file name
     optionsCell,
