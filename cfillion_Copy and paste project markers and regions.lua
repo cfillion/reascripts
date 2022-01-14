@@ -1,8 +1,6 @@
 -- @description Copy/paste project markers and/or regions
--- @version 1.1.1
--- @changelog
---   Fix markers being copied past the end of the time selection [p=1942313]
---   Renumber markers and regions when pasting
+-- @version 1.1.2
+-- @changelog Remove error message when pasting without any markers or regions in the clipboard
 -- @author cfillion
 -- @links
 --   cfillion.ca https://cfillion.ca/
@@ -57,7 +55,6 @@ function paste()
   local _, markerId, regionId = reaper.CountProjectMarkers(0)
 
   if #markers < 1 then
-    reaper.MB("Marker clipboard is empty!", script_name, 0)
     return
   end
 
