@@ -1,94 +1,56 @@
-local WINDOW_TITLE = 'Song switcher'
+local SCRIPT_NAME = 'Song switcher'
 
-local FONT_DEFAULT = 0
-local FONT_LARGE = 1
-local FONT_SMALL = 2
-local FONT_HUGE = 3
-
-local COLOR_WHITE = {255, 255, 255}
-local COLOR_GRAY = {190, 190, 190}
-local COLOR_BLACK = {0, 0, 0}
-local COLOR_RED = {255, 0, 0}
-
-local COLOR_NAME = COLOR_WHITE
-local COLOR_FILTER = COLOR_WHITE
-local COLOR_BORDER = COLOR_GRAY
-local COLOR_BUTTON = COLOR_GRAY
-local COLOR_HOVERBG = {30, 30, 30}
-local COLOR_HOVERFG = COLOR_WHITE
-local COLOR_ACTIVEBG = {124, 165, 215}
-local COLOR_ACTIVEFG = COLOR_BLACK
-local COLOR_DANGERBG = COLOR_RED
-local COLOR_DANGERFG = COLOR_BLACK
-local COLOR_HIGHLIGHTBG = {60, 90, 100}
-local COLOR_HIGHLIGHTFG = COLOR_WHITE
-
-local KEY_ESCAPE = 27
-local KEY_SPACE = 32
-local KEY_UP = 30064
-local KEY_DOWN = 1685026670
-local KEY_RIGHT = 1919379572
-local KEY_LEFT = 1818584692
-local KEY_INPUTRANGE_FIRST = 32
-local KEY_INPUTRANGE_LAST = 125
-local KEY_ENTER = 13
-local KEY_BACKSPACE = 8
-local KEY_CTRLU = 21
-local KEY_CLEAR = 144
-local KEY_PGUP = 1885828464
-local KEY_PGDOWN = 1885824110
-local KEY_MINUS = 45
-local KEY_PLUS = 43
-local KEY_STAR = 42
-local KEY_F3 = 26163
-
-local MOUSE_LEFT_BTN = 1
-
-local PADDING = 3
-local MARGIN = 10
-local HALF_MARGIN = 5
-local LIST_START = 50
-
-local EXT_SECTION = 'cfillion_song_switcher'
+local EXT_SECTION     = 'cfillion_song_switcher'
 local EXT_SWITCH_MODE = 'onswitch'
-local EXT_WINDOW_STATE = 'window_state'
-local EXT_LAST_DOCK = 'last_dock'
-local EXT_STATE = 'state'
+local EXT_LAST_DOCK   = 'last_dock'
+local EXT_STATE       = 'state'
+
+local FLT_MIN, FLT_MAX = reaper.ImGui_NumericLimits_Float()
 
 local SWITCH_SEEK   = 1<<0
 local SWITCH_STOP   = 1<<1
 local SWITCH_SCROLL = 1<<2
-local SWITCH_ALL    = SWITCH_SEEK | SWITCH_STOP | SWITCH_SCROLL
 
 local UNDO_STATE_TRACKCFG = 1
 
-local SIGNALS = {
-  relative_move=function(move)
-    move = tonumber(move)
+dofile(reaper.GetResourcePath() .. '/Scripts/ReaTeam Extensions/API/imgui.lua')('0.7')
 
-    if move then
-      trySetCurrentIndex(currentIndex + move)
-    end
-  end,
-  absolute_move=function(index)
-    trySetCurrentIndex(tonumber(index))
-  end,
-  activate_queued=function()
-    if currentIndex ~= nextIndex then
-      setCurrentIndex(nextIndex)
-    end
-  end,
-  filter=function(filter)
-    local index = findSong(filter)
+local scrollTo, setDock
+-- initialized in reset()
+local currentIndex, nextIndex, invalid, filterPrompt
 
-    if index then
-      setCurrentIndex(index)
-    end
-  end,
-  reset=function() reset() end,
+local fonts = {
+  small = reaper.ImGui_CreateFont('sans-serif', 13),
+  large = reaper.ImGui_CreateFont('sans-serif', 28),
+  huge  = reaper.ImGui_CreateFont('sans-serif', 38),
 }
 
-function loadTracks()
+local ctx = reaper.ImGui_CreateContext(SCRIPT_NAME, reaper.ImGui_ConfigFlags_DockingEnable())
+
+for key, font in pairs(fonts) do
+  reaper.ImGui_AttachFont(ctx, font)
+end
+
+local function parseSongName(trackName)
+  local number, separator, name = string.match(trackName, '^(%d+)(%W+)(.+)$')
+  number = tonumber(number)
+
+  if number and separator and name then
+    return {number=number, separator=separator, name=name}
+  end
+end
+
+local function compareSongs(a, b)
+  local aparts, bparts = parseSongName(a.name), parseSongName(b.name)
+
+  if aparts.number == bparts.number then
+    return aparts.name < bparts.name
+  else
+    return aparts.number < bparts.number
+  end
+end
+
+local function loadTracks()
   local songs = {}
   local depth = 0
   local isSong = false
@@ -103,7 +65,7 @@ function loadTracks()
 
       if parseSongName(name) then
         isSong = true
-        table.insert(songs, {name=name, folder=track, tracks={track}})
+        table.insert(songs, {name=name, folder=track, tracks={track}, uniqId=#songs})
       else
         isSong = false
       end
@@ -137,26 +99,7 @@ function loadTracks()
   return songs
 end
 
-function parseSongName(trackName)
-  local number, separator, name = string.match(trackName, '^(%d+)(%W+)(.+)$')
-  number = tonumber(number)
-
-  if number and separator and name then
-    return {number=number, separator=separator, name=name}
-  end
-end
-
-function compareSongs(a, b)
-  local aparts, bparts = parseSongName(a.name), parseSongName(b.name)
-
-  if aparts.number == bparts.number then
-    return aparts.name < bparts.name
-  else
-    return aparts.number < bparts.number
-  end
-end
-
-function isSongValid(song)
+local function isSongValid(song)
   for _,track in ipairs(song.tracks) do
     if not reaper.ValidatePtr(track, 'MediaTrack*') then
       return false
@@ -166,7 +109,7 @@ function isSongValid(song)
   return true
 end
 
-function setSongEnabled(song, enabled)
+local function setSongEnabled(song, enabled)
   if song == nil then return end
 
   invalid = not isSongValid(song)
@@ -188,7 +131,34 @@ function setSongEnabled(song, enabled)
   return true
 end
 
-function setCurrentIndex(index)
+local function updateState()
+  local song = songs[currentIndex] or {name='', startTime=0, endTime=0}
+
+  local state = string.format("%d\t%d\t%s\t%f\t%f\t%s",
+    currentIndex, #songs, song.name, song.startTime, song.endTime,
+    tostring(invalid)
+  )
+  reaper.SetExtState(EXT_SECTION, EXT_STATE, state, false)
+end
+
+local function getSwitchMode()
+  local mode = tonumber(reaper.GetExtState(EXT_SECTION, EXT_SWITCH_MODE))
+  return mode and mode or 0
+end
+
+local function setSwitchMode(mode)
+  reaper.SetExtState(EXT_SECTION, EXT_SWITCH_MODE, tostring(mode), true)
+end
+
+local function setNextIndex(index)
+  if songs[index] then
+    nextIndex = index
+    scrollTo = index
+    highlightTime = reaper.ImGui_GetTime(ctx)
+  end
+end
+
+local function setCurrentIndex(index)
   reaper.PreventUIRefresh(1)
 
   if currentIndex < 1 then
@@ -228,28 +198,19 @@ function setCurrentIndex(index)
   reaper.UpdateArrange()
 
   filterPrompt = false
-  filterBuffer = ''
-  updateState();
+  updateState()
 end
 
-function trySetCurrentIndex(index)
+local function trySetCurrentIndex(index)
   if songs[index] then
     setCurrentIndex(index)
   end
 end
 
-function setNextIndex(index)
-  if songs[index] then
-    nextIndex = index
-    scrollTo = index
-    highlightTime = os.time()
-  end
-end
-
-function moveSong(from, to)
-  song = songs[from]
-  table.remove(songs, from)
-  table.insert(songs, to, song)
+local function moveSong(from, to)
+  local target = songs[from]
+  songs[from] = songs[to]
+  songs[to]   = target
 
   if currentIndex == from then
     currentIndex = to
@@ -268,6 +229,7 @@ function moveSong(from, to)
   end
 
   reaper.Undo_BeginBlock()
+  reaper.PreventUIRefresh(1)
   local maxNumLength = math.max(2, tostring(#songs):len())
   for index, song in ipairs(songs) do
     local nameParts = parseSongName(song.name)
@@ -279,10 +241,11 @@ function moveSong(from, to)
       reaper.GetSetMediaTrackInfo_String(song.folder, 'P_NAME', newName, true)
     end
   end
-  reaper.Undo_EndBlock("Song switcher: Change song order", UNDO_STATE_TRACKCFG)
+  reaper.PreventUIRefresh(-1)
+  reaper.Undo_EndBlock('Song switcher: Change song order', UNDO_STATE_TRACKCFG)
 end
 
-function findSong(buffer)
+local function findSong(buffer)
   if string.len(buffer) == 0 then return end
   buffer = string.upper(buffer)
 
@@ -298,503 +261,33 @@ function findSong(buffer)
   end
 end
 
-function useColor(color)
-  gfx.r = color[1] / 255
-  gfx.g = color[2] / 255
-  gfx.b = color[3] / 255
-end
+local SIGNALS = {
+  relative_move=function(move)
+    move = tonumber(move)
 
-function textLine(text, x, padding)
-  local w, h = gfx.measurestr(text)
-  local y = gfx.y
-
-  if x == nil then
-    x = math.max(0, (gfx.w - w) / 2)
-  end
-
-  local tx, ty, tw = x, y, w
-
-  if padding ~= nil then
-    x = x - padding
-    w = w + (padding * 2)
-
-    ty = y + padding
-    h = h + (padding * 2)
-  end
-
-  local rect = {x=0, y=y, w=gfx.w, h=h}
-  return {text=text, rect=rect, tx=tx, ty=ty, tw=tw}
-end
-
-function drawTextLine(line)
-  gfx.x = line.tx
-  gfx.y = line.ty
-
-  gfx.drawstr(line.text)
-  gfx.y = line.rect.y + line.rect.h
-end
-
-function drawName(song)
-  local name = '## No song selected ##'
-
-  if song ~= nil then
-    name = song.name
-  end
-
-  line = textLine(name)
-
-  if invalid then
-    useColor(COLOR_DANGERBG)
-    gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
-  end
-
-  useColor(COLOR_NAME)
-  drawTextLine(line)
-
-  if isLineUnderMouse(line) and mouseClick then
-    filterPrompt = true
-  end
-end
-
-function drawFilter()
-  useColor(COLOR_FILTER)
-
-  local buffer = filterBuffer
-
-  if string.len(buffer) == 0 then
-    buffer = "\x20"
-  end
-
-  local line = textLine(buffer)
-  drawTextLine(line)
-
-  if os.time() % 2 == 0 then
-    local topRight = line.tx + line.tw
-    gfx.line(topRight, line.ty, topRight, line.ty + line.rect.h)
-  end
-
-  if isLineUnderMouse(line) and mouseClick then
-    filterPrompt = false
-    filterBuffer = ''
-  end
-end
-
-function songList(y)
-  gfx.setfont(FONT_SMALL)
-  gfx.y = y - scrollOffset
-
-  local lastIndex, line, bottom, newScrollOffset
-
-  for index, song in ipairs(songs) do
-    lastIndex = index
-    line = textLine(song.name, MARGIN, PADDING)
-    bottom = line.rect.y + line.rect.h
-
-    if line.rect.y >= y - line.rect.h and bottom < gfx.h + line.rect.h then
-      local triggered, mouseDown = button(line,
-        index == currentIndex, index == nextIndex)
-
-      if triggered then
-        if drag and drag ~= index then
-          moveSong(drag, index)
-        else
-          setCurrentIndex(index)
-        end
-      elseif mouseDown and not drag then
-        drag = index -- initiate drag and drop
-      end
-    else
-      gfx.y = bottom
+    if move then
+      trySetCurrentIndex(currentIndex + move)
     end
-
-    if index == scrollTo then
-      if bottom + line.rect.h > gfx.h then
-        -- scroll down
-        newScrollOffset = scrollOffset + (bottom - gfx.h) + line.rect.h
-      elseif line.rect.y <= y + line.rect.h then
-        -- scroll up
-        newScrollOffset = scrollOffset - ((y - line.rect.y) + line.rect.h)
-      end
+  end,
+  absolute_move=function(index)
+    trySetCurrentIndex(tonumber(index))
+  end,
+  activate_queued=function()
+    if currentIndex ~= nextIndex then
+      setCurrentIndex(nextIndex)
     end
-  end
-
-  scrollTo = 0
-
-  if lastIndex then
-    maxScrollOffset = math.max(0,
-      scrollOffset + (bottom - gfx.h) + PADDING)
-
-    scrollbar(y, gfx.h - y)
-  end
-
-  scrollOffset = math.max(0,
-    math.min(newScrollOffset or scrollOffset, maxScrollOffset))
-end
-
-function scrollbar(top, height)
-  if maxScrollOffset < 1 then return end
-
-  height = height - MARGIN
-
-  local bottom = height + maxScrollOffset
-  local percent = height / bottom
-
-  useColor(COLOR_BORDER)
-  gfx.rect((gfx.w - MARGIN), top + (scrollOffset * percent), 4, height * percent)
-end
-
-function resetButton()
-  gfx.setfont(FONT_DEFAULT)
-  gfx.x = 0
-  gfx.y = 0
-
-  btn = textLine('reset')
-  btn.tx = btn.rect.w - btn.tw
-  btn.rect.w = btn.tw
-  btn.rect.x = btn.tx
-
-  if button(btn, false, false, true) then
-    reset()
-  end
-end
-
-function switchModeButton()
-  gfx.setfont(FONT_DEFAULT)
-  gfx.x = 0
-  gfx.y = LIST_START - (MARGIN / 2)
-
-  local mode, actions = getSwitchMode(), {}
-
-  if mode & SWITCH_STOP ~= 0 then
-    table.insert(actions, 'stop')
-  end
-  if mode & SWITCH_SEEK ~= 0 then
-    table.insert(actions, 'seek')
-  end
-  if mode & SWITCH_SCROLL ~= 0 then
-      table.insert(actions, 'scroll')
-    end
-  if #actions < 1 then
-    table.insert(actions, 'onswitch')
-  end
-
-  btn = textLine(table.concat(actions, '+'))
-  btn.tx = btn.rect.w - btn.tw
-  btn.ty = btn.ty - btn.rect.h
-  btn.rect.w = btn.tw
-  btn.rect.x = btn.tx
-  btn.rect.y = btn.ty
-
-  if button(btn, mode > 0, false, false) then
-    setSwitchMode((mode + 1) % (SWITCH_ALL + 1))
-  end
-end
-
-function dockButton()
-  gfx.setfont(FONT_DEFAULT)
-  gfx.x = 0
-  gfx.y = 0
-
-  btn = textLine('dock', 0)
-  btn.rect.w = btn.tw
-
-  local dockState = gfx.dock(-1)
-
-  if button(btn, dockState ~= 0, false, false) then
-    toggleDock(dockState)
-  end
-end
-
-function helpButton()
-  gfx.setfont(FONT_DEFAULT)
-  gfx.x = 0
-  gfx.y = LIST_START - (MARGIN / 2)
-
-  btn = textLine('help', 0)
-  btn.ty = btn.ty - btn.rect.h
-  btn.rect.w = btn.tw
-  btn.rect.x = btn.tx
-  btn.rect.y = btn.ty
-
-  local dockState = gfx.dock(-1)
-
-  if button(btn, dockState ~= 0, false, false) then
-    about()
-  end
-end
-
-function navButtons()
-  gfx.setfont(FONT_HUGE)
-
-  if currentIndex > 1 then
-    gfx.y = MARGIN + PADDING
-
-    prev = textLine('◀', 0)
-    prev.rect.x = gfx.y
-    prev.tx = gfx.y
-    prev.rect.w = prev.tw
-
-    if button(prev, false, false, false) then
-      setCurrentIndex(currentIndex - 1)
-    end
-  end
-
-  if songs[currentIndex + 1] then
-    gfx.y = MARGIN + PADDING
-
-    next = textLine('▶', 0)
-    next.tx = next.rect.w - next.tw - gfx.y
-    next.rect.x = next.tx
-    next.rect.w = next.tw
-
-    if button(next, false, false, false) then
-      setCurrentIndex(currentIndex + 1)
-    end
-  end
-end
-
-function button(line, active, highlight, danger)
-  local color, triggered, mouseDown = COLOR_BUTTON, false, false
-
-  if active then
-    useColor(COLOR_ACTIVEBG)
-    gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
-    color = COLOR_ACTIVEFG
-  end
-
-  if isUnderMouse(line.rect.x, line.rect.y, line.rect.w, line.rect.h) then
-    if (mouseState & MOUSE_LEFT_BTN) == MOUSE_LEFT_BTN then
-      mouseDown = true
-
-      if danger then
-        useColor(COLOR_DANGERBG)
-        color = COLOR_DANGERFG
-      else
-        useColor(COLOR_HIGHLIGHTBG)
-        color = COLOR_HIGHLIGHTFG
-      end
-    elseif not active then
-      useColor(COLOR_HOVERBG)
-      color = COLOR_HOVERFG
-    end
-
-    gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
-
-    if mouseClick then
-      triggered = true
-    end
-  end
-
-  -- draw highlight rect after mouse colors
-  -- so that hover don't override it
-  if highlight and not active and shouldShowHighlight() then
-    useColor(COLOR_HIGHLIGHTBG)
-    color = COLOR_HIGHLIGHTFG
-    gfx.rect(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
-  end
-
-  useColor(color)
-  drawTextLine(line)
-
-  return triggered, mouseDown
-end
-
-function shouldShowHighlight()
-  local time = os.time() - highlightTime
-  return time < 2 or time % 2 == 0
-end
-
-function keyboard()
-  local input = gfx.getchar()
-
-  if input < 0 then
-    -- bye bye!
-    return false
-  end
-
-  -- if input ~= 0 then
-  --   reaper.ShowConsoleMsg(input)
-  --   reaper.ShowConsoleMsg("\n")
-  -- end
-
-  if filterPrompt then
-    filterKey(input)
-  else
-    normalKey(input)
-  end
-
-  return true
-end
-
-function filterKey(input)
-  if input == KEY_BACKSPACE then
-    if filterBuffer:len() == 0 then
-      filterPrompt = false
-    else
-      filterBuffer = string.sub(filterBuffer, 0, -2)
-    end
-  elseif input == KEY_CLEAR or input == KEY_CTRLU then
-    filterBuffer = ''
-  elseif input == KEY_ESCAPE then
-    filterPrompt = false
-    filterBuffer = ''
-  elseif input == KEY_ENTER then
-    local index, _ = findSong(filterBuffer)
+  end,
+  filter=function(filter)
+    local index = findSong(filter)
 
     if index then
       setCurrentIndex(index)
     end
+  end,
+  reset=function() reset() end,
+}
 
-    filterPrompt = false
-    filterBuffer = ''
-  elseif input >= KEY_INPUTRANGE_FIRST and input <= KEY_INPUTRANGE_LAST then
-    filterBuffer = filterBuffer .. string.char(input)
-  end
-end
-
-function normalKey(input)
-  if (input == KEY_ESCAPE and dockedState == 0) or input == KEY_STAR then
-    gfx.quit()
-  elseif input == KEY_SPACE then
-    local playing = reaper.GetPlayState() == 1
-
-    if playing then
-      reaper.OnStopButton()
-    else
-      reaper.OnPlayButton()
-    end
-  elseif input == KEY_UP or input == KEY_LEFT then
-    setNextIndex(nextIndex - 1)
-  elseif input == KEY_DOWN or input == KEY_RIGHT then
-    setNextIndex(nextIndex + 1)
-  elseif input == KEY_PGUP or input == KEY_MINUS then
-    trySetCurrentIndex(currentIndex - 1)
-  elseif input == KEY_PGDOWN or input == KEY_PLUS then
-    trySetCurrentIndex(currentIndex + 1)
-  elseif input == KEY_CLEAR then
-    reset()
-  elseif input == KEY_F3 then
-    reaper.Main_OnCommand(40345, 0) -- send all note off
-  elseif input == KEY_ENTER then
-    if nextIndex == currentIndex then
-      filterPrompt = true
-    else
-      setCurrentIndex(nextIndex)
-    end
-  end
-end
-
-function isUnderMouse(x, y, w, h)
-  local hor, ver = false, false
-
-  if gfx.mouse_x > x and gfx.mouse_x <= x + w then
-    hor = true
-  end
-
-  if gfx.mouse_y > y and gfx.mouse_y <= y + h then
-    ver = true
-  end
-
-  if hor and ver then return true else return false end
-end
-
-function isLineUnderMouse(line)
-  return isUnderMouse(line.rect.x, line.rect.y, line.rect.w, line.rect.h)
-end
-
-function mouse()
-  mouseClick = false
-
-  if gfx.mouse_wheel ~= 0 then
-    local offset = math.max(0, scrollOffset - gfx.mouse_wheel)
-    scrollOffset = math.min(offset, maxScrollOffset)
-
-    gfx.mouse_wheel = 0
-  end
-
-  if mouseState == 0 and gfx.mouse_cap ~= 0 then
-    -- NOTE: mouse press handling here
-  end
-
-  if mouseState == 3 and gfx.mouse_cap < 3 and gfx.mouse_cap >= 0 then
-    -- two button release
-    -- also triggered if one button is released slightly before the other
-    reset()
-  elseif mouseState == 1 and gfx.mouse_cap == 0 then
-    -- left button release
-    mouseClick = true
-  elseif mouseState == 2 and gfx.mouse_cap == 0 then
-    -- right button release
-    contextMenu()
-  end
-
-  mouseState = gfx.mouse_cap
-end
-
-function loop()
-  execRemoteActions()
-  mouse()
-
-  if keyboard() then
-    reaper.defer(loop)
-  end
-
-  local fullUI = gfx.h > LIST_START + MARGIN
-
-  if fullUI then
-    songList(LIST_START)
-
-    -- solid header background, to hide scrolled list items
-    gfx.y = MARGIN
-    useColor(COLOR_BLACK)
-    gfx.rect(0, 0, gfx.w, LIST_START)
-
-    -- separator line
-    gfx.y = LIST_START - HALF_MARGIN
-    useColor(COLOR_BORDER)
-    gfx.line(0, gfx.y, gfx.w, gfx.y)
-
-    switchModeButton()
-    helpButton()
-    dockButton()
-    resetButton()
-
-    gfx.setfont(FONT_LARGE)
-  else
-    gfx.y = MARGIN + PADDING
-    gfx.setfont(FONT_HUGE)
-  end
-
-  if filterPrompt then
-    drawFilter()
-  else
-    drawName(songs[currentIndex])
-  end
-
-  if not fullUI then
-    navButtons()
-  end
-
-  if mouseClick then
-    -- cancel drag and drop on mouse release
-    -- only after processing it in drawing functions
-    drag = nil
-  end
-
-  gfx.update()
-end
-
-function execRemoteActions()
-  for signal, handler in pairs(SIGNALS) do
-    if reaper.HasExtState(EXT_SECTION, signal) then
-      local value = reaper.GetExtState(EXT_SECTION, signal)
-      reaper.DeleteExtState(EXT_SECTION, signal, false);
-      handler(value)
-    end
-  end
-end
-
-function reset()
+local function reset()
   songs = loadTracks()
 
   local activeIndex, activeCount, visibleCount = nil, 0, 0
@@ -822,13 +315,9 @@ function reset()
     end
   end
 
-  currentIndex = 0
-  nextIndex = 0
-  invalid = false
-  scrollOffset = 0
-  maxScrollOffset = 0
-  filterPrompt = false
-  filterBuffer = ''
+  filterPrompt, invalid = false, false
+  currentIndex, nextIndex, scrollTo = 0, 0, 0
+  highlightTime = reaper.ImGui_GetTime(ctx)
 
   -- clear previous pending external commands
   for signal, _ in pairs(SIGNALS) do
@@ -841,144 +330,360 @@ function reset()
       nextIndex = activeIndex
       scrollTo = activeIndex
 
-      updateState();
+      updateState()
     else
       setCurrentIndex(activeIndex)
     end
   else
-    updateState();
+    updateState()
   end
 end
 
-function previousWindowState()
-  local state = tostring(reaper.GetExtState(EXT_SECTION, EXT_WINDOW_STATE))
-  return state:match("^(%d+) (%d+) (%d+) (-?%d+) (-?%d+)$")
-end
-
-function saveWindowState()
-  local dockState, xpos, ypos = gfx.dock(-1, 0, 0, 0, 0)
-  local w, h = gfx.w, gfx.h
-  if dockState > 0 then
-    w, h = previousWindowState()
-  end
-
-  reaper.SetExtState(EXT_SECTION, EXT_WINDOW_STATE,
-    string.format("%d %d %d %d %d", w, h, dockState, xpos, ypos), true)
-end
-
-function getSwitchMode()
-  local mode = tonumber(reaper.GetExtState(EXT_SECTION, EXT_SWITCH_MODE))
-
-  if mode then
-    return mode
-  else
-    return 0
+local function execRemoteActions()
+  for signal, handler in pairs(SIGNALS) do
+    if reaper.HasExtState(EXT_SECTION, signal) then
+      local value = reaper.GetExtState(EXT_SECTION, signal)
+      reaper.DeleteExtState(EXT_SECTION, signal, false);
+      handler(value)
+    end
   end
 end
 
-function setSwitchMode(mode)
-  reaper.SetExtState(EXT_SECTION, EXT_SWITCH_MODE, tostring(mode), true)
+function drawName(song)
+  local name = song and song.name or 'No song selected'
+
+  reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_Text(),
+    reaper.ImGui_GetStyleColor(ctx, (song and reaper.ImGui_Col_Text or reaper.ImGui_Col_TextDisabled)()))
+  reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_Button(), invalid and 0xff0000ff or 0)
+  reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_ButtonHovered(), 0x323232ff)
+  reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_ButtonActive(),  0x3232327f)
+  if reaper.ImGui_Button(ctx, ('%s###song_name'):format(name), -FLT_MIN) then
+    filterPrompt = true
+  end
+  reaper.ImGui_PopStyleColor(ctx, 4)
 end
 
-function updateState()
-  local song = songs[currentIndex] or {name='', startTime=0, endTime=0}
+local function drawFilter()
+  reaper.ImGui_SetNextItemWidth(ctx, -FLT_MIN)
+  reaper.ImGui_SetKeyboardFocusHere(ctx)
+  local rv, filter = reaper.ImGui_InputText(ctx, '##name_fiter', '', reaper.ImGui_InputTextFlags_EnterReturnsTrue())
+  if reaper.ImGui_IsItemDeactivated(ctx) then
+    filterPrompt = false
+  end
+  if rv then
+    local index, _ = findSong(filter)
 
-  local state = string.format("%d\t%d\t%s\t%f\t%f\t%s",
-    currentIndex, #songs, song.name, song.startTime, song.endTime,
-    tostring(invalid)
-  )
-  reaper.SetExtState(EXT_SECTION, EXT_STATE, state, false)
-end
-
-function toggleDock(dockState)
-  if dockState == 0 then
-    local lastDock = tonumber(reaper.GetExtState(EXT_SECTION,
-      EXT_LAST_DOCK))
-    if not lastDock or lastDock < 1 then lastDock = 1 end
-
-    gfx.dock(lastDock)
-  else
-    reaper.SetExtState(EXT_SECTION, EXT_LAST_DOCK,
-      tostring(dockState), true)
-    gfx.dock(0)
+    if index then
+      setCurrentIndex(index)
+    end
   end
 end
 
-function contextMenu()
-  function checkbox(bool) if bool then return '!' else return '' end end
+local function formatTime(time)
+  return reaper.format_timestr(time, '')
+end
 
-  local dockState = gfx.dock(-1)
-  local mode = getSwitchMode()
+local function songList(y)
+  local flags = reaper.ImGui_TableFlags_Borders()   |
+                reaper.ImGui_TableFlags_RowBg()     |
+                reaper.ImGui_TableFlags_ScrollY()   |
+                reaper.ImGui_TableFlags_Hideable()  |
+                reaper.ImGui_TableFlags_Resizable() |
+                reaper.ImGui_TableFlags_Reorderable()
+  if not reaper.ImGui_BeginTable(ctx, 'song_list', 4, flags, -FLT_MIN, -FLT_MIN) then return end
 
-  local separator = ''
+  reaper.ImGui_TableSetupColumn(ctx, '#. Name',   reaper.ImGui_TableColumnFlags_WidthStretch())
+  reaper.ImGui_TableSetupColumn(ctx, 'Start',  reaper.ImGui_TableColumnFlags_WidthFixed())
+  reaper.ImGui_TableSetupColumn(ctx, 'End',    reaper.ImGui_TableColumnFlags_WidthFixed())
+  reaper.ImGui_TableSetupColumn(ctx, 'Length', reaper.ImGui_TableColumnFlags_WidthFixed())
+  reaper.ImGui_TableSetupScrollFreeze(ctx, 0, 1)
+  reaper.ImGui_TableHeadersRow(ctx)
 
-  local menu = {
-    string.format('%sDock window', checkbox(dockState > 0)),
-    'Reset data',
-    '>onswitch',
-      string.format('%sStop',    checkbox(mode & SWITCH_STOP   ~= 0)),
-      string.format('%sSeek',    checkbox(mode & SWITCH_SEEK   ~= 0)),
-      string.format('<%sScroll', checkbox(mode & SWITCH_SCROLL ~= 0)),
-    separator,
-  }
-
-  local actions = {
-    function() toggleDock(dockState) end,
-    reset,
-    function() setSwitchMode(mode ~ SWITCH_STOP) end,
-    function() setSwitchMode(mode ~ SWITCH_SEEK) end,
-    function() setSwitchMode(mode ~ SWITCH_SCROLL) end,
-  }
-
+  local swap
   for index, song in ipairs(songs) do
-    table.insert(menu, string.format('%s%s',
-      checkbox(index == currentIndex), song.name))
-    table.insert(actions, function() setCurrentIndex(index) end)
+    reaper.ImGui_TableNextRow(ctx)
+
+    reaper.ImGui_TableNextColumn(ctx)
+    local color = reaper.ImGui_GetStyleColor(ctx, reaper.ImGui_Col_Header())
+    local isCurrent, isNext = index == currentIndex, index == nextIndex
+    if isNext and not isCurrent then
+      -- swap blue <-> green
+      color = (color & 0xFF0000FF) | (color & 0x00FF0000) >> 8 | (color & 0x0000FF00) << 8
+      if (math.floor(highlightTime - reaper.ImGui_GetTime(ctx)) & 1) == 0 then
+        color = (color & ~0xff) | 0x1a
+      end
+    end
+    reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_Header(), color)
+    if reaper.ImGui_Selectable(ctx, ('%s###%d'):format(song.name, song.uniqId),
+        isCurrent or isNext,
+        reaper.ImGui_SelectableFlags_SpanAllColumns()) then
+      setCurrentIndex(index)
+    end
+    if reaper.ImGui_IsItemActive(ctx) and not reaper.ImGui_IsItemHovered(ctx) then
+      local mouseDelta = select(2, reaper.ImGui_GetMouseDragDelta(ctx, reaper.ImGui_MouseButton_Left()))
+      local newIndex = index + (mouseDelta < 0 and -1 or 1)
+      if newIndex > 0 and newIndex <= #songs then
+        swap = { from=index, to=newIndex }
+        reaper.ImGui_ResetMouseDragDelta(ctx, reaper.ImGui_MouseButton_Left())
+      end
+    end
+    reaper.ImGui_PopStyleColor(ctx)
+
+    reaper.ImGui_TableNextColumn(ctx)
+    reaper.ImGui_Text(ctx, formatTime(song.startTime))
+
+    reaper.ImGui_TableNextColumn(ctx)
+    reaper.ImGui_Text(ctx, formatTime(song.endTime))
+
+    reaper.ImGui_TableNextColumn(ctx)
+    reaper.ImGui_Text(ctx, formatTime(song.endTime - song.startTime))
+
+    if index == scrollTo then
+      reaper.ImGui_SetScrollHereY(ctx, 1)
+    end
   end
 
-  if #songs > 0 then table.insert(menu, separator) end
-  table.insert(menu, 'Help')
-  table.insert(actions, about)
+  reaper.ImGui_EndTable(ctx)
+  scrollTo = nil
 
-  gfx.x, gfx.y = gfx.mouse_x, gfx.mouse_y
-  local index = gfx.showmenu(table.concat(menu, '|'))
-  if actions[index] then actions[index]() end
+  if swap then
+    moveSong(swap.from, swap.to)
+  end
+end
+
+local function switchModeMenu()
+  local mode = getSwitchMode()
+  if reaper.ImGui_MenuItem(ctx, 'Stop playback', nil, mode & SWITCH_STOP ~= 0) then
+    setSwitchMode(mode ~ SWITCH_STOP)
+  end
+  if reaper.ImGui_MenuItem(ctx, 'Seek to first item', nil, mode & SWITCH_SEEK ~= 0) then
+    setSwitchMode(mode ~ SWITCH_SEEK)
+  end
+  if reaper.ImGui_MenuItem(ctx, 'Scroll to first item', nil, mode & SWITCH_SCROLL ~= 0) then
+    setSwitchMode(mode ~ SWITCH_SCROLL)
+  end
+end
+
+local function switchModeButton()
+  reaper.ImGui_SmallButton(ctx, 'onswitch')
+  if reaper.ImGui_BeginPopupContextItem(ctx, 'onswitch_menu', reaper.ImGui_PopupFlags_MouseButtonLeft()) then
+    switchModeMenu()
+    reaper.ImGui_EndPopup(ctx)
+  end
+end
+
+local function toggleDock(dockId)
+  dockId = dockId or reaper.ImGui_GetWindowDockID(ctx)
+  if dockId == 0 then
+    local lastDock = tonumber(reaper.GetExtState(EXT_SECTION, EXT_LAST_DOCK))
+    if not lastDock or lastDock < 0 or lastDock > 16 then lastDock = 0 end
+    setDock = ~lastDock
+  else
+    reaper.SetExtState(EXT_SECTION, EXT_LAST_DOCK, tostring(~dockId), true)
+    setDock = 0
+  end
+end
+
+local function contextMenu()
+  local dockId = reaper.ImGui_GetWindowDockID(ctx)
+  if not reaper.ImGui_BeginPopupContextWindow(ctx, 'context_menu') then return end
+
+  if reaper.ImGui_MenuItem(ctx, 'Dock window', nil, dockId ~= 0) then
+    toggleDock(dockId)
+  end
+  if reaper.ImGui_MenuItem(ctx, 'Reset data') then
+    reset()
+  end
+  if reaper.ImGui_BeginMenu(ctx, 'When switching to a song...') then
+    switchModeMenu()
+    reaper.ImGui_EndMenu(ctx)
+  end
+  reaper.ImGui_Separator(ctx)
+  if #songs > 0 then
+    for index, song in ipairs(songs) do
+      if reaper.ImGui_MenuItem(ctx, song.name, nil, index == currentIndex) then
+        setCurrentIndex(index)
+      end
+    end
+    reaper.ImGui_Separator(ctx)
+  end
+  if reaper.ImGui_MenuItem(ctx, 'Help') then
+    about()
+  end
+
+  reaper.ImGui_EndPopup(ctx)
 end
 
 function about()
-  local owner = reaper.ReaPack_GetOwner(({reaper.get_action_context()})[2])
+  local owner = reaper.ReaPack_GetOwner((select(2, reaper.get_action_context())))
   if owner then
     reaper.ReaPack_AboutInstalledPackage(owner)
     reaper.ReaPack_FreeEntry(owner)
+  else
+    reaper.ShowMessageBox('Song switcher must be installed through ReaPack to use this feature.', SCRIPT_NAME, 0)
   end
 end
 
--- graphics initialization
-mouseState = 0
-mouseClick = false
-highlightTime = 0
-scrollTo = 0
-drag = nil
+local function navButtons(size)
+  local pad_x, pad_y = 8, 8
+  local dl = reaper.ImGui_GetWindowDrawList(ctx)
 
-local w, h, dockState, x, y = previousWindowState()
+  local col_text   = reaper.ImGui_GetColor(ctx, reaper.ImGui_Col_Text())
+  local col_hover  = reaper.ImGui_GetColor(ctx, reaper.ImGui_Col_ButtonHovered())
+  local col_active = reaper.ImGui_GetColor(ctx, reaper.ImGui_Col_ButtonActive())
 
-if w then
-  gfx.init(WINDOW_TITLE, w, h, dockState, x, y)
-else
-  gfx.init(WINDOW_TITLE, 500, 300)
+  local function btn(isPrev)
+    reaper.ImGui_TableSetColumnIndex(ctx, isPrev and 0 or 2)
+
+    if reaper.ImGui_InvisibleButton(ctx, isPrev and 'prev' or 'next', size, size) then
+      setCurrentIndex(currentIndex + (isPrev and -1 or 1))
+    end
+
+    local color = reaper.ImGui_IsItemActive(ctx)  and col_active
+               or reaper.ImGui_IsItemHovered(ctx) and col_hover
+               or col_text
+
+    local min_x, min_y = reaper.ImGui_GetItemRectMin(ctx)
+    local max_x, max_y = reaper.ImGui_GetItemRectMax(ctx)
+    local mid_y = min_y + ((max_y - min_y) / 2)
+    min_x, min_y = min_x + pad_x, min_y + pad_y
+    max_x, max_y = max_x - pad_x, max_y - pad_y
+
+    if isPrev then
+      reaper.ImGui_DrawList_AddTriangleFilled(dl,
+        min_x, mid_y, max_x, min_y, max_x, max_y, color)
+    else
+      reaper.ImGui_DrawList_AddTriangleFilled(dl,
+        min_x, min_y, max_x, mid_y, min_x, max_y, color)
+    end
+  end
+
+  if currentIndex > 1        then btn(true) end
+  if songs[currentIndex + 1] then btn(false) end
 end
 
-gfx.setfont(FONT_HUGE, 'sans-serif', 36)
-gfx.setfont(FONT_LARGE, 'sans-serif', 28)
-gfx.setfont(FONT_SMALL, 'sans-serif', 13)
+local function keyInput(input)
+  if not reaper.ImGui_IsWindowFocused(ctx) or reaper.ImGui_IsAnyItemActive(ctx) then return end
 
--- other variable initializations in reset()
-reset()
+  if reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_UpArrow()) or
+     reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_LeftArrow()) then
+    setNextIndex(nextIndex - 1)
+  elseif reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_DownArrow()) or
+         reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_RightArrow()) then
+    setNextIndex(nextIndex + 1)
+  elseif reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_PageUp(), false) or
+         reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_KeypadSubtract(), false) then
+    trySetCurrentIndex(currentIndex - 1)
+  elseif reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_PageDown(), false) or
+         reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_KeypadAdd(), false) then
+    trySetCurrentIndex(currentIndex + 1)
+  -- elseif input == KEY_CLEAR then
+  --   reset()
+  elseif reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_Enter(), false) or
+         reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_KeypadEnter(), false) then
+    if nextIndex == currentIndex then
+      filterPrompt = true
+    else
+      setCurrentIndex(nextIndex)
+    end
+  end
+end
+
+local function toolbar()
+  local frame_padding_x, frame_padding_y = reaper.ImGui_GetStyleVar(ctx, reaper.ImGui_StyleVar_FramePadding())
+  local item_spacing_x,  item_spacing_y  = reaper.ImGui_GetStyleVar(ctx, reaper.ImGui_StyleVar_ItemSpacing())
+  reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_FramePadding(), frame_padding_x, math.floor(frame_padding_y * 0.60))
+  reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_ItemSpacing(),  item_spacing_x,  math.floor(item_spacing_y  * 0.60))
+  reaper.ImGui_PushFont(ctx, nil)
+
+  switchModeButton()
+  reaper.ImGui_SameLine(ctx)
+
+  local dockLabel = reaper.ImGui_IsWindowDocked(ctx) and 'undock' or 'dock'
+  if reaper.ImGui_SmallButton(ctx, ('%s###dock'):format(dockLabel)) then
+    toggleDock()
+  end
+  reaper.ImGui_SameLine(ctx)
+
+  reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_ButtonHovered(), 0xff4242ff)
+  if reaper.ImGui_SmallButton(ctx, 'reset') then reset() end
+  reaper.ImGui_PopStyleColor(ctx)
+  reaper.ImGui_SameLine(ctx)
+
+  if reaper.ImGui_SmallButton(ctx, 'help') then about() end
+
+  reaper.ImGui_PopFont(ctx)
+  reaper.ImGui_PopStyleVar(ctx, 2)
+end
+
+local function mainWindow()
+  contextMenu()
+  keyInput()
+
+  local avail_y = select(2, reaper.ImGui_GetContentRegionAvail(ctx))
+  local fullUI = avail_y > 50 and reaper.ImGui_GetScrollMaxY(ctx) <= avail_y
+
+  filterPrompt = filterPrompt and reaper.ImGui_IsWindowFocused(ctx)
+  reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_CellPadding(), 0, 0)
+  if reaper.ImGui_BeginTable(ctx, 'topbar', fullUI and 1 or 3) then
+    reaper.ImGui_PushFont(ctx, fullUI and fonts.large or fonts.huge)
+
+    if fullUI then
+      reaper.ImGui_TableNextColumn(ctx)
+    else
+      local width = reaper.ImGui_GetFontSize(ctx)
+      reaper.ImGui_TableSetupColumn(ctx, 'prev', reaper.ImGui_TableColumnFlags_WidthFixed(), width)
+      reaper.ImGui_TableSetupColumn(ctx, 'name', reaper.ImGui_TableColumnFlags_WidthStretch())
+      reaper.ImGui_TableSetupColumn(ctx, 'next', reaper.ImGui_TableColumnFlags_WidthFixed(), width)
+      reaper.ImGui_TableNextRow(ctx)
+      navButtons(width)
+      reaper.ImGui_TableSetColumnIndex(ctx, 1)
+    end
+
+    if filterPrompt then
+      drawFilter()
+    else
+      drawName(songs[currentIndex])
+    end
+
+    reaper.ImGui_PopFont(ctx)
+    reaper.ImGui_EndTable(ctx)
+  end
+  reaper.ImGui_PopStyleVar(ctx)
+  if fullUI then
+    toolbar()
+    reaper.ImGui_Spacing(ctx)
+    songList()
+  end
+end
+
+local function loop()
+  execRemoteActions()
+
+  reaper.ImGui_PushFont(ctx, fonts.small)
+  reaper.ImGui_SetNextWindowSize(ctx, 500, 300, setDock and reaper.ImGui_Cond_Always() or reaper.ImGui_Cond_FirstUseEver())
+  if setDock then
+    reaper.ImGui_SetNextWindowDockID(ctx, setDock)
+    setDock = nil
+  end
+  local visible, open = reaper.ImGui_Begin(ctx, SCRIPT_NAME, true, reaper.ImGui_WindowFlags_NoScrollbar())
+  if visible then
+    mainWindow()
+    reaper.ImGui_End(ctx)
+  end
+  reaper.ImGui_PopFont(ctx)
+
+  if open then
+    reaper.defer(loop)
+  else
+    reaper.ImGui_DestroyContext(ctx)
+  end
+end
 
 -- GO!!
-loop()
+reset()
+reaper.defer(loop)
 
 reaper.atexit(function()
-  saveWindowState()
   reaper.DeleteExtState(EXT_SECTION, EXT_STATE, false)
 end)
