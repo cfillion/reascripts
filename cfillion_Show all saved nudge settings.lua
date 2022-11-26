@@ -1,6 +1,6 @@
 -- @description Show all saved nudge settings
--- @version 3.0.1
--- @changelog Update the user interface to ReaImGui v0.5
+-- @version 3.0.2
+-- @changelog Enable ReaImGui's backward compatibility shims
 -- @author cfillion
 -- @link cfillion.ca https://cfillion.ca
 -- @donation https://www.paypal.me/cfillion
@@ -44,6 +44,9 @@
 --   Furthermore, REAPER does not store the nudge amout when using the "Set" mode
 --   in the native nudge dialog. The script displays "N/A" in this case and the
 --   nudge left/right actions are unavailable.
+
+dofile(reaper.GetResourcePath() ..
+       '/Scripts/ReaTeam Extensions/API/imgui.lua')('0.7')
 
 local r = reaper
 

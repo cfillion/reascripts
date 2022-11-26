@@ -1,3 +1,6 @@
+dofile(reaper.GetResourcePath() ..
+       '/Scripts/ReaTeam Extensions/API/imgui.lua')('0.7')
+
 local SCRIPT_NAME = 'Song switcher'
 
 local EXT_SECTION     = 'cfillion_song_switcher'
