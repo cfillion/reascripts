@@ -49,6 +49,7 @@ local function makeOpts(opts)
 end
 
 local function formatTime(time, pad)
+  if pad == nil then pad = true end
   local units, unit = { 's', 'ms', 'us', 'ns' }, 1
   while time < 0.1 and unit < #units do
     time, unit = time * 1000, unit + 1
@@ -110,6 +111,25 @@ local function alignNextItemRight(ctx, label, spacing)
   ImGui.SetCursorPosX(ctx, math_max(ImGui.GetCursorPosX(ctx),
     ImGui.GetContentRegionMax(ctx) - (spacing and item_spacing_w or 0) -
     ImGui.CalcTextSize(ctx, label, nil, nil, true)))
+end
+
+local function tooltip(ctx, text)
+  if not ImGui.IsItemHovered(ctx, ImGui.HoveredFlags_DelayShort()) or
+    not ImGui.BeginTooltip(ctx) then return end
+  ImGui.PushTextWrapPos(ctx, ImGui.GetFontSize(ctx) * 42)
+  ImGui.Text(ctx, text)
+  ImGui.PopTextWrapPos(ctx)
+  ImGui.EndTooltip(ctx)
+end
+
+local function textCell(ctx, value, right_align, custom_tooltip)
+  if right_align == nil then right_align = true end
+  if right_align then alignNextItemRight(ctx, value) end
+  ImGui.Text(ctx, value)
+  if (custom_tooltip and custom_tooltip ~= value) or
+      ImGui.CalcTextSize(ctx, value) > ImGui.GetContentRegionAvail(ctx) then
+    tooltip(ctx, custom_tooltip or value)
+  end
 end
 
 local function enter(what, alias)
@@ -344,7 +364,7 @@ local function attachToVar(is_attach, var, opts)
   -- start at depth=0 to attach to tables by name with opts.recursion=false
   local ok, wrapper = attach(is_attach, var, val, opts, 0)
   assert(ok, string_format('%s is not %s',
-    var, is_attach and 'attachable' or 'deatachable'))
+    var, is_attach and 'attachable' or 'detachable'))
   if wrapper then
     if idx then debug_setlocal(level, idx, wrapper) end
     if parent then parent[parent_key] = wrapper end
@@ -543,7 +563,7 @@ function profiler.showReport(ctx, label, width, height)
     summary = 'No profiling data has been acquired yet.'
   else
     summary = string_format('Total active time: %s / %s (%.02f%%)',
-      formatTime(report.time), formatTime(report.total_time),
+      formatTime(report.time, false), formatTime(report.total_time, false),
       (report.time / report.total_time) * 100)
   end
   ImGui.Text(ctx, summary)
@@ -606,7 +626,7 @@ function profiler.showReport(ctx, label, width, height)
   end
 
   local cut_src_cache = {}
-
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding(), 1, 1)
   ImGui.ListClipper_Begin(clipper, #report)
   while ImGui.ListClipper_Step(clipper) do
     local display_start, display_end = ImGui.ListClipper_GetDisplayRange(clipper)
@@ -616,7 +636,8 @@ function profiler.showReport(ctx, label, width, height)
       ImGui.PushID(ctx, i)
 
       ImGui.TableNextColumn(ctx)
-      ImGui.Text(ctx, string_format('%s', line.name))
+      ImGui.AlignTextToFramePadding(ctx)
+      textCell(ctx, line.name, false)
 
       ImGui.TableNextColumn(ctx)
       local src_short = cut_src_cache[line.src_short]
@@ -624,71 +645,40 @@ function profiler.showReport(ctx, label, width, height)
         src_short = ellipsis(ctx, line.src_short)
         cut_src_cache[line.src_short] = src_short
       end
-      ImGui.Text(ctx, src_short)
-      if src_short ~= line.src and
-          ImGui.IsItemHovered(ctx) and ImGui.BeginTooltip(ctx) then
-        ImGui.PushTextWrapPos(ctx, ImGui.GetFontSize(ctx) * 42)
-        ImGui.Text(ctx, line.src)
-        ImGui.PopTextWrapPos(ctx)
-        ImGui.EndTooltip(ctx)
-      end
+      textCell(ctx, src_short, false, line.src)
 
       ImGui.TableNextColumn(ctx)
-      alignNextItemRight(ctx, line.src_line)
-      ImGui.Text(ctx, line.src_line)
+      textCell(ctx, line.src_line)
 
       ImGui.TableNextColumn(ctx)
-      ImGui.ProgressBar(ctx, line.time_frac, nil, ImGui.GetFontSize(ctx),
+      ImGui.ProgressBar(ctx, line.time_frac, nil, nil,
         string_format('%.02f%%', line.time_frac * 100))
 
       ImGui.TableNextColumn(ctx)
-      local time = formatTime(line.time, true)
-      alignNextItemRight(ctx, time)
-      ImGui.Text(ctx, time)
+      textCell(ctx, formatTime(line.time))
+      ImGui.TableNextColumn(ctx)
+      textCell(ctx, formatNumber(line.count))
+      ImGui.TableNextColumn(ctx)
+      textCell(ctx, formatNumber(line.frames))
+      ImGui.TableNextColumn(ctx)
+
+      textCell(ctx, formatTime(line.min_time))
+      ImGui.TableNextColumn(ctx)
+      textCell(ctx, formatTime(line.avg_time))
+      ImGui.TableNextColumn(ctx)
+      textCell(ctx, formatTime(line.max_time))
 
       ImGui.TableNextColumn(ctx)
-      local count = formatNumber(line.count)
-      alignNextItemRight(ctx, count)
-      ImGui.Text(ctx, count)
-
+      textCell(ctx, formatNumber(line.min_frame))
       ImGui.TableNextColumn(ctx)
-      local frames = formatNumber(line.frames)
-      alignNextItemRight(ctx, frames)
-      ImGui.Text(ctx, frames)
-
+      textCell(ctx, formatNumber(line.avg_frame))
       ImGui.TableNextColumn(ctx)
-      local time = formatTime(line.min_time, true)
-      alignNextItemRight(ctx, time)
-      ImGui.Text(ctx, time)
-
-      ImGui.TableNextColumn(ctx)
-      local time = formatTime(line.avg_time, true)
-      alignNextItemRight(ctx, time)
-      ImGui.Text(ctx, time)
-
-      ImGui.TableNextColumn(ctx)
-      local time = formatTime(line.max_time, true)
-      alignNextItemRight(ctx, time)
-      ImGui.Text(ctx, time)
-
-      ImGui.TableNextColumn(ctx)
-      local min_frame = formatNumber(line.min_frame)
-      alignNextItemRight(ctx, min_frame)
-      ImGui.Text(ctx, min_frame)
-
-      ImGui.TableNextColumn(ctx)
-      local avg_frame = formatNumber(line.avg_frame)
-      alignNextItemRight(ctx, avg_frame)
-      ImGui.Text(ctx, avg_frame)
-
-      ImGui.TableNextColumn(ctx)
-      local max_frame = formatNumber(line.max_frame)
-      alignNextItemRight(ctx, max_frame)
-      ImGui.Text(ctx, max_frame)
+      textCell(ctx, formatNumber(line.max_frame))
 
       ImGui.PopID(ctx)
     end
   end
+  ImGui.PopStyleVar(ctx)
   ImGui.EndTable(ctx)
 
   if export then ImGui.LogFinish(ctx) end
