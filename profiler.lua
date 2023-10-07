@@ -29,6 +29,9 @@ local utf8_len,       utf8_offset     = utf8.len,       utf8.offset
 local reaper_defer,   CF_ShellExecute = reaper.defer,   reaper.CF_ShellExecute
 local reaper_get_action_context = reaper.get_action_context
 
+assert(debug_getinfo(debug_getlocal, 'S').what == 'C',
+  'global environment is tainted, stack depths will be incorrect')
+
 local function makeOpts(opts)
   if not opts then opts = {} end
 
@@ -239,7 +242,7 @@ end
 local function getHostVar(path, level)
   assert(type(path) == 'string', 'variable name must be a string')
 
-  local off, sep = 1, string_find(path, '.', nil, true)
+  local off, sep = 1, string_find(path, '[%.`]')
   local seg = string_sub(path, off, sep and sep - 1)
   local match, local_idx, parent
 
@@ -253,12 +256,25 @@ local function getHostVar(path, level)
   if not match then match = _ENV[seg] end
 
   while match and sep do
-    assert(type(match) == 'table',
-      string_format('%s is not a table', string_sub(path, 1, sep and sep - 1)))
+    local is_special = string_sub(path, sep, sep) ~= '.'
+
     off = sep + 1
-    sep = string_find(path, '.', off, true)
+    sep = string_find(path, '[%.`]', off)
     seg = string_sub(path, off, sep and sep - 1)
-    parent, match, local_idx = match, match[seg], nil
+    local_idx = nil
+
+    if is_special then
+      if seg == 'meta' then
+        parent, match = nil, getmetatable(match)
+      else
+        match = nil
+        break
+      end
+    else
+      assert(type(match) == 'table',
+        string_format('%s is not a table', string_sub(path, 1, sep and sep - 1)))
+      parent, match = match, match[seg]
+    end
   end
 
   assert(match, string_format('variable not found: %s',
@@ -269,13 +285,18 @@ end
 
 local attachToTable
 
-local function attach(is_attach, name, value, opts, depth)
+local function attach(is_attach, name, value, opts, depth, in_metatable)
   -- prevent infinite recursion
   for k, v in pairs(profiler) do
     if value == v then return end
   end
 
-  depth = depth or 0
+  if opts.metatable then
+    local metatable = getmetatable(value)
+    if metatable then
+      attachToTable(is_attach, name .. '`meta', metatable, opts, depth, true)
+    end
+  end
 
   local t = type(value)
   if t == 'function' then
@@ -287,7 +308,10 @@ local function attach(is_attach, name, value, opts, depth)
         if original then return true, original end
       end
     end
-  elseif opts.recursive and t == 'table' and depth < 8 and value ~= _G then
+  elseif t == 'table' and (opts.recursive or depth == 0) and
+      depth < 8 and value ~= _G and not in_metatable then
+    -- don't dig into metatables to avoid listing (for example) string.byte
+    -- as some_string_value`meta.__index.byte
     attachToTable(is_attach, name, value, opts, depth + 1)
     return true
   end
@@ -295,7 +319,7 @@ local function attach(is_attach, name, value, opts, depth)
   return false
 end
 
-attachToTable = function(is_attach, prefix, array, opts, depth)
+attachToTable = function(is_attach, prefix, array, opts, depth, in_metatable)
   assert(type(array) == 'table', string_format('%s is not a table', prefix))
 
   if array == package.loaded then return end
@@ -303,29 +327,22 @@ attachToTable = function(is_attach, prefix, array, opts, depth)
   for name, value in pairs(array) do
     local path = name
     if prefix then path = string_format('%s.%s', prefix, name) end
-    local ok, wrapper = attach(is_attach, path, value, opts, depth)
+    local ok, wrapper = attach(is_attach, path, value, opts, depth, in_metatable)
     if wrapper then array[name] = wrapper end
-  end
-
-  local metatable = getmetatable(array)
-  if metatable and opts.metatable then
-    attachToTable(is_attach, prefix .. '[meta]', metatable, opts, depth)
   end
 end
 
 local function attachToLocals(is_attach, opts)
   for level, idx, name, value in eachLocals(3, opts.search_above) do
-    local ok, wrapper = attach(is_attach, name, value, opts)
+    local ok, wrapper = attach(is_attach, name, value, opts, 1)
     if wrapper then debug_setlocal(level, idx, wrapper) end
   end
 end
 
 local function attachToVar(is_attach, var, opts)
   local val, level, idx, parent, parent_key = getHostVar(var, 4)
-  if type(val) == 'table' then
-    return attachToTable(is_attach, var, val, opts)
-  end
-  local ok, wrapper = attach(is_attach, var, val, opts)
+  -- start at depth=0 to attach to tables by name with opts.recursion=false
+  local ok, wrapper = attach(is_attach, var, val, opts, 0)
   assert(ok, string_format('%s is not %s',
     var, is_attach and 'attachable' or 'deatachable'))
   if wrapper then
@@ -353,13 +370,13 @@ end
 function profiler.attachToWorld()
   local opts = makeOpts()
   attachToLocals(true, opts)
-  attachToTable(true, nil, _G, opts)
+  attachToTable(true, nil, _G, opts, 1)
 end
 
 function profiler.detachFromWorld()
   local opts = makeOpts()
   attachToLocals(false, opts)
-  attachToTable(false, nil, _G, opts)
+  attachToTable(false, nil, _G, opts, 1)
 end
 
 function profiler.reset()
