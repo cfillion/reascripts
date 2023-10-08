@@ -306,7 +306,7 @@ local function getHostVar(path, level)
     end
   end
 
-  if not match then match = _ENV[seg] end
+  if not match then parent, match = _G, _G[seg] end
 
   while match and sep do
     local is_special = string_sub(path, sep, sep) ~= '.'
