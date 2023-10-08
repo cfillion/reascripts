@@ -10,7 +10,7 @@ local FLT_MIN = ImGui.NumericLimits_Float()
 local profiler, data, report = {}
 local attachments, wrappers, locations, clippers = {}, {}, {}, {}
 local active, auto_active, show_metrics = false, false, false
-local called_defer = false
+local defer_called = false
 local getTime = reaper.time_precise -- faster than os.clock
 
 -- cache stdlib constants and funcs to not break if the host script changes them
@@ -184,6 +184,24 @@ local function leave(what)
   line.enter_time, line.enter_count = now, line.enter_count - 1
 end
 
+local function setActive(activate)
+  if activate then
+    report.first_start_time = getTime()
+
+    if defer_called then
+      auto_active = true
+    else
+      profiler.start()
+    end
+  else
+    if active then
+      profiler.stop()
+    else
+      auto_active = false
+    end
+  end
+end
+
 local function updateReport()
   if active then
     -- update active time
@@ -191,10 +209,11 @@ local function updateReport()
     profiler.start()
   end
 
+  local now = getTime()
   report = {
     time = report.time,
-    total_time = getTime() - report.first_start_time,
-    start_time = report.start_time, first_start_time = report.first_start_time,
+    total_time = report.total_time + (now - report.first_start_time),
+    start_time = report.start_time, first_start_time = now,
   }
 
   for key, line in pairs(data) do
@@ -495,15 +514,14 @@ function profiler.showWindow(ctx, p_open, flags)
     if ImGui.BeginMenu(ctx, 'Acquisition') then
       local is_active = active or auto_active
       if ImGui.MenuItem(ctx, 'Start', nil, nil, not is_active) then
-        if called_defer then
-          auto_active = true
+        if defer_called then
+          setActive(true)
         else
           open_no_defer_popup = true
         end
       end
       if ImGui.MenuItem(ctx, 'Stop', nil, nil, is_active) then
-        auto_active = false
-        if active then profiler.stop() end
+        setActive(false)
       end
       ImGui.EndMenu(ctx)
     end
@@ -564,13 +582,13 @@ function profiler.showWindow(ctx, p_open, flags)
     ImGui.Spacing(ctx)
 
     if ImGui.Button(ctx, 'Continue') then
-      profiler.start()
+      setActive(true)
       ImGui.CloseCurrentPopup(ctx)
     end
     ImGui.SameLine(ctx)
     if ImGui.Button(ctx, 'Inject proxy and continue') then
-      reaper.defer = profiler.defer
-      auto_active = true
+      reaper.defer, defer_called = profiler.defer, true
+      setActive(true)
       ImGui.CloseCurrentPopup(ctx)
     end
     ImGui.SameLine(ctx)
@@ -738,11 +756,11 @@ function profiler.showReport(ctx, label, width, height)
 end
 
 function profiler.defer(callback)
-  called_defer = true
+  defer_called = true
   if not auto_active then return reaper_defer(callback) end
 
   reaper_defer(function()
-    called_defer = false
+    defer_called = false
     profiler.start()
     callback()
     profiler.stop()
