@@ -49,6 +49,7 @@ local function makeOpts(opts)
 end
 
 local function formatTime(time, pad)
+  if not time then return end
   if pad == nil then pad = true end
   local units, unit = { 's', 'ms', 'us', 'ns' }, 1
   while time < 0.1 and unit < #units do
@@ -140,7 +141,8 @@ local function enter(what, alias)
     line = {
       name = alias, count = 0, time = 0,
       enter_time = 0, enter_count = 0,
-      frames = 0, prev_count = 0,
+      frames = 0, prev_count = 0, prev_time = 0,
+      time_per_call = {}, time_per_frame = {}, calls_per_frame = {},
     }
     data[what] = line
   end
@@ -172,11 +174,11 @@ local function leave(what)
     error('unbalanced leave (missing call to enter)')
   end
   local time = now - line.enter_time
-  if not line.min_time or time < line.min_time then
-    line.min_time = time
+  if not line.time_per_call.min or time < line.time_per_call.min then
+    line.time_per_call.min = time
   end
-  if not line.max_time or time > line.max_time then
-    line.max_time = time
+  if not line.time_per_call.max or time > line.time_per_call.max then
+    line.time_per_call.max = time
   end
   line.time = line.time + time
   line.enter_time, line.enter_count = now, line.enter_count - 1
@@ -197,6 +199,7 @@ local function updateReport()
 
   for key, line in pairs(data) do
     assert(line.enter_count == 0, 'unbalanced enter (missing call to leave)')
+
     local location = locations[key]
     local src, src_short, src_line = '<unknown>',  '<unknown>', -1
     if location then
@@ -204,14 +207,25 @@ local function updateReport()
       src_short = basename(location.short_src)
       src_line = location.linedefined
     end
+
     report[#report + 1] = { -- immutable copy of the line
       name = line.name, time = line.time, count = line.count,
-      min_time  = line.min_time, max_time = line.max_time,
-      avg_time  = line.time / line.count, frames = line.frames,
-      min_frame = line.min_frame, max_frame = line.max_frame,
-      avg_frame = line.frames > 0 and line.count // line.frames,
       time_frac = line.time / report.time,
       src = src, src_short = src_short, src_line = src_line,
+      frames = line.frames > 0 and line.frames,
+
+      time_per_call = {
+        min = line.time_per_call.min, max = line.time_per_call.max,
+        avg = line.time / line.count,
+      },
+      time_per_frame = {
+        min = line.time_per_frame.min, max = line.time_per_frame.max,
+        avg = line.frames > 0 and line.time / line.frames,
+      },
+      calls_per_frame = {
+        min = line.calls_per_frame.min, max = line.calls_per_frame.max,
+        avg = line.frames > 0 and line.count // line.frames,
+      },
     }
   end
 
@@ -412,6 +426,17 @@ function profiler.start()
   end
 end
 
+function profiler.enter(what)
+  if not active then return end
+  what = tostring(what)
+  enter(what, what)
+end
+
+function profiler.leave(what)
+  if not active then return end
+  leave(tostring(what))
+end
+
 function profiler.stop()
   assert(active, 'profiler is not active')
   active = false
@@ -424,25 +449,23 @@ function profiler.frame()
     if line.count > line.prev_count then
       local count = line.count - line.prev_count
       line.frames, line.prev_count = line.frames + 1, line.count
-      if not line.min_frame or count < line.min_frame then
-        line.min_frame = count
+      if not line.calls_per_frame.min or count < line.calls_per_frame.min then
+        line.calls_per_frame.min = count
       end
-      if not line.max_frame or count > line.max_frame then
-        line.max_frame = count
+      if not line.calls_per_frame.max or count > line.calls_per_frame.max then
+        line.calls_per_frame.max = count
+      end
+
+      local time = line.time - line.prev_time
+      line.prev_time = line.time
+      if not line.time_per_frame.min or time < line.time_per_frame.min then
+        line.time_per_frame.min = time
+      end
+      if not line.time_per_frame.max or time > line.time_per_frame.max then
+        line.time_per_frame.max = time
       end
     end
   end
-end
-
-function profiler.enter(what)
-  if not active then return end
-  what = tostring(what)
-  enter(what, what)
-end
-
-function profiler.leave(what)
-  if not active then return end
-  leave(tostring(what))
 end
 
 function profiler.showWindow(ctx, p_open, flags)
@@ -511,19 +534,24 @@ function profiler.showWindow(ctx, p_open, flags)
   end
 
   if open_no_defer_popup then
-    ImGui.OpenPopup(ctx, 'Active time measurement')
+    ImGui.OpenPopup(ctx, 'Frame measurement')
   end
   centerNextWindow(ctx)
-  if ImGui.BeginPopupModal(ctx, 'Active time measurement', true,
+  if ImGui.BeginPopupModal(ctx, 'Frame measurement', true,
       ImGui.WindowFlags_AlwaysAutoResize()) then
     ImGui.Text(ctx,
-     'Active time measurement requires usage of a proxy defer function.\n\z
-      Add the snippet below to the host script to enable this feature.\n\n\z
-      \z
-      Do you wish to enable acquisition without active time measurement?\n\z
-      Realtime will be measured instead of active time.')
+      'Frame measurement requires usage of a proxy defer function.')
     ImGui.Spacing(ctx)
 
+    ImGui.Text(ctx, 'The following measurements are affected:')
+    ImGui.Bullet(ctx); ImGui.Text(ctx, 'Active time vs wall time')
+    ImGui.Bullet(ctx); ImGui.Text(ctx, 'Frame count')
+    ImGui.Bullet(ctx); ImGui.Text(ctx, 'Time per frame (min/avg/max)')
+    ImGui.Bullet(ctx); ImGui.Text(ctx, 'Calls per frame (min/avg/max)')
+    ImGui.Spacing(ctx)
+
+    ImGui.Text(ctx,
+      'Add the following snippet to the host script:')
     if ImGui.IsWindowAppearing(ctx) then
       ImGui.SetKeyboardFocusHere(ctx)
     end
@@ -532,8 +560,17 @@ function profiler.showWindow(ctx, p_open, flags)
       -FLT_MIN, ImGui.GetFontSize(ctx) * 3, ImGui.InputTextFlags_ReadOnly())
     ImGui.Spacing(ctx)
 
+    ImGui.Text(ctx, 'Do you wish to enable acquisition anyway?')
+    ImGui.Spacing(ctx)
+
     if ImGui.Button(ctx, 'Continue') then
       profiler.start()
+      ImGui.CloseCurrentPopup(ctx)
+    end
+    ImGui.SameLine(ctx)
+    if ImGui.Button(ctx, 'Inject proxy and continue') then
+      reaper.defer = profiler.defer
+      auto_active = true
       ImGui.CloseCurrentPopup(ctx)
     end
     ImGui.SameLine(ctx)
@@ -588,7 +625,7 @@ function profiler.showReport(ctx, label, width, height)
     ImGui.TableFlags_Hideable()  | ImGui.TableFlags_Sortable()    |
     ImGui.TableFlags_ScrollX()   | ImGui.TableFlags_ScrollY()     |
     ImGui.TableFlags_Borders()   | ImGui.TableFlags_RowBg()
-  if not ImGui.BeginTable(ctx, 'table', 13, flags) then
+  if not ImGui.BeginTable(ctx, 'table', 16, flags) then
     return ImGui.EndChild(ctx)
   end
   ImGui.TableSetupScrollFreeze(ctx, 0, 1)
@@ -603,13 +640,19 @@ function profiler.showReport(ctx, label, width, height)
     ImGui.TableColumnFlags_PreferSortDescending())
   ImGui.TableSetupColumn(ctx, 'Calls',
     ImGui.TableColumnFlags_PreferSortDescending())
-  ImGui.TableSetupColumn(ctx, 'Frames',
-    ImGui.TableColumnFlags_PreferSortDescending())
   ImGui.TableSetupColumn(ctx, 'MinT/c',
     ImGui.TableColumnFlags_PreferSortDescending())
   ImGui.TableSetupColumn(ctx, 'AvgT/c',
     ImGui.TableColumnFlags_PreferSortDescending())
   ImGui.TableSetupColumn(ctx, 'MaxT/c',
+    ImGui.TableColumnFlags_PreferSortDescending())
+  ImGui.TableSetupColumn(ctx, 'Frames',
+    ImGui.TableColumnFlags_PreferSortDescending())
+  ImGui.TableSetupColumn(ctx, 'MinT/f',
+    ImGui.TableColumnFlags_PreferSortDescending())
+  ImGui.TableSetupColumn(ctx, 'AvgT/f',
+    ImGui.TableColumnFlags_PreferSortDescending())
+  ImGui.TableSetupColumn(ctx, 'MaxT/f',
     ImGui.TableColumnFlags_PreferSortDescending())
   ImGui.TableSetupColumn(ctx, 'MinC/f',
     ImGui.TableColumnFlags_PreferSortDescending())
@@ -658,22 +701,30 @@ function profiler.showReport(ctx, label, width, height)
       textCell(ctx, formatTime(line.time))
       ImGui.TableNextColumn(ctx)
       textCell(ctx, formatNumber(line.count))
+
+      ImGui.TableNextColumn(ctx)
+      textCell(ctx, formatTime(line.time_per_call.min))
+      ImGui.TableNextColumn(ctx)
+      textCell(ctx, formatTime(line.time_per_call.avg))
+      ImGui.TableNextColumn(ctx)
+      textCell(ctx, formatTime(line.time_per_call.max))
+
       ImGui.TableNextColumn(ctx)
       textCell(ctx, formatNumber(line.frames))
-      ImGui.TableNextColumn(ctx)
-
-      textCell(ctx, formatTime(line.min_time))
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatTime(line.avg_time))
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatTime(line.max_time))
 
       ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatNumber(line.min_frame))
+      textCell(ctx, formatTime(line.time_per_frame.min))
       ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatNumber(line.avg_frame))
+      textCell(ctx, formatTime(line.time_per_frame.avg))
       ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatNumber(line.max_frame))
+      textCell(ctx, formatTime(line.time_per_frame.max))
+
+      ImGui.TableNextColumn(ctx)
+      textCell(ctx, formatNumber(line.calls_per_frame.min))
+      ImGui.TableNextColumn(ctx)
+      textCell(ctx, formatNumber(line.calls_per_frame.avg))
+      ImGui.TableNextColumn(ctx)
+      textCell(ctx, formatNumber(line.calls_per_frame.max))
 
       ImGui.PopID(ctx)
     end
