@@ -361,8 +361,8 @@ local function attach(is_attach, name, value, opts, depth, in_metatable)
         if original then return true, original end
       end
     end
-  elseif t == 'table' and (opts.recursive or depth == 0) and
-      depth < 8 and value ~= _G and not in_metatable then
+  elseif t == 'table' and depth < 8 and not in_metatable and
+      (depth == 0 or (opts.recursive and value ~= _G)) then
     -- don't dig into metatables to avoid listing (for example) string.byte
     -- as some_string_value`meta.__index.byte
     attachToTable(is_attach, name, value, opts, depth + 1)
