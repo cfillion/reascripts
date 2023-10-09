@@ -19,12 +19,13 @@ local math_huge = math.huge
 local assert, error, type, pairs, print = assert, error, type, pairs, print
 local tostring, select, getmetatable  = tostring, select, getmetatable
 local debug_getlocal, debug_setlocal  = debug.getlocal, debug.setlocal
-local debug_getinfo,  table_sort      = debug.getinfo,  table.sort
+local debug_getinfo,  collectgarbage  = debug.getinfo,  collectgarbage
 local math_min,       math_max        = math.min,       math.max
 local math_log,       math_floor      = math.log,       math.floor
 local string_gsub,    string_match    = string.gsub,    string.match
 local string_find,    string_format   = string.find,    string.format
 local string_sub,     string_rep      = string.sub,     string.rep
+local string_char,    table_sort      = string.char,    table.sort
 local utf8_len,       utf8_offset     = utf8.len,       utf8.offset
 local reaper_defer,   CF_ShellExecute = reaper.defer,   reaper.CF_ShellExecute
 local reaper_get_action_context = reaper.get_action_context
@@ -439,6 +440,10 @@ end
 function profiler.start()
   assert(not active, 'profiler is already active')
   active = true
+
+  -- prevent the garbage collector from affecting measurement repeatability
+  collectgarbage('stop')
+
   report.start_time = getTime()
   if not report.first_start_time then
     report.first_start_time = report.start_time
@@ -458,8 +463,10 @@ end
 
 function profiler.stop()
   assert(active, 'profiler is not active')
-  active = false
   report.time = report.time + (getTime() - report.start_time)
+  active = false
+
+  collectgarbage('restart')
 end
 
 function profiler.frame()
