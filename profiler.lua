@@ -6,12 +6,13 @@ end
 
 local SCRIPT_NAME = 'Lua profiler'
 local FLT_MIN = ImGui.NumericLimits_Float()
+local PROFILES_SIZE = 8
 
-local profiler, data, report = {}
+local profiler, profiles, current = {}, {}, 1
 local attachments, wrappers, locations, clippers = {}, {}, {}, {}
-local active, auto_active, show_metrics = false, false, false
-local defer_called = false
+local active, auto_active, show_metrics, defer_called = false, false, false, false
 local getTime = reaper.time_precise -- faster than os.clock
+local profile, profile_data -- references to profiles[current] for quick access
 
 -- cache stdlib constants and funcs to not break if the host script changes them
 -- + don't count the profiler's own use of them in measurements
@@ -25,8 +26,8 @@ local math_log,       math_floor      = math.log,       math.floor
 local string_gsub,    string_match    = string.gsub,    string.match
 local string_find,    string_format   = string.find,    string.format
 local string_sub,     string_rep      = string.sub,     string.rep
-local string_char,    table_sort      = string.char,    table.sort
 local utf8_len,       utf8_offset     = utf8.len,       utf8.offset
+local table_sort                      = table.sort
 local reaper_defer,   CF_ShellExecute = reaper.defer,   reaper.CF_ShellExecute
 local reaper_get_action_context = reaper.get_action_context
 
@@ -115,6 +116,28 @@ local function alignNextItemRight(ctx, label, spacing)
     ImGui.CalcTextSize(ctx, label, nil, nil, true)))
 end
 
+local function alignGroupRight(ctx, callback)
+  local pos_x, right_x = ImGui.GetCursorPosX(ctx), ImGui.GetContentRegionMax(ctx)
+
+  ImGui.BeginGroup(ctx)
+  ImGui.PushID(ctx, 'width')
+  ImGui.PushClipRect(ctx, 0, 0, 1, 1, false)
+  callback()
+  ImGui.PopClipRect(ctx)
+  ImGui.PopID(ctx)
+  ImGui.EndGroup(ctx)
+
+  local want_pos = right_x - ImGui.GetItemRectSize(ctx)
+  if want_pos >= pos_x then
+    ImGui.SameLine(ctx)
+    ImGui.SetCursorPosX(ctx, want_pos)
+  end
+
+  ImGui.BeginGroup(ctx)
+  callback()
+  ImGui.EndGroup(ctx)
+end
+
 local function tooltip(ctx, text)
   if not ImGui.IsItemHovered(ctx, ImGui.HoveredFlags_DelayShort()) or
     not ImGui.BeginTooltip(ctx) then return end
@@ -135,9 +158,9 @@ local function textCell(ctx, value, right_align, custom_tooltip)
 end
 
 local function enter(what, alias)
-  report.dirty = true
+  profile.dirty = true
 
-  local line = data[what]
+  local line = profile_data[what]
   if not line then
     line = {
       name = alias, count = 0, time = 0,
@@ -145,7 +168,7 @@ local function enter(what, alias)
       frames = 0, prev_count = 0, prev_time = 0,
       time_per_call = {}, time_per_frame = {}, calls_per_frame = {},
     }
-    data[what] = line
+    profile_data[what] = line
   end
 
   if not locations[what] then
@@ -170,7 +193,7 @@ end
 
 local function leave(what)
   local now = getTime()
-  local line = data[what]
+  local line = profile_data[what]
   if not line or line.enter_count < 1 then
     error('unbalanced leave (missing call to enter)')
   end
@@ -187,12 +210,12 @@ end
 
 local function setActive(activate)
   if activate then
-    report.first_start_time = getTime()
-
     if defer_called then
       auto_active = true
+      profile.user_start_time = getTime()
     else
       profiler.start()
+      profile.user_start_time = profile.start_time
     end
   else
     if active then
@@ -203,30 +226,45 @@ local function setActive(activate)
   end
 end
 
-local function updateReport()
-  if active then
-    -- update active time
-    profiler.stop()
-    profiler.start()
+local function setCurrentProfile(i)
+  local now = getTime()
+
+  current = i
+  if not profiles[i] then
+    profiler.reset()
+  else
+    profile, profile_data = profiles[i], profiles[i].data
   end
 
+  if active then
+    profile.start_time, profile.user_start_time = now, now
+  elseif auto_active then
+    profile.user_start_time = now
+  end
+end
+
+local function updateProfile()
   local now = getTime()
-  local total_time = report.total_time
+
+  -- update active time
+  if active then
+    profile.time = profile.time + (now - profile.start_time)
+    profile.start_time = now
+  end
+
+  -- update wall time
+  local total_time = profile.total_time
   if total_time then
-    total_time = total_time + (now - report.first_start_time)
+    profile.total_time = total_time + (now - profile.user_start_time)
   else
     -- don't include defer timer interval in single-shot reports
-    total_time = report.time
+    profile.total_time = profile.time
   end
+  profile.user_start_time = now
 
-  report = {
-    time = report.time,
-    start_time = report.start_time,
-    total_time = total_time,
-    first_start_time = now,
-  }
+  profile.report = {}
 
-  for key, line in pairs(data) do
+  for key, line in pairs(profile_data) do
     assert(line.enter_count == 0, 'unbalanced enter (missing call to leave)')
 
     local location = locations[key]
@@ -237,9 +275,9 @@ local function updateReport()
       src_line = location.linedefined
     end
 
-    report[#report + 1] = { -- immutable copy of the line
+    profile.report[#profile.report + 1] = { -- immutable copy of the line
       name = line.name, time = line.time, count = line.count,
-      time_frac = line.time / report.time,
+      time_frac = line.time / profile.time,
       src = src, src_short = src_short, src_line = src_line,
       frames = line.frames > 0 and line.frames,
 
@@ -258,7 +296,7 @@ local function updateReport()
     }
   end
 
-  table_sort(report, function(a, b) return a.time > b.time end)
+  table_sort(profile.report, function(a, b) return a.time > b.time end)
 end
 
 local function callLeave(func, ...)
@@ -443,7 +481,14 @@ function profiler.detachFromWorld()
 end
 
 function profiler.reset()
-  data, report = {}, { time = 0 }
+  profiles[current] = {
+    time   = 0,
+    data   = {},
+    report = {},
+    start_time = active and getTime(),
+    -- no need to initialize user_start_time because total_time isn't initialized
+  }
+  profile, profile_data = profiles[current], profiles[current].data
 end
 
 function profiler.start()
@@ -454,9 +499,9 @@ function profiler.start()
   collectgarbage('stop')
 
   local now = getTime()
-  report.start_time = now
-  if not report.first_start_time then
-    report.first_start_time = now
+  profile.start_time = now
+  if not profile.user_start_time then
+    profile.user_start_time = now
   end
 end
 
@@ -473,15 +518,15 @@ end
 
 function profiler.stop()
   assert(active, 'profiler is not active')
-  report.time = report.time + (getTime() - report.start_time)
-  report.dirty = true -- have updateReport refresh total_time and update %
+  profile.time = profile.time + (getTime() - profile.start_time)
+  profile.dirty = true -- have updateProfile refresh total_time and update %
   active = false
 
   collectgarbage('restart')
 end
 
 function profiler.frame()
-  for key, line in pairs(data) do
+  for key, line in pairs(profile_data) do
     if line.enter_count > 0 then error('frame was called before leave') end
     if line.count > line.prev_count then
       local count = line.count - line.prev_count
@@ -544,9 +589,9 @@ function profiler.showWindow(ctx, p_open, flags)
       ImGui.EndMenu(ctx)
     end
     if ImGui.BeginMenu(ctx, 'Profile') then
-      local has_data = report.start_time ~= nil
+      local has_data = profile.start_time ~= nil
       if ImGui.MenuItem(ctx, 'Reset', nil, nil, has_data) then
-        reaper_defer(profiler.reset)
+        profiler.reset()
       end
       ImGui.EndMenu(ctx)
     end
@@ -625,19 +670,19 @@ end
 function profiler.showReport(ctx, label, width, height)
   if not ImGui.BeginChild(ctx, label, width, height) then return end
 
-  local was_dirty = report.dirty
+  local was_dirty = profile.dirty
   if was_dirty then
-    report.dirty = false
-    updateReport()
+    profile.dirty = false
+    updateProfile()
   end
 
   local summary
-  if #report < 1 then
+  if #profile.report < 1 then
     summary = 'No profiling data has been acquired yet.'
   else
     summary = string_format('Active time / wall time: %s / %s (%.02f%%)',
-      formatTime(report.time, false), formatTime(report.total_time, false),
-      (report.time / report.total_time) * 100)
+      formatTime(profile.time, false), formatTime(profile.total_time, false),
+      (profile.time / profile.total_time) * 100)
   end
   ImGui.Text(ctx, summary)
   if was_dirty then
@@ -648,12 +693,28 @@ function profiler.showReport(ctx, label, width, height)
   ImGui.SameLine(ctx)
 
   local export = false
-  alignNextItemRight(ctx, 'Copy to clipboard', true)
-  if ImGui.SmallButton(ctx, 'Copy to clipboard') then
-    export = true
-    ImGui.LogToClipboard(ctx)
-    ImGui.LogText(ctx, summary .. '\n\n')
-  end
+  alignGroupRight(ctx, function()
+    for i = 1, PROFILES_SIZE do
+      if i > 1 then ImGui.SameLine(ctx, nil, 4) end
+      local was_current = i == current
+      if was_current then
+        ImGui.PushStyleColor(ctx, ImGui.Col_Button(),
+          ImGui.GetStyleColor(ctx, ImGui.Col_HeaderActive()))
+      end
+      if ImGui.SmallButton(ctx, i) then
+        setCurrentProfile(i)
+      end
+      if was_current then
+        ImGui.PopStyleColor(ctx)
+      end
+    end
+    ImGui.SameLine(ctx)
+    if ImGui.SmallButton(ctx, 'Copy to clipboard') then
+      export = true
+      ImGui.LogToClipboard(ctx)
+      ImGui.LogText(ctx, summary .. '\n\n')
+    end
+  end, true)
   ImGui.Spacing(ctx)
 
   local flags =
@@ -706,11 +767,11 @@ function profiler.showReport(ctx, label, width, height)
 
   local cut_src_cache = {}
   ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding(), 1, 1)
-  ImGui.ListClipper_Begin(clipper, #report)
+  ImGui.ListClipper_Begin(clipper, #profile.report)
   while ImGui.ListClipper_Step(clipper) do
     local display_start, display_end = ImGui.ListClipper_GetDisplayRange(clipper)
     for i = display_start + 1, display_end do
-      local line = report[i]
+      local line = profile.report[i]
       ImGui.TableNextRow(ctx)
       ImGui.PushID(ctx, i)
 
