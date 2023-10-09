@@ -1,8 +1,17 @@
-local ImGui = {}
-for name, func in pairs(reaper) do
-  name = name:match('^ImGui_(.+)$')
-  if name then ImGui[name] = func end
-end
+local ImGui = (function()
+  local host_reaper = reaper
+  reaper = {}
+  for k,v in pairs(host_reaper) do reaper[k] = v end
+  dofile(reaper.GetResourcePath() ..
+    '/Scripts/ReaTeam Extensions/API/imgui.lua')('0.8.7')
+  local ImGui = {}
+  for name, func in pairs(reaper) do
+    name = name:match('^ImGui_(.+)$')
+    if name then ImGui[name] = func end
+  end
+  reaper = host_reaper
+  return ImGui
+end)()
 
 local SCRIPT_NAME = 'Lua profiler'
 local FLT_MIN = ImGui.NumericLimits_Float()
@@ -10,7 +19,8 @@ local PROFILES_SIZE = 8
 
 local profiler, profiles, current = {}, {}, 1
 local attachments, wrappers, locations, clippers = {}, {}, {}, {}
-local active, auto_active, show_metrics, defer_called = false, false, false, false
+local active, auto_active, show_metrics = false, false, false
+local defer_called, scroll_to_top = false, false
 local getTime = reaper.time_precise -- faster than os.clock
 local profile, profile_data -- references to profiles[current] for quick access
 
@@ -241,6 +251,8 @@ local function setCurrentProfile(i)
   elseif auto_active then
     profile.user_start_time = now
   end
+
+  scroll_to_top = true
 end
 
 local function updateProfile()
@@ -625,7 +637,7 @@ function profiler.showWindow(ctx, p_open, flags)
     ImGui.Spacing(ctx)
 
     ImGui.Text(ctx, 'The following measurements are affected:')
-    ImGui.Bullet(ctx); ImGui.Text(ctx, 'Active time vs wall time')
+    ImGui.Bullet(ctx); ImGui.Text(ctx, 'Active time')
     ImGui.Bullet(ctx); ImGui.Text(ctx, 'Frame count')
     ImGui.Bullet(ctx); ImGui.Text(ctx, 'Time per frame (min/avg/max)')
     ImGui.Bullet(ctx); ImGui.Text(ctx, 'Calls per frame (min/avg/max)')
@@ -733,6 +745,10 @@ function profiler.showReport(ctx, label, width, height)
   end, true)
   ImGui.Spacing(ctx)
 
+  if scroll_to_top then
+    ImGui.SetNextWindowScroll(ctx, 0, 0)
+    scroll_to_top = false
+  end
   local flags =
     ImGui.TableFlags_Resizable() | ImGui.TableFlags_Reorderable() |
     ImGui.TableFlags_Hideable()  | ImGui.TableFlags_Sortable()    |
@@ -854,7 +870,7 @@ function profiler.defer(callback)
   defer_called = true
   if not auto_active then return reaper_defer(callback) end
 
-  reaper_defer(function()
+  return reaper_defer(function()
     defer_called = false
     profiler.start()
     callback()
