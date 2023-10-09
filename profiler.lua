@@ -661,6 +661,9 @@ function profiler.showWindow(ctx, p_open, flags)
     ImGui.EndPopup(ctx)
   end
 
+  if ImGui.IsWindowFocused(ctx) then
+    ImGui.SetNextWindowFocus(ctx)
+  end
   profiler.showReport(ctx, 'report', 0, 0)
 
   ImGui.End(ctx)
@@ -669,6 +672,19 @@ end
 
 function profiler.showReport(ctx, label, width, height)
   if not ImGui.BeginChild(ctx, label, width, height) then return end
+
+  if ImGui.IsWindowAppearing(ctx) then
+    ImGui.SetKeyboardFocusHere(ctx)
+  end
+  if ImGui.IsWindowFocused(ctx, ImGui.FocusedFlags_ChildWindows()) then
+    local key_0, pad_0 = ImGui.Key_0(), ImGui.Key_Keypad0()
+    for i = 1, PROFILES_SIZE do
+      if ImGui.IsKeyPressed(ctx, key_0 + i) or
+          ImGui.IsKeyPressed(ctx, pad_0 + i) then
+        setCurrentProfile(i)
+      end
+    end
+  end
 
   local was_dirty = profile.dirty
   if was_dirty then
