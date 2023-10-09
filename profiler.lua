@@ -211,10 +211,19 @@ local function updateReport()
   end
 
   local now = getTime()
+  local total_time = report.total_time
+  if total_time then
+    total_time = total_time + (now - report.first_start_time)
+  else
+    -- don't include defer timer interval in single-shot reports
+    total_time = report.time
+  end
+
   report = {
     time = report.time,
-    total_time = report.total_time + (now - report.first_start_time),
-    start_time = report.start_time, first_start_time = now,
+    start_time = report.start_time,
+    total_time = total_time,
+    first_start_time = now,
   }
 
   for key, line in pairs(data) do
@@ -434,7 +443,7 @@ function profiler.detachFromWorld()
 end
 
 function profiler.reset()
-  data, report = {}, { time = 0, total_time = 0 }
+  data, report = {}, { time = 0 }
 end
 
 function profiler.start()
@@ -444,9 +453,10 @@ function profiler.start()
   -- prevent the garbage collector from affecting measurement repeatability
   collectgarbage('stop')
 
-  report.start_time = getTime()
+  local now = getTime()
+  report.start_time = now
   if not report.first_start_time then
-    report.first_start_time = report.start_time
+    report.first_start_time = now
   end
 end
 
@@ -464,6 +474,7 @@ end
 function profiler.stop()
   assert(active, 'profiler is not active')
   report.time = report.time + (getTime() - report.start_time)
+  report.dirty = true -- have updateReport refresh total_time and update %
   active = false
 
   collectgarbage('restart')
@@ -624,7 +635,7 @@ function profiler.showReport(ctx, label, width, height)
   if #report < 1 then
     summary = 'No profiling data has been acquired yet.'
   else
-    summary = string_format('Total active time: %s / %s (%.02f%%)',
+    summary = string_format('Active time / wall time: %s / %s (%.02f%%)',
       formatTime(report.time, false), formatTime(report.total_time, false),
       (report.time / report.total_time) * 100)
   end
