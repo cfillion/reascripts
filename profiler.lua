@@ -24,6 +24,12 @@ local defer_called, scroll_to_top = false, false
 local getTime = reaper.time_precise -- faster than os.clock
 local profile, profile_data -- references to profiles[current] for quick access
 
+-- weak references to have the garbage collector auto-clear the caches
+setmetatable(attachments, { __mode = 'kv' })
+setmetatable(wrappers,    { __mode = 'kv' })
+setmetatable(locations,   { __mode = 'k'  })
+setmetatable(clippers,    { __mode = 'k'  })
+
 -- cache stdlib constants and funcs to not break if the host script changes them
 -- + don't count the profiler's own use of them in measurements
 local math_huge = math.huge
