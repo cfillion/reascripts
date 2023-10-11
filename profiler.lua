@@ -18,7 +18,7 @@ local FLT_MIN = ImGui.NumericLimits_Float()
 local PROFILES_SIZE = 8
 
 local profiler, profiles, current = {}, {}, 1
-local attachments, wrappers, locations, clippers = {}, {}, {}, {}
+local attachments, wrappers, locations = {}, {}, {}
 local active, auto_active, show_metrics = false, false, false
 local defer_called, scroll_to_top = false, false
 local getTime = reaper.time_precise -- faster than os.clock
@@ -28,7 +28,6 @@ local profile, profile_cur -- references to profiles[current] for quick access
 setmetatable(attachments, { __mode = 'kv' })
 setmetatable(wrappers,    { __mode = 'kv' })
 setmetatable(locations,   { __mode = 'k'  })
-setmetatable(clippers,    { __mode = 'k'  })
 
 -- cache stdlib constants and funcs to not break if the host script changes them
 -- + don't count the profiler's own use of them in measurements
@@ -69,7 +68,6 @@ local function makeOpts(opts)
 end
 
 local function formatTime(time, pad)
-  if not time then return end
   if pad == nil then pad = true end
   local units, unit = { 's', 'ms', 'us', 'ns' }, 1
   while time < 0.1 and unit < #units do
@@ -79,7 +77,6 @@ local function formatTime(time, pad)
 end
 
 local function formatNumber(num)
-  if not num then return end
   repeat
     local matches
     num, matches = string.gsub(num, '^(%d+)(%d%d%d)', '%1,%2')
@@ -128,10 +125,13 @@ local function centerNextWindow(ctx)
 end
 
 local function alignNextItemRight(ctx, label, spacing)
-  local item_spacing_w = ImGui.GetStyleVar(ctx, ImGui.StyleVar_ItemSpacing())
-  ImGui.SetCursorPosX(ctx, math.max(ImGui.GetCursorPosX(ctx),
-    ImGui.GetContentRegionMax(ctx) - (spacing and item_spacing_w or 0) -
-    ImGui.CalcTextSize(ctx, label, nil, nil, true)))
+  local item_spacing_w = spacing and
+    ImGui.GetStyleVar(ctx, ImGui.StyleVar_ItemSpacing()) or 0
+  local want_pos_x = ImGui.GetContentRegionMax(ctx) - item_spacing_w -
+    ImGui.CalcTextSize(ctx, label, nil, nil, true)
+  if want_pos_x > ImGui.GetCursorPosX(ctx) then
+    ImGui.SetCursorPosX(ctx, want_pos_x)
+  end
 end
 
 local function alignGroupRight(ctx, callback)
@@ -165,19 +165,17 @@ local function tooltip(ctx, text)
   ImGui.EndTooltip(ctx)
 end
 
-local function textCell(ctx, value, right_align, custom_tooltip, display_func)
-  local avail_w = ImGui.GetContentRegionAvail(ctx)
-  if right_align == nil then right_align = true end
-  if right_align then alignNextItemRight(ctx, value) end
-  if display_func then
-    display_func()
-  else
-    ImGui.Text(ctx, value)
-  end
+local function textCell(ctx, value, right_align, custom_tooltip)
+  if right_align ~= false then alignNextItemRight(ctx, value) end
+  ImGui.Text(ctx, value)
   if (custom_tooltip and custom_tooltip ~= value) or
-      ImGui.GetItemRectSize(ctx) > avail_w then
+      ImGui.GetItemRectSize(ctx) > ImGui.GetContentRegionAvail(ctx) then
     tooltip(ctx, custom_tooltip or value)
   end
+end
+
+local function progressBar(ctx, value)
+  ImGui.ProgressBar(ctx, value, nil, nil, string.format('%.02f%%', value * 100))
 end
 
 local function enter(what, alias)
@@ -322,29 +320,29 @@ local function updateProfile()
     end
 
     local parent = parents[depth - 1]
+    local parent_time = parent and parent.time ~= 0 and parent.time or profile.time
     local report = { -- immutable copy of the line
-      id = id, name = line.name, children = 0,
+      id = id, name = line.name, key = tostring(key), children = 0,
 
       time = line.time, count = line.count,
       time_frac = line.time / profile.time,
-      time_frac_parent = line.time / (parent and parent.time or profile.time),
+      time_frac_parent = line.time / parent_time,
 
       src = src, src_short = src_short, src_line = src_line,
 
       frames = line.frames > 0 and line.frames,
 
-      time_per_call = {
-        min = line.time_per_call.min, max = line.time_per_call.max,
-        avg = line.time / line.count,
-      },
-      time_per_frame = {
-        min = line.time_per_frame.min, max = line.time_per_frame.max,
-        avg = line.frames > 0 and line.time / line.frames,
-      },
-      calls_per_frame = {
-        min = line.calls_per_frame.min, max = line.calls_per_frame.max,
-        avg = line.frames > 0 and line.count // line.frames,
-      },
+      time_per_call_min = line.time_per_call.min,
+      time_per_call_max = line.time_per_call.max,
+      time_per_call_avg = line.time / line.count,
+
+      time_per_frame_min = line.time_per_frame.min,
+      time_per_frame_max = line.time_per_frame.max,
+      time_per_frame_avg = line.frames > 0 and line.time / line.frames,
+
+      calls_per_frame_min = line.calls_per_frame.min,
+      calls_per_frame_max = line.calls_per_frame.max,
+      calls_per_frame_avg = line.frames > 0 and line.count // line.frames,
     }
 
     parents[depth] = report
@@ -816,48 +814,53 @@ function profiler.showReport(ctx, label, width, height)
   if not ImGui.BeginTable(ctx, 'table', 17, flags) then
     return ImGui.EndChild(ctx)
   end
+
+  local def_sort_descending = ImGui.TableColumnFlags_PreferSortDescending()
   ImGui.TableSetupScrollFreeze(ctx, 0, 1)
   ImGui.TableSetupColumn(ctx, 'Name')
   ImGui.TableSetupColumn(ctx, 'Source')
   ImGui.TableSetupColumn(ctx, 'Line')
   ImGui.TableSetupColumn(ctx, '% of total',
-    ImGui.TableColumnFlags_WidthStretch() |
-    ImGui.TableColumnFlags_PreferSortDescending())
+    ImGui.TableColumnFlags_WidthStretch() | def_sort_descending)
   ImGui.TableSetupColumn(ctx, '% of parent',
-    ImGui.TableColumnFlags_WidthStretch() |
-    ImGui.TableColumnFlags_PreferSortDescending())
+    ImGui.TableColumnFlags_WidthStretch() | def_sort_descending)
   ImGui.TableSetupColumn(ctx, 'Time',
-    ImGui.TableColumnFlags_DefaultSort() |
-    ImGui.TableColumnFlags_PreferSortDescending())
-  ImGui.TableSetupColumn(ctx, 'Calls',
-    ImGui.TableColumnFlags_PreferSortDescending())
-  ImGui.TableSetupColumn(ctx, 'MinT/c',
-    ImGui.TableColumnFlags_PreferSortDescending())
-  ImGui.TableSetupColumn(ctx, 'AvgT/c',
-    ImGui.TableColumnFlags_PreferSortDescending())
-  ImGui.TableSetupColumn(ctx, 'MaxT/c',
-    ImGui.TableColumnFlags_PreferSortDescending())
-  ImGui.TableSetupColumn(ctx, 'Frames',
-    ImGui.TableColumnFlags_PreferSortDescending())
-  ImGui.TableSetupColumn(ctx, 'MinT/f',
-    ImGui.TableColumnFlags_PreferSortDescending())
-  ImGui.TableSetupColumn(ctx, 'AvgT/f',
-    ImGui.TableColumnFlags_PreferSortDescending())
-  ImGui.TableSetupColumn(ctx, 'MaxT/f',
-    ImGui.TableColumnFlags_PreferSortDescending())
-  ImGui.TableSetupColumn(ctx, 'MinC/f',
-    ImGui.TableColumnFlags_PreferSortDescending())
-  ImGui.TableSetupColumn(ctx, 'AvgC/f',
-    ImGui.TableColumnFlags_PreferSortDescending())
-  ImGui.TableSetupColumn(ctx, 'MaxC/f',
-    ImGui.TableColumnFlags_PreferSortDescending())
+    ImGui.TableColumnFlags_DefaultSort() | def_sort_descending)
+  ImGui.TableSetupColumn(ctx, 'Calls',  def_sort_descending)
+  ImGui.TableSetupColumn(ctx, 'MinT/c', def_sort_descending)
+  ImGui.TableSetupColumn(ctx, 'AvgT/c', def_sort_descending)
+  ImGui.TableSetupColumn(ctx, 'MaxT/c', def_sort_descending)
+  ImGui.TableSetupColumn(ctx, 'Frames', def_sort_descending)
+  ImGui.TableSetupColumn(ctx, 'MinT/f', def_sort_descending)
+  ImGui.TableSetupColumn(ctx, 'AvgT/f', def_sort_descending)
+  ImGui.TableSetupColumn(ctx, 'MaxT/f', def_sort_descending)
+  ImGui.TableSetupColumn(ctx, 'MinC/f', def_sort_descending)
+  ImGui.TableSetupColumn(ctx, 'AvgC/f', def_sort_descending)
+  ImGui.TableSetupColumn(ctx, 'MaxC/f', def_sort_descending)
   ImGui.TableHeadersRow(ctx)
 
-  local clipper = clippers[ctx]
-  if not ImGui.ValidatePtr(clipper, 'ImGui_ListClipper*') then
-    clipper = ImGui.CreateListClipper(ctx)
-    clippers[ctx] = clipper
-  end
+  local std_columns = {
+    { field = 'src_line',            func = textCell,    },
+    { field = 'time_frac',           func = progressBar, },
+    { field = 'time_frac_parent',    func = progressBar, },
+    { field = 'time',                func = textCell, fmt = formatTime   },
+    { field = 'count',               func = textCell, fmt = formatNumber },
+    { field = 'time_per_call_min',   func = textCell, fmt = formatTime   },
+    { field = 'time_per_call_avg',   func = textCell, fmt = formatTime   },
+    { field = 'time_per_call_max',   func = textCell, fmt = formatTime   },
+    { field = 'frames',              func = textCell, fmt = formatNumber },
+    { field = 'time_per_frame_min',  func = textCell, fmt = formatTime   },
+    { field = 'time_per_frame_avg',  func = textCell, fmt = formatTime   },
+    { field = 'time_per_frame_max',  func = textCell, fmt = formatTime   },
+    { field = 'calls_per_frame_min', func = textCell, fmt = formatNumber },
+    { field = 'calls_per_frame_avg', func = textCell, fmt = formatNumber },
+    { field = 'calls_per_frame_max', func = textCell, fmt = formatNumber },
+  }
+
+  local tree_node_flags = ImGui.TreeNodeFlags_SpanFullWidth() |
+    ImGui.TreeNodeFlags_DefaultOpen() | ImGui.TreeNodeFlags_FramePadding()
+  local tree_node_leaf_flags = tree_node_flags |
+    ImGui.TreeNodeFlags_Leaf() | ImGui.TreeNodeFlags_NoTreePushOnOpen()
 
   local i, prev_depth, cut_src_cache = 1, 1, {}
   ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding(), 1, 1)
@@ -871,15 +874,16 @@ function profiler.showReport(ctx, label, width, height)
     ImGui.TableNextRow(ctx)
 
     ImGui.TableNextColumn(ctx)
-    textCell(ctx, line.name, false, nil, function()
-      if line.children > 0 then
-        if not ImGui.TreeNode(ctx, line.name, ImGui.TreeNodeFlags_SpanFullWidth() | ImGui.TreeNodeFlags_DefaultOpen() | ImGui.TreeNodeFlags_FramePadding()) then
-          i = i + line.children
-        end
-      else
-        ImGui.TreeNode(ctx, line.name, ImGui.TreeNodeFlags_Leaf() | ImGui.TreeNodeFlags_NoTreePushOnOpen() | ImGui.TreeNodeFlags_SpanFullWidth() | ImGui.TreeNodeFlags_FramePadding())
+    if line.children > 0 then
+      if not ImGui.TreeNodeEx(ctx, line.key, line.name, tree_node_flags) then
+        i = i + line.children
       end
-    end)
+      tooltip(ctx, string.format('%s (%d children)',
+        line.name, formatNumber(line.children)))
+    else
+      ImGui.TreeNodeEx(ctx, line.key, line.name, tree_node_leaf_flags)
+      tooltip(ctx, line.name)
+    end
 
     if ImGui.IsItemVisible(ctx) then
       ImGui.TableNextColumn(ctx)
@@ -890,45 +894,15 @@ function profiler.showReport(ctx, label, width, height)
       end
       textCell(ctx, src_short, false, line.src)
 
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, line.src_line)
-
-      ImGui.TableNextColumn(ctx)
-      ImGui.ProgressBar(ctx, line.time_frac, nil, nil,
-        string.format('%.02f%%', line.time_frac * 100))
-      ImGui.TableNextColumn(ctx)
-      ImGui.ProgressBar(ctx, line.time_frac_parent, nil, nil,
-        string.format('%.02f%%', line.time_frac_parent * 100))
-
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatTime(line.time))
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatNumber(line.count))
-
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatTime(line.time_per_call.min))
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatTime(line.time_per_call.avg))
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatTime(line.time_per_call.max))
-
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatNumber(line.frames))
-
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatTime(line.time_per_frame.min))
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatTime(line.time_per_frame.avg))
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatTime(line.time_per_frame.max))
-
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatNumber(line.calls_per_frame.min))
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatNumber(line.calls_per_frame.avg))
-      ImGui.TableNextColumn(ctx)
-      textCell(ctx, formatNumber(line.calls_per_frame.max))
+      for j, col in ipairs(std_columns) do
+        local v = line[col.field]
+        if v then
+          ImGui.TableNextColumn(ctx)
+          col.func(ctx, col.fmt and col.fmt(v) or v)
+        end
+      end
     end
+
     i = i + 1
   end
   for i = 2, prev_depth do ImGui.TreePop(ctx) end
@@ -964,5 +938,14 @@ function profiler.run()
 end
 
 profiler.reset()
+
+-- if not CF_PROFILER_SELF then
+--   CF_PROFILER_SELF = true
+--   local self_profile = dofile(debug.getinfo(1, 'S').source:sub(2))
+--   CF_PROFILER_SELF = nil
+--   reaper.defer = self_profile.defer
+--   self_profile.attachToLocals({ search_above = false })
+--   self_profile.run()
+-- end
 
 return profiler
