@@ -35,19 +35,21 @@ setmetatable(clippers,    { __mode = 'k'  })
 local assert, error, select, tostring = assert, error, select, tostring
 local type, getmetatable, next, print = type, getmetatable, next, print
 local select, pairs, ipairs           = select, pairs, ipairs
-local collectgarbage, debug_getinfo   = collectgarbage, debug.getinfo
-local debug_getlocal, debug_setlocal  = debug.getlocal, debug.setlocal
-local math_log,       math_huge       = math.log,       math.huge
-local math_min,       math_max        = math.min,       math.max
-local string_find,    string_format   = string.find,    string.format
-local string_gsub,    string_match    = string.gsub,    string.match
-local string_sub,     string_rep      = string.sub,     string.rep
-local table_sort,     table_unpack    = table.sort, table.unpack
-local utf8_len,       utf8_offset     = utf8.len,       utf8.offset
-local reaper_defer,   CF_ShellExecute = reaper.defer,   reaper.CF_ShellExecute
-local reaper_get_action_context = reaper.get_action_context
+local collectgarbage, reaper          = collectgarbage, {
+  defer = reaper.defer, get_action_context = reaper.get_action_context,
+  CF_ShellExecute = reaper.CF_ShellExecute,
+}
+local debug, math, string, table, utf8 = (function(...)
+  local vars = {}
+  for i = 1, select('#', ...) do
+    local copy = {}
+    for k, v in pairs(_G[select(i, ...)]) do copy[k] = v end
+    vars[#vars + 1] = copy
+  end
+  return table.unpack(vars)
+end)('debug', 'math', 'string', 'table', 'utf8')
 
-assert(debug_getinfo(debug_getlocal, 'S').what == 'C',
+assert(debug.getinfo(debug.getlocal, 'S').what == 'C',
   'global environment is tainted, stack depths will be incorrect')
 
 local function makeOpts(opts)
@@ -73,28 +75,28 @@ local function formatTime(time, pad)
   while time < 0.1 and unit < #units do
     time, unit = time * 1000, unit + 1
   end
-  return string_format(pad and '%5.02f%-2s' or '%.02f%s', time, units[unit])
+  return string.format(pad and '%5.02f%-2s' or '%.02f%s', time, units[unit])
 end
 
 local function formatNumber(num)
   if not num then return end
   repeat
     local matches
-    num, matches = string_gsub(num, '^(%d+)(%d%d%d)', '%1,%2')
+    num, matches = string.gsub(num, '^(%d+)(%d%d%d)', '%1,%2')
   until matches < 1
   return num
 end
 
-local function utf8_sub(s, i, j)
-  i = utf8_offset(s, i)
+function utf8.sub(s, i, j)
+  i = utf8.offset(s, i)
   if not i then return '' end -- i is out of bounds
 
   if j and (j > 0 or j < -1) then
-    j = utf8_offset(s, j + 1)
+    j = utf8.offset(s, j + 1)
     if j then j = j - 1 end
   end
 
-  return string_sub(s, i, j)
+  return string.sub(s, i, j)
 end
 
 local function ellipsis(ctx, text, length)
@@ -102,10 +104,10 @@ local function ellipsis(ctx, text, length)
   if avail >= ImGui.CalcTextSize(ctx, text) then return text end
 
   local steps = 0
-  local fit, l, r, m = '...', 0, utf8_len(text) - 1
+  local fit, l, r, m = '...', 0, utf8.len(text) - 1
   while l <= r do
     m = (l + r) // 2
-    local cut = '...' .. utf8_sub(text, -m)
+    local cut = '...' .. utf8.sub(text, -m)
     if ImGui.CalcTextSize(ctx, cut) > avail then
       r = m - 1
     else
@@ -117,7 +119,7 @@ local function ellipsis(ctx, text, length)
 end
 
 local function basename(filename)
-  return string_match(filename, '[^/\\]+$') or filename
+  return string.match(filename, '[^/\\]+$') or filename
 end
 
 local function centerNextWindow(ctx)
@@ -127,7 +129,7 @@ end
 
 local function alignNextItemRight(ctx, label, spacing)
   local item_spacing_w = ImGui.GetStyleVar(ctx, ImGui.StyleVar_ItemSpacing())
-  ImGui.SetCursorPosX(ctx, math_max(ImGui.GetCursorPosX(ctx),
+  ImGui.SetCursorPosX(ctx, math.max(ImGui.GetCursorPosX(ctx),
     ImGui.GetContentRegionMax(ctx) - (spacing and item_spacing_w or 0) -
     ImGui.CalcTextSize(ctx, label, nil, nil, true)))
 end
@@ -196,9 +198,9 @@ local function enter(what, alias)
   if not locations[what] then
     local location
     if type(what) == 'function' then
-      location = debug_getinfo(what, 'S')
+      location = debug.getinfo(what, 'S')
     else -- user-provided name
-      location = debug_getinfo(3, 'Sl')
+      location = debug.getinfo(3, 'Sl')
       location.linedefined = location.currentline
     end
     locations[what] = location
@@ -264,13 +266,7 @@ local function setCurrentProfile(i)
   scroll_to_top = true
 end
 
-local function inext(tbl, k)
-  if k == nil then k = 1 else k = k + 1 end
-  if k > #tbl then return end
-  return k, tbl[k]
-end
-
-local function eachDeep(tbl, nextFunc)
+local function eachDeep(tbl)
   local key_stack, depth = {}, 1
   return function()
     local v
@@ -280,7 +276,7 @@ local function eachDeep(tbl, nextFunc)
       depth = depth + 1
     end
     repeat
-      key_stack[depth], v = nextFunc(tbl.children, key_stack[depth])
+      key_stack[depth], v = next(tbl.children, key_stack[depth])
       if key_stack[depth] then return key_stack[depth], v, depth end
       depth = depth - 1
       tbl = tbl.parent
@@ -312,11 +308,11 @@ local function updateProfile()
   profile.report = {}
 
   local id, parents = 1, {}
-  for key, line, depth in eachDeep(profile, next) do
+  for key, line, depth in eachDeep(profile) do
     local location = locations[key]
     local src, src_short, src_line = '<unknown>',  '<unknown>', -1
     if location then
-      src = string_gsub(location.source, '^[@=]', '')
+      src = string.gsub(location.source, '^[@=]', '')
       src_short = basename(location.short_src)
       src_line = location.linedefined
     end
@@ -353,14 +349,14 @@ local function updateProfile()
 
     parents[depth] = report
     for i = #parents, depth + 1, -1 do parents[i] = nil end
-    report.parents = { table_unpack(parents) }
+    report.parents = { table.unpack(parents) }
 
     profile.report[#profile.report + 1] = report
     id = id + 1
   end
 
-  table_sort(profile.report, function(a, b)
-    for i = 1, math_max(#a.parents, #b.parents) do
+  table.sort(profile.report, function(a, b)
+    for i = 1, math.max(#a.parents, #b.parents) do
       local l, r = a.parents[i], b.parents[i]
       if not l then return true  end
       if not r then return false end
@@ -402,8 +398,8 @@ local function eachLocals(level, search_above)
   level = level + 1
   local i = 1
   return function()
-    while debug_getinfo(level, '') do
-      local name, value = debug_getlocal(level, i)
+    while debug.getinfo(level, '') do
+      local name, value = debug.getlocal(level, i)
       if name then
         i = i + 1
         return level - 1, i - 1, name, value
@@ -418,8 +414,8 @@ end
 local function getHostVar(path, level)
   assert(type(path) == 'string', 'variable name must be a string')
 
-  local off, sep = 1, string_find(path, '[%.`]')
-  local seg = string_sub(path, off, sep and sep - 1)
+  local off, sep = 1, string.find(path, '[%.`]')
+  local seg = string.sub(path, off, sep and sep - 1)
   local match, local_idx, parent
 
   for l, i, name, value in eachLocals(level, true) do
@@ -432,11 +428,11 @@ local function getHostVar(path, level)
   if not match then parent, match = _G, _G[seg] end
 
   while match and sep do
-    local is_special = string_sub(path, sep, sep) ~= '.'
+    local is_special = string.sub(path, sep, sep) ~= '.'
 
     off = sep + 1
-    sep = string_find(path, '[%.`]', off)
-    seg = string_sub(path, off, sep and sep - 1)
+    sep = string.find(path, '[%.`]', off)
+    seg = string.sub(path, off, sep and sep - 1)
     local_idx = nil
 
     if is_special then
@@ -448,13 +444,13 @@ local function getHostVar(path, level)
       end
     else
       assert(type(match) == 'table',
-        string_format('%s is not a table', string_sub(path, 1, sep and sep - 1)))
+        string.format('%s is not a table', string.sub(path, 1, sep and sep - 1)))
       parent, match = match, match[seg]
     end
   end
 
-  assert(match, string_format('variable not found: %s',
-    string_sub(path, 1, sep and sep - 1)))
+  assert(match, string.format('variable not found: %s',
+    string.sub(path, 1, sep and sep - 1)))
 
   return match, level - 1, local_idx, parent, seg
 end
@@ -476,7 +472,7 @@ local function attach(is_attach, name, value, opts, depth, in_metatable)
 
   local t = type(value)
   if t == 'function' then
-    if not opts.pattern or string_match(name, opts.pattern) then
+    if not opts.pattern or string.match(name, opts.pattern) then
       if is_attach then
         return true, makeWrapper(name, value)
       else
@@ -496,13 +492,13 @@ local function attach(is_attach, name, value, opts, depth, in_metatable)
 end
 
 attachToTable = function(is_attach, prefix, array, opts, depth, in_metatable)
-  assert(type(array) == 'table', string_format('%s is not a table', prefix))
+  assert(type(array) == 'table', string.format('%s is not a table', prefix))
 
   if array == package.loaded then return end
 
   for name, value in pairs(array) do
     local path = name
-    if prefix then path = string_format('%s.%s', prefix, name) end
+    if prefix then path = string.format('%s.%s', prefix, name) end
     local ok, wrapper = attach(is_attach, path, value, opts, depth, in_metatable)
     if wrapper then array[name] = wrapper end
   end
@@ -511,7 +507,7 @@ end
 local function attachToLocals(is_attach, opts)
   for level, idx, name, value in eachLocals(3, opts.search_above) do
     local ok, wrapper = attach(is_attach, name, value, opts, 1)
-    if wrapper then debug_setlocal(level, idx, wrapper) end
+    if wrapper then debug.setlocal(level, idx, wrapper) end
   end
 end
 
@@ -519,10 +515,10 @@ local function attachToVar(is_attach, var, opts)
   local val, level, idx, parent, parent_key = getHostVar(var, 4)
   -- start at depth=0 to attach to tables by name with opts.recursion=false
   local ok, wrapper = attach(is_attach, var, val, opts, 0)
-  assert(ok, string_format('%s is not %s',
+  assert(ok, string.format('%s is not %s',
     var, is_attach and 'attachable' or 'detachable'))
   if wrapper then
-    if idx then debug_setlocal(level, idx, wrapper) end
+    if idx then debug.setlocal(level, idx, wrapper) end
     if parent then parent[parent_key] = wrapper end
   end
 end
@@ -602,7 +598,7 @@ end
 function profiler.frame()
   assert(profile_cur == profile, 'frame was called before leave')
 
-  for key, line in eachDeep(profile, next) do
+  for key, line in eachDeep(profile) do
     if line.count > line.prev_count then
       local count = line.count - line.prev_count
       line.frames, line.prev_count = line.frames + 1, line.count
@@ -631,10 +627,10 @@ function profiler.showWindow(ctx, p_open, flags)
 
   ImGui.SetNextWindowSize(ctx, 800, 500, ImGui.Cond_FirstUseEver())
 
-  local host = select(2, reaper_get_action_context())
-  local self = string_sub(debug_getinfo(1, 'S').source, 2)
-  local title = string_format('%s - %s', SCRIPT_NAME, basename(host))
-  local label = string_format('%s###%s', title, SCRIPT_NAME)
+  local host = select(2, reaper.get_action_context())
+  local self = string.sub(debug.getinfo(1, 'S').source, 2)
+  local title = string.format('%s - %s', SCRIPT_NAME, basename(host))
+  local label = string.format('%s###%s', title, SCRIPT_NAME)
 
   local can_close, visible = p_open ~= nil
   visible, p_open = ImGui.Begin(ctx, label, p_open, flags)
@@ -670,16 +666,16 @@ function profiler.showWindow(ctx, p_open, flags)
       end
       ImGui.EndMenu(ctx)
     end
-    if ImGui.BeginMenu(ctx, 'Help', CF_ShellExecute ~= nil) then
+    if ImGui.BeginMenu(ctx, 'Help', reaper.CF_ShellExecute ~= nil) then
       if ImGui.MenuItem(ctx, 'Donate...') then
-        CF_ShellExecute('https://reapack.com/donate')
+        reaper.CF_ShellExecute('https://reapack.com/donate')
       end
       if ImGui.MenuItem(ctx, 'Forum thread', nil, nil, false) then
-        -- CF_ShellExecute('')
+        -- reaper.CF_ShellExecute('')
       end
       ImGui.EndMenu(ctx)
     end
-    local fps = string_format('%04.01f FPS##fps', ImGui.GetFramerate(ctx))
+    local fps = string.format('%04.01f FPS##fps', ImGui.GetFramerate(ctx))
     alignNextItemRight(ctx, fps, true)
     show_metrics = select(2, ImGui.MenuItem(ctx, fps, nil, show_metrics))
     ImGui.EndMenuBar(ctx)
@@ -725,7 +721,7 @@ function profiler.showWindow(ctx, p_open, flags)
     end
     ImGui.SameLine(ctx)
     if ImGui.Button(ctx, 'Inject proxy and continue') then
-      reaper.defer, defer_called = profiler.defer, true
+      _G['reaper'].defer, defer_called = profiler.defer, true
       setActive(true)
       ImGui.CloseCurrentPopup(ctx)
     end
@@ -771,15 +767,15 @@ function profiler.showReport(ctx, label, width, height)
   if #profile.report < 1 then
     summary = 'No profiling data has been acquired yet.'
   else
-    summary = string_format('Active time / wall time: %s / %s (%.02f%%)',
+    summary = string.format('Active time / wall time: %s / %s (%.02f%%)',
       formatTime(profile.time, false), formatTime(profile.total_time, false),
       (profile.time / profile.total_time) * 100)
   end
   ImGui.Text(ctx, summary)
   if was_dirty then
     ImGui.SameLine(ctx, nil, 0)
-    ImGui.Text(ctx, string_format('%-3s',
-      string_rep('.', ImGui.GetTime(ctx) // 1 % 3 + 1)))
+    ImGui.Text(ctx, string.format('%-3s',
+      string.rep('.', ImGui.GetTime(ctx) // 1 % 3 + 1)))
   end
   ImGui.SameLine(ctx)
 
@@ -877,7 +873,7 @@ function profiler.showReport(ctx, label, width, height)
     ImGui.TableNextColumn(ctx)
     textCell(ctx, line.name, false, nil, function()
       if line.children > 0 then
-        if not ImGui.TreeNode(ctx, line.name .. line.children, ImGui.TreeNodeFlags_SpanFullWidth() | ImGui.TreeNodeFlags_DefaultOpen() | ImGui.TreeNodeFlags_FramePadding()) then
+        if not ImGui.TreeNode(ctx, line.name, ImGui.TreeNodeFlags_SpanFullWidth() | ImGui.TreeNodeFlags_DefaultOpen() | ImGui.TreeNodeFlags_FramePadding()) then
           i = i + line.children
         end
       else
@@ -899,10 +895,10 @@ function profiler.showReport(ctx, label, width, height)
 
       ImGui.TableNextColumn(ctx)
       ImGui.ProgressBar(ctx, line.time_frac, nil, nil,
-        string_format('%.02f%%', line.time_frac * 100))
+        string.format('%.02f%%', line.time_frac * 100))
       ImGui.TableNextColumn(ctx)
       ImGui.ProgressBar(ctx, line.time_frac_parent, nil, nil,
-        string_format('%.02f%%', line.time_frac_parent * 100))
+        string.format('%.02f%%', line.time_frac_parent * 100))
 
       ImGui.TableNextColumn(ctx)
       textCell(ctx, formatTime(line.time))
@@ -946,9 +942,9 @@ end
 
 function profiler.defer(callback)
   defer_called = true
-  if not auto_active then return reaper_defer(callback) end
+  if not auto_active then return reaper.defer(callback) end
 
-  return reaper_defer(function()
+  return reaper.defer(function()
     defer_called = false
     profiler.start()
     callback()
@@ -961,10 +957,10 @@ function profiler.run()
   local ctx = ImGui.CreateContext(SCRIPT_NAME)
   local function loop()
     if profiler.showWindow(ctx, true) then
-      reaper_defer(loop)
+      reaper.defer(loop)
     end
   end
-  reaper_defer(loop)
+  reaper.defer(loop)
 end
 
 profiler.reset()
