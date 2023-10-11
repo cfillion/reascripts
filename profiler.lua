@@ -93,7 +93,6 @@ local function makeAttachOpts(opts)
 
   local defaults = {
     recursive    = true,
-    pattern      = nil,
     search_above = true,
     metatable    = true,
   }
@@ -519,13 +518,11 @@ local function attach(is_attach, name, value, opts, depth, in_metatable)
 
   local t = type(value)
   if t == 'function' then
-    if not opts.pattern or string.match(name, opts.pattern) then
-      if is_attach then
-        return true, makeWrapper(name, value)
-      else
-        local original = attachments[value]
-        if original then return true, original end
-      end
+    if is_attach then
+      return true, makeWrapper(name, value)
+    else
+      local original = attachments[value]
+      if original then return true, original end
     end
   elseif t == 'table' and depth < 8 and not in_metatable and
       (depth == 0 or (opts.recursive and value ~= _G)) then
