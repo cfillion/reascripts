@@ -13,7 +13,7 @@ local ImGui = (function()
   return ImGui
 end)()
 
-local SCRIPT_NAME = 'Lua profiler'
+local SCRIPT_NAME, EXT_STATE_ROOT = 'Lua profiler', 'cfillion_Lua profiler'
 local FLT_MIN = ImGui.NumericLimits_Float()
 local PROFILES_SIZE = 8
 
@@ -23,6 +23,9 @@ local active, auto_active, show_metrics = false, false, false
 local defer_called, scroll_to_top = false, false
 local getTime = reaper.time_precise -- faster than os.clock
 local profile, profile_cur -- references to profiles[current] for quick access
+local options, options_cache, options_default = {}, {}, {
+  tree_view = true,
+}
 
 -- weak references to have the garbage collector auto-clear the caches
 setmetatable(attachments, { __mode = 'kv' })
@@ -35,8 +38,12 @@ local assert, error, select, tostring = assert, error, select, tostring
 local type, getmetatable, next, print = type, getmetatable, next, print
 local select, pairs, ipairs           = select, pairs, ipairs
 local collectgarbage, reaper          = collectgarbage, {
-  defer = reaper.defer, get_action_context = reaper.get_action_context,
-  CF_ShellExecute = reaper.CF_ShellExecute,
+  defer              = reaper.defer,
+  get_action_context = reaper.get_action_context,
+  HasExtState        = reaper.HasExtState,
+  GetExtState        = reaper.GetExtState,
+  SetExtState        = reaper.SetExtState,
+  CF_ShellExecute    = reaper.CF_ShellExecute,
 }
 local debug, math, string, table, utf8 = (function(...)
   local vars = {}
@@ -51,7 +58,34 @@ end)('debug', 'math', 'string', 'table', 'utf8')
 assert(debug.getinfo(debug.getlocal, 'S').what == 'C',
   'global environment is tainted, stack depths will be incorrect')
 
-local function makeOpts(opts)
+setmetatable(options, {
+  __index = function(options, key)
+    local v = options_cache[key]
+    if v ~= nil then return v end
+    v = options_default[key]
+    assert(v ~= nil, 'option does not exist')
+    if not reaper.HasExtState(EXT_STATE_ROOT, key) then
+      reaper.SetExtState(EXT_STATE_ROOT, key, tostring(v), true)
+    else
+      local t = type(v)
+      v = reaper.GetExtState(EXT_STATE_ROOT, key)
+      if t == 'boolean' then
+        v = v == 'true'
+      elseif t ~= 'string' then
+        error('unsupported type')
+      end
+    end
+    options_cache[key] = v
+    return v
+  end,
+  __newindex = function(options, key, value)
+    assert(type(value) == type(options_default[key]), 'unexpected value type')
+    reaper.SetExtState(EXT_STATE_ROOT, key, tostring(value), true)
+    options_cache[key] = value
+  end,
+})
+
+local function makeAttachOpts(opts)
   if not opts then opts = {} end
 
   local defaults = {
@@ -305,52 +339,61 @@ local function updateProfile()
 
   profile.report = {}
 
-  local id, parents = 1, {}
+  local id, parents, flatten = 1, {}, not options.tree_view and {}
   for key, line, depth in eachDeep(profile) do
-    local location = locations[key]
-    local src, src_short, src_line = '<unknown>',  '<unknown>', -1
-    if location then
-      src = string.gsub(location.source, '^[@=]', '')
-      src_short = basename(location.short_src)
-      src_line = location.linedefined
-    end
+    if flatten then depth = 1 end
 
-    for i = 1, depth - 1 do
-      parents[i].children = parents[i].children + 1
+    local frame_source = flatten and profile.frames[key] or line
+    local report, is_new = flatten and flatten[key], false
+    if report then
+      report.count = report.count + line.count
+      report.time  = report.time + line.time
+      report.time_per_call_min =
+        math.min(report.time_per_call_min, line.time_per_call.min)
+      report.time_per_call_max =
+        math.max(report.time_per_call_max, line.time_per_call.max)
+    else
+      local location = locations[key]
+      local src, src_short, src_line = '<unknown>',  '<unknown>', -1
+      if location then
+        src = string.gsub(location.source, '^[@=]', '')
+        src_short = basename(location.short_src)
+        src_line = location.linedefined
+      end
+
+      id, report = id + 1, {
+        id = id, name = line.name, key = tostring(key), children = 0,
+        src = src, src_short = src_short, src_line = src_line,
+        time = line.time, count = line.count,
+        time_per_call_min = line.time_per_call.min,
+        time_per_call_max = line.time_per_call.max,
+      }
+
+      parents[depth] = report
+      for i = #parents, depth + 1, -1 do parents[i] = nil end
+      report.parents = { table.unpack(parents) }
+
+      for i = 1, depth - 1 do
+        parents[i].children = parents[i].children + 1
+      end
+
+      if flatten then flatten[key] = report end
+      profile.report[#profile.report + 1] = report
     end
 
     local parent = parents[depth - 1]
     local parent_time = parent and parent.time ~= 0 and parent.time or profile.time
-    local report = { -- immutable copy of the line
-      id = id, name = line.name, key = tostring(key), children = 0,
 
-      time = line.time, count = line.count,
-      time_frac = line.time / profile.time,
-      time_frac_parent = line.time / parent_time,
-
-      src = src, src_short = src_short, src_line = src_line,
-
-      frames = line.frames > 0 and line.frames,
-
-      time_per_call_min = line.time_per_call.min,
-      time_per_call_max = line.time_per_call.max,
-      time_per_call_avg = line.time / line.count,
-
-      time_per_frame_min = line.time_per_frame.min,
-      time_per_frame_max = line.time_per_frame.max,
-      time_per_frame_avg = line.frames > 0 and line.time / line.frames,
-
-      calls_per_frame_min = line.calls_per_frame.min,
-      calls_per_frame_max = line.calls_per_frame.max,
-      calls_per_frame_avg = line.frames > 0 and line.count // line.frames,
-    }
-
-    parents[depth] = report
-    for i = #parents, depth + 1, -1 do parents[i] = nil end
-    report.parents = { table.unpack(parents) }
-
-    profile.report[#profile.report + 1] = report
-    id = id + 1
+    report.time_frac           = report.time / profile.time
+    report.time_frac_parent    = report.time / parent_time
+    report.time_per_call_avg   = report.time / report.count
+    report.frames = frame_source.frames > 0 and frame_source.frames
+    report.time_per_frame_min  = frame_source.time_per_frame.min
+    report.time_per_frame_max  = frame_source.time_per_frame.max
+    report.time_per_frame_avg  = report.frames and report.time / report.frames
+    report.calls_per_frame_min = frame_source.calls_per_frame.min
+    report.calls_per_frame_max = frame_source.calls_per_frame.max
+    report.calls_per_frame_avg = report.frames and report.count // report.frames
   end
 
   table.sort(profile.report, function(a, b)
@@ -522,29 +565,29 @@ local function attachToVar(is_attach, var, opts)
 end
 
 function profiler.attachTo(var, opts)
-  attachToVar(true, var, makeOpts(opts))
+  attachToVar(true, var, makeAttachOpts(opts))
 end
 
 function profiler.detachFrom(var, opts)
-  attachToVar(false, var, makeOpts(opts))
+  attachToVar(false, var, makeAttachOpts(opts))
 end
 
 function profiler.attachToLocals(opts)
-  attachToLocals(true, makeOpts(opts))
+  attachToLocals(true, makeAttachOpts(opts))
 end
 
 function profiler.detachFromLocals(opts)
-  attachToLocals(false, makeOpts(opts))
+  attachToLocals(false, makeAttachOpts(opts))
 end
 
 function profiler.attachToWorld()
-  local opts = makeOpts()
+  local opts = makeAttachOpts()
   attachToLocals(true, opts)
   attachToTable(true, nil, _G, opts, 1)
 end
 
 function profiler.detachFromWorld()
-  local opts = makeOpts()
+  local opts = makeAttachOpts()
   attachToLocals(false, opts)
   attachToTable(false, nil, _G, opts, 1)
 end
@@ -553,6 +596,7 @@ function profiler.reset()
   profiles[current] = {
     time     = 0,
     children = {},
+    frames   = {},
     report   = {},
     start_time = active and getTime(),
     -- no need to initialize user_start_time because total_time isn't initialized
@@ -593,28 +637,54 @@ function profiler.stop()
   collectgarbage('restart')
 end
 
+local function updateFrame(line)
+  line.frames = line.frames + 1
+
+  local count = line.count - line.prev_count
+  line.prev_count = line.count
+  if not line.calls_per_frame.min or count < line.calls_per_frame.min then
+    line.calls_per_frame.min = count
+  end
+  if not line.calls_per_frame.max or count > line.calls_per_frame.max then
+    line.calls_per_frame.max = count
+  end
+
+  local time = line.time - line.prev_time
+  line.prev_time = line.time
+  if not line.time_per_frame.min or time < line.time_per_frame.min then
+    line.time_per_frame.min = time
+  end
+  if not line.time_per_frame.max or time > line.time_per_frame.max then
+    line.time_per_frame.max = time
+  end
+
+  return count, time
+end
+
 function profiler.frame()
   assert(profile_cur == profile, 'frame was called before leave')
 
   for key, line in eachDeep(profile) do
     if line.count > line.prev_count then
-      local count = line.count - line.prev_count
-      line.frames, line.prev_count = line.frames + 1, line.count
-      if not line.calls_per_frame.min or count < line.calls_per_frame.min then
-        line.calls_per_frame.min = count
-      end
-      if not line.calls_per_frame.max or count > line.calls_per_frame.max then
-        line.calls_per_frame.max = count
+      local merged = profile.frames[key]
+      if not merged then
+        merged = {
+          frames = 0,
+          count = 0, prev_count = 0,
+          time  = 0, prev_time  = 0,
+          time_per_frame = {}, calls_per_frame = {},
+        }
+        profile.frames[key] = merged
       end
 
-      local time = line.time - line.prev_time
-      line.prev_time = line.time
-      if not line.time_per_frame.min or time < line.time_per_frame.min then
-        line.time_per_frame.min = time
-      end
-      if not line.time_per_frame.max or time > line.time_per_frame.max then
-        line.time_per_frame.max = time
-      end
+      local count, time = updateFrame(line)
+      merged.count, merged.time = merged.count + count, merged.time + time
+    end
+  end
+
+  for key, line in pairs(profile.frames) do
+    if line.count > line.prev_count then
+      updateFrame(line)
     end
   end
 end
@@ -659,6 +729,9 @@ function profiler.showWindow(ctx, p_open, flags)
     end
     if ImGui.BeginMenu(ctx, 'Profile') then
       local has_data = profile.start_time ~= nil
+      if ImGui.MenuItem(ctx, 'Tree view', nil, options.tree_view) then
+        options.tree_view, profile.dirty = not options.tree_view, true
+      end
       if ImGui.MenuItem(ctx, 'Reset', nil, nil, has_data) then
         profiler.reset()
       end
@@ -874,15 +947,19 @@ function profiler.showReport(ctx, label, width, height)
     ImGui.TableNextRow(ctx)
 
     ImGui.TableNextColumn(ctx)
-    if line.children > 0 then
-      if not ImGui.TreeNodeEx(ctx, line.key, line.name, tree_node_flags) then
-        i = i + line.children
+    if options.tree_view then
+      if line.children > 0 then
+        if not ImGui.TreeNodeEx(ctx, line.key, line.name, tree_node_flags) then
+          i = i + line.children
+        end
+        tooltip(ctx, string.format('%s (%d children)',
+          line.name, formatNumber(line.children)))
+      else
+        ImGui.TreeNodeEx(ctx, line.key, line.name, tree_node_leaf_flags)
+        tooltip(ctx, line.name)
       end
-      tooltip(ctx, string.format('%s (%d children)',
-        line.name, formatNumber(line.children)))
     else
-      ImGui.TreeNodeEx(ctx, line.key, line.name, tree_node_leaf_flags)
-      tooltip(ctx, line.name)
+      textCell(ctx, line.name, false)
     end
 
     if ImGui.IsItemVisible(ctx) then
