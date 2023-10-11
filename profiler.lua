@@ -22,7 +22,7 @@ local attachments, wrappers, locations, clippers = {}, {}, {}, {}
 local active, auto_active, show_metrics = false, false, false
 local defer_called, scroll_to_top = false, false
 local getTime = reaper.time_precise -- faster than os.clock
-local profile, profile_data -- references to profiles[current] for quick access
+local profile, profile_cur -- references to profiles[current] for quick access
 
 -- weak references to have the garbage collector auto-clear the caches
 setmetatable(attachments, { __mode = 'kv' })
@@ -32,18 +32,18 @@ setmetatable(clippers,    { __mode = 'k'  })
 
 -- cache stdlib constants and funcs to not break if the host script changes them
 -- + don't count the profiler's own use of them in measurements
-local math_huge = math.huge
-local assert, error, type, pairs, print = assert, error, type, pairs, print
-local tostring, select, getmetatable  = tostring, select, getmetatable
+local assert, error, select, tostring = assert, error, select, tostring
+local type, getmetatable, next, print = type, getmetatable, next, print
+local select, pairs, ipairs           = select, pairs, ipairs
+local collectgarbage, debug_getinfo   = collectgarbage, debug.getinfo
 local debug_getlocal, debug_setlocal  = debug.getlocal, debug.setlocal
-local debug_getinfo,  collectgarbage  = debug.getinfo,  collectgarbage
+local math_log,       math_huge       = math.log,       math.huge
 local math_min,       math_max        = math.min,       math.max
-local math_log,       math_floor      = math.log,       math.floor
-local string_gsub,    string_match    = string.gsub,    string.match
 local string_find,    string_format   = string.find,    string.format
+local string_gsub,    string_match    = string.gsub,    string.match
 local string_sub,     string_rep      = string.sub,     string.rep
+local table_sort,     table_unpack    = table.sort, table.unpack
 local utf8_len,       utf8_offset     = utf8.len,       utf8.offset
-local table_sort                      = table.sort
 local reaper_defer,   CF_ShellExecute = reaper.defer,   reaper.CF_ShellExecute
 local reaper_get_action_context = reaper.get_action_context
 
@@ -163,12 +163,17 @@ local function tooltip(ctx, text)
   ImGui.EndTooltip(ctx)
 end
 
-local function textCell(ctx, value, right_align, custom_tooltip)
+local function textCell(ctx, value, right_align, custom_tooltip, display_func)
+  local avail_w = ImGui.GetContentRegionAvail(ctx)
   if right_align == nil then right_align = true end
   if right_align then alignNextItemRight(ctx, value) end
-  ImGui.Text(ctx, value)
+  if display_func then
+    display_func()
+  else
+    ImGui.Text(ctx, value)
+  end
   if (custom_tooltip and custom_tooltip ~= value) or
-      ImGui.CalcTextSize(ctx, value) > ImGui.GetContentRegionAvail(ctx) then
+      ImGui.GetItemRectSize(ctx) > avail_w then
     tooltip(ctx, custom_tooltip or value)
   end
 end
@@ -176,16 +181,17 @@ end
 local function enter(what, alias)
   profile.dirty = true
 
-  local line = profile_data[what]
+  local line = profile_cur.children[what]
   if not line then
     line = {
-      name = alias, count = 0, time = 0,
-      enter_time = 0, enter_count = 0,
+      parent = profile_cur, children = {},
+      name = alias, count = 0, time = 0, enter_time = 0,
       frames = 0, prev_count = 0, prev_time = 0,
       time_per_call = {}, time_per_frame = {}, calls_per_frame = {},
     }
-    profile_data[what] = line
+    profile_cur.children[what] = line
   end
+  profile_cur = line
 
   if not locations[what] then
     local location
@@ -198,30 +204,27 @@ local function enter(what, alias)
     locations[what] = location
   end
 
-  line.count, line.enter_count = line.count + 1, line.enter_count + 1
-
-  local now = getTime()
-  if line.enter_count > 1 then
-    line.time = line.time + (now - line.enter_time)
-  end
-  line.enter_time = now
+  line.count = line.count + 1
+  line.enter_time = getTime()
 end
 
-local function leave(what)
+local function leave()
   local now = getTime()
-  local line = profile_data[what]
-  if not line or line.enter_count < 1 then
+  if profile_cur == profile then
     error('unbalanced leave (missing call to enter)')
   end
-  local time = now - line.enter_time
-  if not line.time_per_call.min or time < line.time_per_call.min then
-    line.time_per_call.min = time
+
+  local time = now - profile_cur.enter_time
+  local time_per_call = profile_cur.time_per_call
+  if not time_per_call.min or time < time_per_call.min then
+    time_per_call.min = time
   end
-  if not line.time_per_call.max or time > line.time_per_call.max then
-    line.time_per_call.max = time
+  if not time_per_call.max or time > time_per_call.max then
+    time_per_call.max = time
   end
-  line.time = line.time + time
-  line.enter_time, line.enter_count = now, line.enter_count - 1
+  profile_cur.time = profile_cur.time + time
+  profile_cur.enter_time = now
+  profile_cur = profile_cur.parent
 end
 
 local function setActive(activate)
@@ -249,7 +252,7 @@ local function setCurrentProfile(i)
   if not profiles[i] then
     profiler.reset()
   else
-    profile, profile_data = profiles[i], profiles[i].data
+    profile, profile_cur = profiles[i], profiles[i]
   end
 
   if active then
@@ -261,7 +264,33 @@ local function setCurrentProfile(i)
   scroll_to_top = true
 end
 
+local function inext(tbl, k)
+  if k == nil then k = 1 else k = k + 1 end
+  if k > #tbl then return end
+  return k, tbl[k]
+end
+
+local function eachDeep(tbl, nextFunc)
+  local key_stack, depth = {}, 1
+  return function()
+    local v
+    if not tbl then return end
+    if key_stack[depth] and tbl.children[key_stack[depth]] then
+      tbl = tbl.children[key_stack[depth]]
+      depth = depth + 1
+    end
+    repeat
+      key_stack[depth], v = nextFunc(tbl.children, key_stack[depth])
+      if key_stack[depth] then return key_stack[depth], v, depth end
+      depth = depth - 1
+      tbl = tbl.parent
+    until not tbl
+  end
+end
+
 local function updateProfile()
+  assert(profile_cur == profile, 'unbalanced enter (missing call to leave)')
+
   local now = getTime()
 
   -- update active time
@@ -282,9 +311,8 @@ local function updateProfile()
 
   profile.report = {}
 
-  for key, line in pairs(profile_data) do
-    assert(line.enter_count == 0, 'unbalanced enter (missing call to leave)')
-
+  local id, parents = 1, {}
+  for key, line, depth in eachDeep(profile, next) do
     local location = locations[key]
     local src, src_short, src_line = '<unknown>',  '<unknown>', -1
     if location then
@@ -293,10 +321,20 @@ local function updateProfile()
       src_line = location.linedefined
     end
 
-    profile.report[#profile.report + 1] = { -- immutable copy of the line
-      name = line.name, time = line.time, count = line.count,
+    for i = 1, depth - 1 do
+      parents[i].children = parents[i].children + 1
+    end
+
+    local parent = parents[depth - 1]
+    local report = { -- immutable copy of the line
+      id = id, name = line.name, children = 0,
+
+      time = line.time, count = line.count,
       time_frac = line.time / profile.time,
+      time_frac_parent = line.time / (parent and parent.time or profile.time),
+
       src = src, src_short = src_short, src_line = src_line,
+
       frames = line.frames > 0 and line.frames,
 
       time_per_call = {
@@ -312,9 +350,28 @@ local function updateProfile()
         avg = line.frames > 0 and line.count // line.frames,
       },
     }
+
+    parents[depth] = report
+    for i = #parents, depth + 1, -1 do parents[i] = nil end
+    report.parents = { table_unpack(parents) }
+
+    profile.report[#profile.report + 1] = report
+    id = id + 1
   end
 
-  table_sort(profile.report, function(a, b) return a.time > b.time end)
+  table_sort(profile.report, function(a, b)
+    for i = 1, math_max(#a.parents, #b.parents) do
+      local l, r = a.parents[i], b.parents[i]
+      if not l then return true  end
+      if not r then return false end
+      if l ~= r then
+        -- table.sort is not stable: using id to preserve relative positions
+        if l.time == r.time then return l.id < r.id end
+        return l.time > r.time
+      end
+    end
+    -- assert(a == b)
+  end)
 end
 
 local function callLeave(func, ...)
@@ -500,13 +557,13 @@ end
 
 function profiler.reset()
   profiles[current] = {
-    time   = 0,
-    data   = {},
-    report = {},
+    time     = 0,
+    children = {},
+    report   = {},
     start_time = active and getTime(),
     -- no need to initialize user_start_time because total_time isn't initialized
   }
-  profile, profile_data = profiles[current], profiles[current].data
+  profile, profile_cur = profiles[current], profiles[current]
 end
 
 function profiler.start()
@@ -529,9 +586,8 @@ function profiler.enter(what)
   enter(what, what)
 end
 
-function profiler.leave(what)
-  if not active then return end
-  leave(tostring(what))
+function profiler.leave()
+  if active then leave() end
 end
 
 function profiler.stop()
@@ -544,8 +600,9 @@ function profiler.stop()
 end
 
 function profiler.frame()
-  for key, line in pairs(profile_data) do
-    if line.enter_count > 0 then error('frame was called before leave') end
+  assert(profile_cur == profile, 'frame was called before leave')
+
+  for key, line in eachDeep(profile, next) do
     if line.count > line.prev_count then
       local count = line.count - line.prev_count
       line.frames, line.prev_count = line.frames + 1, line.count
@@ -760,14 +817,17 @@ function profiler.showReport(ctx, label, width, height)
     ImGui.TableFlags_Hideable()  | ImGui.TableFlags_Sortable()    |
     ImGui.TableFlags_ScrollX()   | ImGui.TableFlags_ScrollY()     |
     ImGui.TableFlags_Borders()   | ImGui.TableFlags_RowBg()
-  if not ImGui.BeginTable(ctx, 'table', 16, flags) then
+  if not ImGui.BeginTable(ctx, 'table', 17, flags) then
     return ImGui.EndChild(ctx)
   end
   ImGui.TableSetupScrollFreeze(ctx, 0, 1)
   ImGui.TableSetupColumn(ctx, 'Name')
   ImGui.TableSetupColumn(ctx, 'Source')
   ImGui.TableSetupColumn(ctx, 'Line')
-  ImGui.TableSetupColumn(ctx, '%',
+  ImGui.TableSetupColumn(ctx, '% of total',
+    ImGui.TableColumnFlags_WidthStretch() |
+    ImGui.TableColumnFlags_PreferSortDescending())
+  ImGui.TableSetupColumn(ctx, '% of parent',
     ImGui.TableColumnFlags_WidthStretch() |
     ImGui.TableColumnFlags_PreferSortDescending())
   ImGui.TableSetupColumn(ctx, 'Time',
@@ -803,20 +863,29 @@ function profiler.showReport(ctx, label, width, height)
     clippers[ctx] = clipper
   end
 
-  local cut_src_cache = {}
+  local i, prev_depth, cut_src_cache = 1, 1, {}
   ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding(), 1, 1)
-  ImGui.ListClipper_Begin(clipper, #profile.report)
-  while ImGui.ListClipper_Step(clipper) do
-    local display_start, display_end = ImGui.ListClipper_GetDisplayRange(clipper)
-    for i = display_start + 1, display_end do
-      local line = profile.report[i]
-      ImGui.TableNextRow(ctx)
-      ImGui.PushID(ctx, i)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_IndentSpacing(), 12)
+  while i <= #profile.report do
+    local line = profile.report[i]
 
-      ImGui.TableNextColumn(ctx)
-      ImGui.AlignTextToFramePadding(ctx)
-      textCell(ctx, line.name, false)
+    for i = #line.parents, prev_depth - 1 do ImGui.TreePop(ctx) end
+    prev_depth = #line.parents
 
+    ImGui.TableNextRow(ctx)
+
+    ImGui.TableNextColumn(ctx)
+    textCell(ctx, line.name, false, nil, function()
+      if line.children > 0 then
+        if not ImGui.TreeNode(ctx, line.name .. line.children, ImGui.TreeNodeFlags_SpanFullWidth() | ImGui.TreeNodeFlags_DefaultOpen() | ImGui.TreeNodeFlags_FramePadding()) then
+          i = i + line.children
+        end
+      else
+        ImGui.TreeNode(ctx, line.name, ImGui.TreeNodeFlags_Leaf() | ImGui.TreeNodeFlags_NoTreePushOnOpen() | ImGui.TreeNodeFlags_SpanFullWidth() | ImGui.TreeNodeFlags_FramePadding())
+      end
+    end)
+
+    if ImGui.IsItemVisible(ctx) then
       ImGui.TableNextColumn(ctx)
       local src_short = cut_src_cache[line.src_short]
       if not src_short then
@@ -831,6 +900,9 @@ function profiler.showReport(ctx, label, width, height)
       ImGui.TableNextColumn(ctx)
       ImGui.ProgressBar(ctx, line.time_frac, nil, nil,
         string_format('%.02f%%', line.time_frac * 100))
+      ImGui.TableNextColumn(ctx)
+      ImGui.ProgressBar(ctx, line.time_frac_parent, nil, nil,
+        string_format('%.02f%%', line.time_frac_parent * 100))
 
       ImGui.TableNextColumn(ctx)
       textCell(ctx, formatTime(line.time))
@@ -860,11 +932,11 @@ function profiler.showReport(ctx, label, width, height)
       textCell(ctx, formatNumber(line.calls_per_frame.avg))
       ImGui.TableNextColumn(ctx)
       textCell(ctx, formatNumber(line.calls_per_frame.max))
-
-      ImGui.PopID(ctx)
     end
+    i = i + 1
   end
-  ImGui.PopStyleVar(ctx)
+  for i = 2, prev_depth do ImGui.TreePop(ctx) end
+  ImGui.PopStyleVar(ctx, 2)
   ImGui.EndTable(ctx)
 
   if export then ImGui.LogFinish(ctx) end
