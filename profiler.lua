@@ -17,10 +17,13 @@ local SCRIPT_NAME, EXT_STATE_ROOT = 'Lua profiler', 'cfillion_Lua profiler'
 local FLT_MIN = ImGui.NumericLimits_Float()
 local PROFILES_SIZE = 8
 
-local profiler, profiles, current = {}, {}, 1
+-- 'active' is not in 'state' for faster access
+local profiler, profiles, active, state = {}, {}, false, {
+  current = 1, auto_active = false,
+}
 local attachments, wrappers, locations = {}, {}, {}
-local active, auto_active, show_metrics = false, false, false
-local defer_called, scroll_to_top = false, false
+-- local active, auto_active, show_metrics = false, false, false
+-- local defer_called, run_called, scroll_to_top = false, false, false
 local getTime = reaper.time_precise -- faster than os.clock
 local profile, profile_cur -- references to profiles[current] for quick access
 local options, options_cache, options_default = {}, {}, {
@@ -263,8 +266,8 @@ end
 
 local function setActive(activate)
   if activate then
-    if defer_called then
-      auto_active = true
+    if state.defer_called then
+      state.auto_active = true
       profile.user_start_time = getTime()
     else
       profiler.start()
@@ -274,7 +277,7 @@ local function setActive(activate)
     if active then
       profiler.stop()
     else
-      auto_active = false
+      state.auto_active = false
     end
   end
 end
@@ -282,7 +285,7 @@ end
 local function setCurrentProfile(i)
   local now = getTime()
 
-  current = i
+  state.current = i
   if not profiles[i] then
     profiler.reset()
   else
@@ -291,11 +294,11 @@ local function setCurrentProfile(i)
 
   if active then
     profile.start_time, profile.user_start_time = now, now
-  elseif auto_active then
+  elseif state.auto_active then
     profile.user_start_time = now
   end
 
-  scroll_to_top = true
+  state.scroll_to_top = true
 end
 
 local function eachDeep(tbl)
@@ -593,7 +596,7 @@ function profiler.detachFromWorld()
 end
 
 function profiler.reset()
-  profiles[current] = {
+  profiles[state.current] = {
     time     = 0,
     children = {},
     frames   = {},
@@ -601,7 +604,7 @@ function profiler.reset()
     start_time = active and getTime(),
     -- no need to initialize user_start_time because total_time isn't initialized
   }
-  profile, profile_cur = profiles[current], profiles[current]
+  profile, profile_cur = profiles[state.current], profiles[state.current]
 end
 
 function profiler.start()
@@ -714,16 +717,19 @@ function profiler.showWindow(ctx, p_open, flags)
       ImGui.EndMenu(ctx)
     end
     if ImGui.BeginMenu(ctx, 'Acquisition') then
-      local is_active = active or auto_active
+      local is_active = active or state.auto_active
       if ImGui.MenuItem(ctx, 'Start', nil, nil, not is_active) then
-        if defer_called then
+        if state.defer_called then
           setActive(true)
         else
           open_no_defer_popup = true
         end
       end
       if ImGui.MenuItem(ctx, 'Stop', nil, nil, is_active) then
-        setActive(false)
+        -- profiler might be active now if called from profiler.defer
+        -- waiting a defer cycle to ensure auto_active is properly unset
+        -- rather than calling `stop` directly (which would happen twice)
+        reaper.defer(function() setActive(false) end)
       end
       ImGui.EndMenu(ctx)
     end
@@ -748,12 +754,13 @@ function profiler.showWindow(ctx, p_open, flags)
     end
     local fps = string.format('%04.01f FPS##fps', ImGui.GetFramerate(ctx))
     alignNextItemRight(ctx, fps, true)
-    show_metrics = select(2, ImGui.MenuItem(ctx, fps, nil, show_metrics))
+    state.show_metrics =
+      select(2, ImGui.MenuItem(ctx, fps, nil, state.show_metrics))
     ImGui.EndMenuBar(ctx)
   end
 
-  if show_metrics then
-    show_metrics = ImGui.ShowMetricsWindow(ctx, true)
+  if state.show_metrics then
+    state.show_metrics = ImGui.ShowMetricsWindow(ctx, true)
   end
 
   if open_no_defer_popup then
@@ -792,7 +799,7 @@ function profiler.showWindow(ctx, p_open, flags)
     end
     ImGui.SameLine(ctx)
     if ImGui.Button(ctx, 'Inject proxy and continue') then
-      _G['reaper'].defer, defer_called = profiler.defer, true
+      _G['reaper'].defer, state.defer_called = profiler.defer, true
       setActive(true)
       ImGui.CloseCurrentPopup(ctx)
     end
@@ -854,7 +861,7 @@ function profiler.showReport(ctx, label, width, height)
   alignGroupRight(ctx, function()
     for i = 1, PROFILES_SIZE do
       if i > 1 then ImGui.SameLine(ctx, nil, 4) end
-      local was_current = i == current
+      local was_current = i == state.current
       if was_current then
         ImGui.PushStyleColor(ctx, ImGui.Col_Button(),
           ImGui.GetStyleColor(ctx, ImGui.Col_HeaderActive()))
@@ -875,9 +882,9 @@ function profiler.showReport(ctx, label, width, height)
   end, true)
   ImGui.Spacing(ctx)
 
-  if scroll_to_top then
+  if state.scroll_to_top then
     ImGui.SetNextWindowScroll(ctx, 0, 0)
-    scroll_to_top = false
+    state.scroll_to_top = false
   end
   local flags =
     ImGui.TableFlags_Resizable() | ImGui.TableFlags_Reorderable() |
@@ -992,11 +999,11 @@ function profiler.showReport(ctx, label, width, height)
 end
 
 function profiler.defer(callback)
-  defer_called = true
-  if not auto_active then return reaper.defer(callback) end
+  state.defer_called = true
+  if not state.auto_active then return reaper.defer(callback) end
 
   return reaper.defer(function()
-    defer_called = false
+    state.defer_called = false
     profiler.start()
     callback()
     profiler.stop()
