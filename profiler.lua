@@ -340,11 +340,14 @@ local function updateProfile()
   end
   profile.user_start_time = now
 
-  profile.report = {}
+  profile.report = { max_depth = 1 }
 
   local id, parents, flatten = 1, {}, not options.tree_view and {}
   for key, line, depth in eachDeep(profile) do
     if flatten then depth = 1 end
+    if depth > profile.report.max_depth then
+      profile.report.max_depth = depth
+    end
 
     local frame_source = flatten and profile.frames[key] or line
     local report, is_new = flatten and flatten[key], false
@@ -954,7 +957,7 @@ function profiler.showReport(ctx, label, width, height)
     ImGui.TableNextRow(ctx)
 
     ImGui.TableNextColumn(ctx)
-    if options.tree_view then
+    if profile.report.max_depth > 1 then
       if line.children > 0 then
         if not ImGui.TreeNodeEx(ctx, line.key, line.name, tree_node_flags) then
           i = i + line.children
