@@ -1,3 +1,24 @@
+-- Public API summary:
+-- * profiler.attachTo(string var, nil|table opts)
+-- * profiler.detachFrom(string var, nil|table opts)
+-- * profiler.attachToLocals(nil|table opts)
+-- * profiler.detachFromLocals(nil|table opts)
+-- * profiler.attachToWorld()
+-- * profiler.detachFromWorld()
+-- * profiler.reset()
+-- * profiler.start()
+-- * profiler.enter(string what)
+-- * profiler.leave()
+-- * profiler.stop()
+-- * profiler.frame()
+-- * profiler.showWindow(ImGui_Context* ctx, nil|bool p_open, nil|integer flags)
+-- * profiler.showProfile(ImGui_Context* ctx, string label, nil|number width, nil|number height)
+-- * profiler.defer(function callback)
+-- * profiler.run()
+-- * profiler.reset()
+--
+-- * nil|bool|integer profiler.auto_start
+
 local ImGui = (function()
   local host_reaper = reaper
   reaper = {}
@@ -826,8 +847,8 @@ function profiler.showWindow(ctx, p_open, flags)
       if ImGui.MenuItem(ctx, 'Donate...') then
         reaper.CF_ShellExecute('https://reapack.com/donate')
       end
-      if ImGui.MenuItem(ctx, 'Forum thread', nil, nil, false) then
-        -- reaper.CF_ShellExecute('')
+      if ImGui.MenuItem(ctx, 'Forum thread') then
+        reaper.CF_ShellExecute('https://forum.cockos.com/showthread.php?t=283461')
       end
       ImGui.EndMenu(ctx)
     end
@@ -897,13 +918,13 @@ function profiler.showWindow(ctx, p_open, flags)
   if ImGui.IsWindowFocused(ctx) then
     ImGui.SetNextWindowFocus(ctx)
   end
-  profiler.showReport(ctx, 'report', 0, 0)
+  profiler.showProfile(ctx, 'report', 0, 0)
 
   ImGui.End(ctx)
   return p_open
 end
 
-function profiler.showReport(ctx, label, width, height)
+function profiler.showProfile(ctx, label, width, height)
   if not ImGui.BeginChild(ctx, label, width, height) then return end
 
   if ImGui.IsWindowAppearing(ctx) then
