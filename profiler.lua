@@ -19,7 +19,7 @@ local PROFILES_SIZE = 8
 
 -- 'active' is not in 'state' for faster access
 local profiler, profiles, active, state = {}, {}, false, {
-  current = 1, auto_active = false, sort = {},
+  current = 1, auto_active = 0, sort = {},
 }
 local attachments, wrappers, locations = {}, {}, {}
 local getTime = reaper.time_precise -- faster than os.clock
@@ -300,21 +300,42 @@ local function leave()
   profile_cur = profile_cur.parent
 end
 
-local function setActive(activate)
-  if activate then
-    if state.defer_called then
-      state.auto_active = true
+local function isAnyActive()
+  return active or state.auto_active ~= 0
+end
+
+local function setActive(frame_count, force_auto)
+  if frame_count == true then frame_count = -1
+  elseif not frame_count then frame_count = 0 end
+  assert(type(frame_count) == 'number',
+    'value must be nil, a boolean, or an integer')
+  frame_count = math.floor(frame_count)
+
+  if frame_count ~= 0 then
+    if state.defer_called or force_auto then
+      state.auto_active = frame_count
       profile.user_start_time = getTime()
     else
       profiler.start()
       profile.user_start_time = profile.start_time
     end
   else
-    if active then
+    if active and not force_auto then
       profiler.stop()
     else
-      state.auto_active = false
+      state.auto_active = 0
     end
+  end
+end
+
+local function setActiveFromUI(frame_count)
+  if not state.defer_called and frame_count and frame_count ~= 0 then
+    state.want_activate = frame_count
+  else
+    -- profiler might be active now if showWindow called from profiler.defer
+    -- waiting a defer cycle to ensure auto_active is properly unset
+    -- rather than calling `stop` directly (which would happen twice = error)
+    reaper.defer(function() setActive(frame_count) end)
   end
 end
 
@@ -330,7 +351,7 @@ local function setCurrentProfile(i)
 
   if active then
     profile.start_time, profile.user_start_time = now, now
-  elseif state.auto_active then
+  elseif state.auto_active ~= 0 then
     profile.user_start_time = now
   end
 
@@ -356,7 +377,7 @@ local function eachDeep(tbl)
 end
 
 local function updateTime()
-  if not active and not state.auto_active then return end
+  if not isAnyActive() then return end
 
   local now = getTime()
 
@@ -738,6 +759,10 @@ function profiler.frame()
       updateFrame(line)
     end
   end
+
+  if state.auto_active > 0 then
+    state.auto_active = state.auto_active - 1
+  end
 end
 
 function profiler.showWindow(ctx, p_open, flags)
@@ -755,8 +780,6 @@ function profiler.showWindow(ctx, p_open, flags)
   visible, p_open = ImGui.Begin(ctx, label, p_open, flags)
   if not visible then return p_open end
 
-  local open_no_defer_popup = false
-
   if ImGui.BeginMenuBar(ctx) then
     if ImGui.BeginMenu(ctx, 'File') then
       if ImGui.MenuItem(ctx, 'Close', nil, nil, can_close) then
@@ -765,19 +788,27 @@ function profiler.showWindow(ctx, p_open, flags)
       ImGui.EndMenu(ctx)
     end
     if ImGui.BeginMenu(ctx, 'Acquisition') then
-      local is_active = active or state.auto_active
+      local is_active = isAnyActive()
       if ImGui.MenuItem(ctx, 'Start', nil, nil, not is_active) then
-        if state.defer_called then
-          setActive(true)
-        else
-          open_no_defer_popup = true
+        setActiveFromUI(-1)
+      end
+      if ImGui.BeginMenu(ctx, 'Start for', not is_active) then
+        local fps, pattern = 30, { 1, 2, 5 }
+        if ImGui.MenuItem(ctx, '    1 frame') then
+          setActiveFromUI(1)
         end
+        for decade = 0, 1 do
+          for i, v in ipairs(pattern) do
+            local n = v * (10 ^ decade) * fps | 0
+            if ImGui.MenuItem(ctx, ('%5s frames'):format(formatNumber(n))) then
+              setActiveFromUI(n)
+            end
+          end
+        end
+        ImGui.EndMenu(ctx)
       end
       if ImGui.MenuItem(ctx, 'Stop', nil, nil, is_active) then
-        -- profiler might be active now if called from profiler.defer
-        -- waiting a defer cycle to ensure auto_active is properly unset
-        -- rather than calling `stop` directly (which would happen twice)
-        reaper.defer(function() setActive(false) end)
+        setActiveFromUI(false)
       end
       ImGui.EndMenu(ctx)
     end
@@ -811,7 +842,7 @@ function profiler.showWindow(ctx, p_open, flags)
     state.show_metrics = ImGui.ShowMetricsWindow(ctx, true)
   end
 
-  if open_no_defer_popup then
+  if state.want_activate then
     ImGui.OpenPopup(ctx, 'Frame measurement')
   end
   centerNextWindow(ctx)
@@ -841,18 +872,23 @@ function profiler.showWindow(ctx, p_open, flags)
     ImGui.Text(ctx, 'Do you wish to enable acquisition anyway?')
     ImGui.Spacing(ctx)
 
+    ImGui.BeginDisabled(ctx, state.want_activate > 0)
     if ImGui.Button(ctx, 'Continue') then
-      setActive(true)
+      setActive(state.want_activate)
+      state.want_activate = nil
       ImGui.CloseCurrentPopup(ctx)
     end
+    ImGui.EndDisabled(ctx)
     ImGui.SameLine(ctx)
     if ImGui.Button(ctx, 'Inject proxy and continue') then
       _G['reaper'].defer, state.defer_called = profiler.defer, true
-      setActive(true)
+      setActive(state.want_activate)
+      state.want_activate = nil
       ImGui.CloseCurrentPopup(ctx)
     end
     ImGui.SameLine(ctx)
     if ImGui.Button(ctx, 'Cancel') then
+      state.want_activate = nil
       ImGui.CloseCurrentPopup(ctx)
     end
     ImGui.EndPopup(ctx)
@@ -893,7 +929,7 @@ function profiler.showReport(ctx, label, width, height)
     formatTime(profile.time, false), formatTime(profile.total_time or 0, false),
     (profile.time / (profile.total_time or 1)) * 100)
   ImGui.Text(ctx, summary)
-  if active or state.auto_active then
+  if isAnyActive() then
     ImGui.SameLine(ctx, nil, 0)
     ImGui.Text(ctx, string.format('%-3s',
       string.rep('.', ImGui.GetTime(ctx) // 1 % 3 + 1)))
@@ -1018,9 +1054,9 @@ end
 
 function profiler.defer(callback)
   state.defer_called = true
-  if not state.auto_active then return reaper.defer(callback) end
 
   return reaper.defer(function()
+    if state.auto_active == 0 then return callback() end
     state.defer_called = false
     profiler.start()
     callback()
@@ -1030,14 +1066,33 @@ function profiler.defer(callback)
 end
 
 function profiler.run()
+  if state.run_called then return end
+  state.run_called = true
   local ctx = ImGui.CreateContext(SCRIPT_NAME)
   local function loop()
     if profiler.showWindow(ctx, true) then
       reaper.defer(loop)
+    else
+      state.run_called = false
     end
   end
   reaper.defer(loop)
 end
+
+setmetatable(profiler, {
+  __index = function(profiler, key)
+    if key == 'auto_start' then
+      return state.auto_active
+    end
+  end,
+  __newindex = function(profiler, key, value)
+    if key == 'auto_start' then
+      setActive(value, true)
+    else
+      rawset(profiler, key, value)
+    end
+  end,
+})
 
 profiler.reset()
 
