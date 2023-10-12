@@ -258,8 +258,7 @@ local function leave()
   if not time_per_call.max or time > time_per_call.max then
     time_per_call.max = time
   end
-  profile_cur.time = profile_cur.time + time
-  profile_cur.enter_time = now
+  profile_cur.time, profile_cur.enter_time = profile_cur.time + time, now
   profile_cur = profile_cur.parent
 end
 
@@ -318,18 +317,16 @@ local function eachDeep(tbl)
   end
 end
 
-local function updateProfile()
-  assert(profile_cur == profile, 'unbalanced enter (missing call to leave)')
+local function updateTime()
+  if not active and not state.auto_active then return end
 
   local now = getTime()
 
-  -- update active time
   if active then
     profile.time = profile.time + (now - profile.start_time)
-    profile.start_time = now
+    profile.start_time, profile.dirty = now, true
   end
 
-  -- update wall time
   local total_time = profile.total_time
   if total_time then
     profile.total_time = total_time + (now - profile.user_start_time)
@@ -338,6 +335,10 @@ local function updateProfile()
     profile.total_time = profile.time
   end
   profile.user_start_time = now
+end
+
+local function updateReport()
+  assert(profile_cur == profile, 'unbalanced enter (missing call to leave)')
 
   profile.report = { max_depth = 1 }
 
@@ -633,8 +634,7 @@ end
 
 function profiler.stop()
   assert(active, 'profiler is not active')
-  profile.time = profile.time + (getTime() - profile.start_time)
-  profile.dirty = true -- have updateProfile refresh total_time and update %
+  updateTime() -- before setting active to false
   active = false
 
   collectgarbage('restart')
@@ -665,7 +665,7 @@ local function updateFrame(line)
 end
 
 function profiler.frame()
-  assert(profile_cur == profile, 'frame was called before leave')
+  assert(not active, 'profiler must be stopped before calling frame')
 
   for key, line in eachDeep(profile) do
     if line.count > line.prev_count then
@@ -835,22 +835,17 @@ function profiler.showReport(ctx, label, width, height)
     end
   end
 
-  local was_dirty = profile.dirty
-  if was_dirty then
+  updateTime() -- may set dirty
+  if profile.dirty then
+    updateReport()
     profile.dirty = false
-    updateProfile()
   end
 
-  local summary
-  if #profile.report < 1 then
-    summary = 'No profiling data has been acquired yet.'
-  else
-    summary = string.format('Active time / wall time: %s / %s (%.02f%%)',
-      formatTime(profile.time, false), formatTime(profile.total_time, false),
-      (profile.time / profile.total_time) * 100)
-  end
+  local summary = string.format('Active time / wall time: %s / %s (%.02f%%)',
+    formatTime(profile.time, false), formatTime(profile.total_time or 0, false),
+    (profile.time / (profile.total_time or 1)) * 100)
   ImGui.Text(ctx, summary)
-  if was_dirty then
+  if active or state.auto_active then
     ImGui.SameLine(ctx, nil, 0)
     ImGui.Text(ctx, string.format('%-3s',
       string.rep('.', ImGui.GetTime(ctx) // 1 % 3 + 1)))
