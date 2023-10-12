@@ -19,7 +19,7 @@ local PROFILES_SIZE = 8
 
 -- 'active' is not in 'state' for faster access
 local profiler, profiles, active, state = {}, {}, false, {
-  current = 1, auto_active = false,
+  current = 1, auto_active = false, sort = {},
 }
 local attachments, wrappers, locations = {}, {}, {}
 -- local active, auto_active, show_metrics = false, false, false
@@ -337,6 +337,34 @@ local function updateTime()
   profile.user_start_time = now
 end
 
+local function sortReport()
+  local key = ({
+    'name', 'src', 'src_line', 'time_frac', 'time_frac_parent',
+    'time', 'count', 'time_per_call_min', 'time_per_call_avg',
+    'time_per_call_max', 'frames', 'time_per_call_max', 'frames',
+    'time_per_frame_min', 'time_per_frame_avg', 'time_per_frame_max',
+    'calls_per_frame_min', 'calls_per_frame_avg', 'calls_per_frame_max',
+  })[state.sort.col + 1]
+
+  table.sort(profile.report, function(a, b)
+    for i = 1, math.max(#a.parents, #b.parents) do
+      local l, r = a.parents[i], b.parents[i]
+      if not l then return true  end
+      if not r then return false end
+      if l ~= r then
+        -- table.sort is not stable: using id to preserve relative positions
+        if l[key] == r[key] then return l.id < r.id end
+        if state.sort.dir == ImGui.SortDirection_Ascending() then
+          return l[key] < r[key]
+        else
+          return l[key] > r[key]
+        end
+      end
+    end
+    -- assert(a == b)
+  end)
+end
+
 local function updateReport()
   assert(profile_cur == profile, 'unbalanced enter (missing call to leave)')
 
@@ -402,19 +430,7 @@ local function updateReport()
     report.calls_per_frame_avg = report.frames and report.count // report.frames
   end
 
-  table.sort(profile.report, function(a, b)
-    for i = 1, math.max(#a.parents, #b.parents) do
-      local l, r = a.parents[i], b.parents[i]
-      if not l then return true  end
-      if not r then return false end
-      if l ~= r then
-        -- table.sort is not stable: using id to preserve relative positions
-        if l.time == r.time then return l.id < r.id end
-        return l.time > r.time
-      end
-    end
-    -- assert(a == b)
-  end)
+  if state.sort.col then sortReport() end
 end
 
 local function callLeave(func, ...)
@@ -914,6 +930,15 @@ function profiler.showReport(ctx, label, width, height)
   ImGui.TableSetupColumn(ctx, 'MaxC/f', def_sort_descending)
   ImGui.TableHeadersRow(ctx)
 
+  if ImGui.TableNeedSort(ctx) then
+    local ok, id, col, order, dir =
+      ImGui.TableGetColumnSortSpecs(ctx, 0)
+    if ok and (col ~= state.sort.col or dir ~= state.sort.dir) then
+      state.sort = { col = col, dir = dir }
+      sortReport()
+    end
+  end
+
   local std_columns = {
     { field = 'src_line',            func = textCell,    },
     { field = 'time_frac',           func = progressBar, },
@@ -961,6 +986,7 @@ function profiler.showReport(ctx, label, width, height)
         tooltip(ctx, line.name)
       end
     else
+      ImGui.AlignTextToFramePadding(ctx)
       textCell(ctx, line.name, false)
     end
 
