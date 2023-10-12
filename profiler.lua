@@ -22,8 +22,6 @@ local profiler, profiles, active, state = {}, {}, false, {
   current = 1, auto_active = false, sort = {},
 }
 local attachments, wrappers, locations = {}, {}, {}
--- local active, auto_active, show_metrics = false, false, false
--- local defer_called, run_called, scroll_to_top = false, false, false
 local getTime = reaper.time_precise -- faster than os.clock
 local profile, profile_cur -- references to profiles[current] for quick access
 local options, options_cache, options_default = {}, {}, {
@@ -163,7 +161,8 @@ end
 local function alignNextItemRight(ctx, label, spacing)
   local item_spacing_w = spacing and
     ImGui.GetStyleVar(ctx, ImGui.StyleVar_ItemSpacing()) or 0
-  local want_pos_x = ImGui.GetContentRegionMax(ctx) - item_spacing_w -
+  local want_pos_x = ImGui.GetScrollX(ctx) +
+    ImGui.GetContentRegionMax(ctx) - item_spacing_w -
     ImGui.CalcTextSize(ctx, label, nil, nil, true)
   if want_pos_x > ImGui.GetCursorPosX(ctx) then
     ImGui.SetCursorPosX(ctx, want_pos_x)
@@ -213,6 +212,45 @@ end
 local function progressBar(ctx, value)
   ImGui.ProgressBar(ctx, value, nil, nil, string.format('%.02f%%', value * 100))
 end
+
+local report_columns = (function()
+  local def_sort_desc = ImGui.TableColumnFlags_PreferSortDescending()
+  local def_hide = ImGui.TableColumnFlags_DefaultHide()
+  local frac_flags = def_sort_desc | ImGui.TableColumnFlags_WidthStretch()
+  return {
+    { name = 'Name',   field = 'name', width = 227 },
+    { name = 'Source', field = 'src',  width = 132 },
+    { name = 'Line',   field = 'src_line', func = textCell, },
+    { name = '% of total',  field = 'time_frac',
+      func = progressBar, flags = frac_flags            },
+    { name = '% of parent', field = 'time_frac_parent',
+      func = progressBar, flags = frac_flags | def_hide },
+    { name = 'Time',   field = 'time', func = textCell, fmt   = formatTime,
+      flags = def_sort_desc | ImGui.TableColumnFlags_DefaultSort()            },
+    { name = 'Calls',  field = 'count',
+      func = textCell, fmt   = formatNumber, flags = def_sort_desc            },
+    { name = 'MinT/c', field = 'time_per_call_min',
+      func = textCell, fmt   = formatTime,   flags = def_sort_desc | def_hide },
+    { name = 'AvgT/c', field = 'time_per_call_avg',
+      func = textCell, fmt   = formatTime,   flags = def_sort_desc | def_hide },
+    { name = 'MaxT/c', field = 'time_per_call_max',
+      func = textCell, fmt   = formatTime,   flags = def_sort_desc            },
+    { name = 'Frames', field = 'frames',
+      func = textCell, fmt   = formatNumber, flags = def_sort_desc | def_hide },
+    { name = 'MinT/f', field = 'time_per_frame_min',
+      func = textCell, fmt   = formatTime,   flags = def_sort_desc | def_hide },
+    { name = 'AvgT/f', field = 'time_per_frame_avg',
+      func = textCell, fmt   = formatTime,   flags = def_sort_desc | def_hide },
+    { name = 'MaxT/f', field = 'time_per_frame_max',
+      func = textCell, fmt   = formatTime,   flags = def_sort_desc            },
+    { name = 'MinC/f', field = 'calls_per_frame_min',
+      func = textCell, fmt   = formatNumber, flags = def_sort_desc | def_hide },
+    { name = 'AvgC/f', field = 'calls_per_frame_avg',
+      func = textCell, fmt   = formatNumber, flags = def_sort_desc | def_hide },
+    { name = 'MaxC/f', field = 'calls_per_frame_max',
+      func = textCell, fmt   = formatNumber, flags = def_sort_desc | def_hide },
+  }
+end)()
 
 local function enter(what, alias)
   profile.dirty = true
@@ -338,13 +376,7 @@ local function updateTime()
 end
 
 local function sortReport()
-  local key = ({
-    'name', 'src', 'src_line', 'time_frac', 'time_frac_parent',
-    'time', 'count', 'time_per_call_min', 'time_per_call_avg',
-    'time_per_call_max', 'frames', 'time_per_call_max', 'frames',
-    'time_per_frame_min', 'time_per_frame_avg', 'time_per_frame_max',
-    'calls_per_frame_min', 'calls_per_frame_avg', 'calls_per_frame_max',
-  })[state.sort.col + 1]
+  local field = report_columns[state.sort.col + 1].field
 
   table.sort(profile.report, function(a, b)
     for i = 1, math.max(#a.parents, #b.parents) do
@@ -353,11 +385,11 @@ local function sortReport()
       if not r then return false end
       if l ~= r then
         -- table.sort is not stable: using id to preserve relative positions
-        if l[key] == r[key] then return l.id < r.id end
+        if l[field] == r[field] then return l.id < r.id end
         if state.sort.dir == ImGui.SortDirection_Ascending() then
-          return l[key] < r[key]
+          return l[field] < r[field]
         else
-          return l[key] > r[key]
+          return l[field] > r[field]
         end
       end
     end
@@ -712,7 +744,7 @@ function profiler.showWindow(ctx, p_open, flags)
   flags = (flags or 0) |
     ImGui.WindowFlags_MenuBar()
 
-  ImGui.SetNextWindowSize(ctx, 800, 500, ImGui.Cond_FirstUseEver())
+  ImGui.SetNextWindowSize(ctx, 850, 500, ImGui.Cond_FirstUseEver())
 
   local host = select(2, reaper.get_action_context())
   local self = string.sub(debug.getinfo(1, 'S').source, 2)
@@ -897,7 +929,7 @@ function profiler.showReport(ctx, label, width, height)
     ImGui.SetNextWindowScroll(ctx, 0, 0)
     state.scroll_to_top = false
   end
-  local flags =
+  local flags = ImGui.TableFlags_SizingFixedFit()                 |
     ImGui.TableFlags_Resizable() | ImGui.TableFlags_Reorderable() |
     ImGui.TableFlags_Hideable()  | ImGui.TableFlags_Sortable()    |
     ImGui.TableFlags_ScrollX()   | ImGui.TableFlags_ScrollY()     |
@@ -906,28 +938,10 @@ function profiler.showReport(ctx, label, width, height)
     return ImGui.EndChild(ctx)
   end
 
-  local def_sort_descending = ImGui.TableColumnFlags_PreferSortDescending()
   ImGui.TableSetupScrollFreeze(ctx, 0, 1)
-  ImGui.TableSetupColumn(ctx, 'Name')
-  ImGui.TableSetupColumn(ctx, 'Source')
-  ImGui.TableSetupColumn(ctx, 'Line')
-  ImGui.TableSetupColumn(ctx, '% of total',
-    ImGui.TableColumnFlags_WidthStretch() | def_sort_descending)
-  ImGui.TableSetupColumn(ctx, '% of parent',
-    ImGui.TableColumnFlags_WidthStretch() | def_sort_descending)
-  ImGui.TableSetupColumn(ctx, 'Time',
-    ImGui.TableColumnFlags_DefaultSort() | def_sort_descending)
-  ImGui.TableSetupColumn(ctx, 'Calls',  def_sort_descending)
-  ImGui.TableSetupColumn(ctx, 'MinT/c', def_sort_descending)
-  ImGui.TableSetupColumn(ctx, 'AvgT/c', def_sort_descending)
-  ImGui.TableSetupColumn(ctx, 'MaxT/c', def_sort_descending)
-  ImGui.TableSetupColumn(ctx, 'Frames', def_sort_descending)
-  ImGui.TableSetupColumn(ctx, 'MinT/f', def_sort_descending)
-  ImGui.TableSetupColumn(ctx, 'AvgT/f', def_sort_descending)
-  ImGui.TableSetupColumn(ctx, 'MaxT/f', def_sort_descending)
-  ImGui.TableSetupColumn(ctx, 'MinC/f', def_sort_descending)
-  ImGui.TableSetupColumn(ctx, 'AvgC/f', def_sort_descending)
-  ImGui.TableSetupColumn(ctx, 'MaxC/f', def_sort_descending)
+  for i, column in ipairs(report_columns) do
+    ImGui.TableSetupColumn(ctx, column.name, column.flags, column.width)
+  end
   ImGui.TableHeadersRow(ctx)
 
   if ImGui.TableNeedSort(ctx) then
@@ -938,24 +952,6 @@ function profiler.showReport(ctx, label, width, height)
       sortReport()
     end
   end
-
-  local std_columns = {
-    { field = 'src_line',            func = textCell,    },
-    { field = 'time_frac',           func = progressBar, },
-    { field = 'time_frac_parent',    func = progressBar, },
-    { field = 'time',                func = textCell, fmt = formatTime   },
-    { field = 'count',               func = textCell, fmt = formatNumber },
-    { field = 'time_per_call_min',   func = textCell, fmt = formatTime   },
-    { field = 'time_per_call_avg',   func = textCell, fmt = formatTime   },
-    { field = 'time_per_call_max',   func = textCell, fmt = formatTime   },
-    { field = 'frames',              func = textCell, fmt = formatNumber },
-    { field = 'time_per_frame_min',  func = textCell, fmt = formatTime   },
-    { field = 'time_per_frame_avg',  func = textCell, fmt = formatTime   },
-    { field = 'time_per_frame_max',  func = textCell, fmt = formatTime   },
-    { field = 'calls_per_frame_min', func = textCell, fmt = formatNumber },
-    { field = 'calls_per_frame_avg', func = textCell, fmt = formatNumber },
-    { field = 'calls_per_frame_max', func = textCell, fmt = formatNumber },
-  }
 
   local tree_node_flags = ImGui.TreeNodeFlags_SpanFullWidth() |
     ImGui.TreeNodeFlags_DefaultOpen() | ImGui.TreeNodeFlags_FramePadding()
@@ -990,19 +986,20 @@ function profiler.showReport(ctx, label, width, height)
       textCell(ctx, line.name, false)
     end
 
-    if ImGui.IsItemVisible(ctx) then
-      ImGui.TableNextColumn(ctx)
-      local src_short = cut_src_cache[line.src_short]
-      if not src_short then
-        src_short = ellipsis(ctx, line.src_short)
-        cut_src_cache[line.src_short] = src_short
-      end
-      textCell(ctx, src_short, false, line.src)
+    ImGui.TableNextColumn(ctx)
+    local src_short = cut_src_cache[line.src_short]
+    if not src_short then
+      src_short = ellipsis(ctx, line.src_short)
+      cut_src_cache[line.src_short] = src_short
+    end
+    textCell(ctx, src_short, false, line.src)
 
-      for j, col in ipairs(std_columns) do
-        local v = line[col.field]
-        if v then
-          ImGui.TableNextColumn(ctx)
+    for j, col in ipairs(report_columns) do
+      local v = line[col.field]
+      if v and col.func then
+        ImGui.TableNextColumn(ctx)
+        local flags = ImGui.TableGetColumnFlags(ctx)
+        if flags & ImGui.TableColumnFlags_IsVisible() ~= 0 then
           col.func(ctx, col.fmt and col.fmt(v) or v)
         end
       end
