@@ -1,23 +1,34 @@
 -- Public API summary:
+--
+-- local profiler = dofile(reaper.GetResourcePath() ..
+--   '/Scripts/ReaTeam Scripts/Development/cfillion_Lua profiler.lua')
+--
+-- # General
+-- * profiler.clear()
+-- * profiler.defer(function callback)
+-- * profiler.run()
+--
+-- # Instrumentation (see `makeAttachOpts` for supported options)
 -- * profiler.attachTo(string var, nil|table opts)
 -- * profiler.detachFrom(string var, nil|table opts)
 -- * profiler.attachToLocals(nil|table opts)
 -- * profiler.detachFromLocals(nil|table opts)
 -- * profiler.attachToWorld()
 -- * profiler.detachFromWorld()
--- * profiler.reset()
+--
+-- # Acquisition
 -- * profiler.start()
+-- * profiler.stop()
+-- * nil|bool|integer profiler.auto_start
+--
+-- # Measurement
 -- * profiler.enter(string what)
 -- * profiler.leave()
--- * profiler.stop()
 -- * profiler.frame()
+--
+-- # Embedding
 -- * profiler.showWindow(ImGui_Context* ctx, nil|bool p_open, nil|integer flags)
 -- * profiler.showProfile(ImGui_Context* ctx, string label, nil|number width, nil|number height)
--- * profiler.defer(function callback)
--- * profiler.run()
--- * profiler.reset()
---
--- * nil|bool|integer profiler.auto_start
 
 local ImGui = (function()
   local host_reaper = reaper
@@ -500,7 +511,7 @@ local function setCurrentProfile(i)
 
   state.current = i
   if not profiles[i] then
-    profiler.reset()
+    profiler.clear()
   else
     profile, profile_cur = profiles[i], profiles[i]
   end
@@ -696,7 +707,7 @@ function profiler.detachFromWorld()
   attachToTable(false, nil, _G, opts, 1)
 end
 
-function profiler.reset()
+function profiler.clear()
   profiles[state.current] = {
     time     = 0,
     children = {},
@@ -848,8 +859,8 @@ function profiler.showWindow(ctx, p_open, flags)
       if ImGui.MenuItem(ctx, 'Tree view', nil, options.tree_view) then
         options.tree_view, profile.dirty = not options.tree_view, true
       end
-      if ImGui.MenuItem(ctx, 'Reset', nil, nil, has_data) then
-        profiler.reset()
+      if ImGui.MenuItem(ctx, 'Clear', nil, nil, has_data) then
+        profiler.clear()
       end
       ImGui.EndMenu(ctx)
     end
@@ -1122,7 +1133,7 @@ setmetatable(profiler, {
   end,
 })
 
-profiler.reset()
+profiler.clear()
 
 -- if not CF_PROFILER_SELF then
 --   CF_PROFILER_SELF = true
