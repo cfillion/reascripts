@@ -361,25 +361,6 @@ local function setActiveFromUI(frame_count)
   end
 end
 
-local function setCurrentProfile(i)
-  local now = getTime()
-
-  state.current = i
-  if not profiles[i] then
-    profiler.reset()
-  else
-    profile, profile_cur = profiles[i], profiles[i]
-  end
-
-  if active then
-    profile.start_time, profile.user_start_time = now, now
-  elseif state.auto_active ~= 0 then
-    profile.user_start_time = now
-  end
-
-  state.scroll_to_top = true
-end
-
 local function eachDeep(tbl)
   local key_stack, depth = {}, 1
   return function()
@@ -442,6 +423,12 @@ end
 
 local function updateReport()
   assert(profile_cur == profile, 'unbalanced enter (missing call to leave)')
+
+  if profile.dirty then
+    profile.dirty = false
+  else
+    return
+  end
 
   profile.report = { max_depth = 1 }
 
@@ -506,6 +493,28 @@ local function updateReport()
   end
 
   if state.sort.col then sortReport() end
+end
+
+local function setCurrentProfile(i)
+  local now = getTime()
+
+  state.current = i
+  if not profiles[i] then
+    profiler.reset()
+  else
+    profile, profile_cur = profiles[i], profiles[i]
+  end
+
+  if active then
+    profile.start_time, profile.user_start_time = now, now
+  elseif state.auto_active ~= 0 then
+    profile.user_start_time = now
+  end
+
+  profile.dirty = true -- always refresh to apply new display and sort options
+  updateReport()       -- refresh now to avoid 1-frame flicker
+
+  state.scroll_to_top = true
 end
 
 local function callLeave(func, ...)
@@ -928,6 +937,9 @@ end
 function profiler.showProfile(ctx, label, width, height)
   if not ImGui.BeginChild(ctx, label, width, height) then return end
 
+  updateTime() -- may set dirty
+  updateReport()
+
   if ImGui.IsWindowAppearing(ctx) then
     ImGui.SetKeyboardFocusHere(ctx)
   end
@@ -939,12 +951,6 @@ function profiler.showProfile(ctx, label, width, height)
         setCurrentProfile(i)
       end
     end
-  end
-
-  updateTime() -- may set dirty
-  if profile.dirty then
-    updateReport()
-    profile.dirty = false
   end
 
   local summary = string.format('Active time / wall time: %s / %s (%.02f%%)',
