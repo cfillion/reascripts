@@ -235,11 +235,12 @@ local function progressBar(ctx, value)
 end
 
 local report_columns = (function()
+  local no_hide       = ImGui.TableColumnFlags_NoHide()
   local def_sort_desc = ImGui.TableColumnFlags_PreferSortDescending()
-  local def_hide = ImGui.TableColumnFlags_DefaultHide()
-  local frac_flags = def_sort_desc | ImGui.TableColumnFlags_WidthStretch()
+  local def_hide      = ImGui.TableColumnFlags_DefaultHide()
+  local frac_flags    = def_sort_desc | ImGui.TableColumnFlags_WidthStretch()
   return {
-    { name = 'Name',   field = 'name', width = 227 },
+    { name = 'Name',   field = 'name', width = 227, flags = no_hide },
     { name = 'Source', field = 'src',  width = 132 },
     { name = 'Line',   field = 'src_line', func = textCell, },
     { name = '% of total',  field = 'time_frac',
