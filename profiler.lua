@@ -329,7 +329,7 @@ local function leave()
   if not time_per_call.max or time > time_per_call.max then
     time_per_call.max = time
   end
-  profile_cur.time, profile_cur.enter_time = profile_cur.time + time, now
+  profile_cur.time = profile_cur.time + time
   profile_cur = profile_cur.parent
 end
 
