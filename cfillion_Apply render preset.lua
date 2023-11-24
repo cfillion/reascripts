@@ -2,7 +2,7 @@
 -- @author cfillion
 -- @version 2.1
 -- @changelog
---   Add support for postprocessing fade-in and fade-out
+--   Add support for post-processing fade-in and fade-out
 --   Add support for rendering metadata [p=2736401]
 --   Add support for tail length
 -- @provides
@@ -47,7 +47,12 @@ if reaper.ImGui_CreateContext then
         '/Scripts/ReaTeam Extensions/API/imgui.lua')('0.8')
 end
 
-local r = reaper
+local r, ImGui = reaper, {}
+for name, func in pairs(r) do
+  name = name:match('^ImGui_(.+)$')
+  if name then ImGui[name] = func end
+end
+
 local REAPER_BEFORE_V6 = tonumber(r.GetAppVersion():match('^%d+')) < 6
 local SETTINGS_SOURCE_MASK  = 0x10EB
 local SETTINGS_OPTIONS_MASK = 0x0F14
@@ -598,64 +603,64 @@ local function gfxdo(callback)
 end
 
 local function boolText(ctx, bool)
-  r.ImGui_Text(ctx, bool and 'On' or 'Off')
+  ImGui.Text(ctx, bool and 'On' or 'Off')
 end
 
 local function isCellHovered(ctx)
   -- Call before adding content to the cell.
   -- Uses Selectable so that using IsItemHovered after calling this will
   -- be true over the whole cell.
-  local x = r.ImGui_GetCursorPosX(ctx)
-  r.ImGui_Selectable(ctx, '')
-  r.ImGui_SameLine(ctx)
-  r.ImGui_SetCursorPosX(ctx, x)
-  return r.ImGui_IsItemHovered(ctx)
+  local x = ImGui.GetCursorPosX(ctx)
+  ImGui.Selectable(ctx, '')
+  ImGui.SameLine(ctx)
+  ImGui.SetCursorPosX(ctx, x)
+  return ImGui.IsItemHovered(ctx)
 end
 
 local function enumCell(ctx, values, value)
   if value then
-    r.ImGui_Text(ctx, values[value + 1] or ('Unknown (%d)'):format(value))
+    ImGui.Text(ctx, values[value + 1] or ('Unknown (%d)'):format(value))
   end
 end
 
 local function sampleRateCell(ctx, preset)
-  if isCellHovered(ctx) and preset.projrenderrateinternal ~= nil and r.ImGui_BeginTooltip(ctx) then
-    r.ImGui_Checkbox(ctx,
+  if isCellHovered(ctx) and preset.projrenderrateinternal ~= nil and ImGui.BeginTooltip(ctx) then
+    ImGui.Checkbox(ctx,
       'Use project sample rate for mixing and FX/synth processing',
       preset.projrenderrateinternal)
-    r.ImGui_EndTooltip(ctx)
+    ImGui.EndTooltip(ctx)
   end
 
   if preset.RENDER_SRATE then
-    r.ImGui_Text(ctx, ('%g kHz'):format(preset.RENDER_SRATE / 1000))
+    ImGui.Text(ctx, ('%g kHz'):format(preset.RENDER_SRATE / 1000))
   end
 end
 
 local function channelsCell(ctx, preset)
   local channels = { 'Mono', 'Stereo' }
-  r.ImGui_Text(ctx,
+  ImGui.Text(ctx,
     channels[preset.RENDER_CHANNELS] or preset.RENDER_CHANNELS)
 end
 
 local function ditherCell(ctx, preset)
   local dither = preset.RENDER_DITHER
   if not dither then return end
-  if isCellHovered(ctx) and r.ImGui_BeginTooltip(ctx) then
-    if r.ImGui_BeginTable(ctx, 'dither', 2) then
-      r.ImGui_TableNextRow(ctx)
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_CheckboxFlags(ctx, 'Dither master', dither, 1)
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_CheckboxFlags(ctx, 'Dither stems', dither, 4)
+  if isCellHovered(ctx) and ImGui.BeginTooltip(ctx) then
+    if ImGui.BeginTable(ctx, 'dither', 2) then
+      ImGui.TableNextRow(ctx)
+      ImGui.TableNextColumn(ctx)
+      ImGui.CheckboxFlags(ctx, 'Dither master', dither, 1)
+      ImGui.TableNextColumn(ctx)
+      ImGui.CheckboxFlags(ctx, 'Dither stems', dither, 4)
 
-      r.ImGui_TableNextRow(ctx)
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_CheckboxFlags(ctx, 'Noise shape master', dither, 2)
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_CheckboxFlags(ctx, 'Noise shape stems', dither, 8)
-      r.ImGui_EndTable(ctx)
+      ImGui.TableNextRow(ctx)
+      ImGui.TableNextColumn(ctx)
+      ImGui.CheckboxFlags(ctx, 'Noise shape master', dither, 2)
+      ImGui.TableNextColumn(ctx)
+      ImGui.CheckboxFlags(ctx, 'Noise shape stems', dither, 8)
+      ImGui.EndTable(ctx)
     end
-    r.ImGui_EndTooltip(ctx)
+    ImGui.EndTooltip(ctx)
   end
   boolText(ctx, dither ~= 0)
 end
@@ -679,50 +684,50 @@ local function postprocessCell(ctx, preset)
 
   local postprocess = preset.RENDER_NORMALIZE
   if not postprocess then return end
-  if isCellHovered(ctx) and r.ImGui_BeginTooltip(ctx) then
-    if r.ImGui_BeginTable(ctx, 'normal', 3) then
-      r.ImGui_TableNextRow(ctx)
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_CheckboxFlags(ctx, 'Normalize to:', postprocess, NORMALIZE_ENABLE)
-      r.ImGui_TableNextColumn(ctx)
+  if isCellHovered(ctx) and ImGui.BeginTooltip(ctx) then
+    if ImGui.BeginTable(ctx, 'normal', 3) then
+      ImGui.TableNextRow(ctx)
+      ImGui.TableNextColumn(ctx)
+      ImGui.CheckboxFlags(ctx, 'Normalize to:', postprocess, NORMALIZE_ENABLE)
+      ImGui.TableNextColumn(ctx)
       enumCell(ctx, { 'LUFS-I', 'RMS', 'Peak', 'True peak' }, (postprocess & 14) >> 1)
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_Text(ctx, ('%g dB'):format(VAL2DB(preset.RENDER_NORMALIZE_TARGET)))
+      ImGui.TableNextColumn(ctx)
+      ImGui.Text(ctx, ('%g dB'):format(VAL2DB(preset.RENDER_NORMALIZE_TARGET)))
 
-      r.ImGui_TableNextRow(ctx)
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_CheckboxFlags(ctx, 'Brickwall limit:', postprocess, BRICKWALL_ENABLE)
-      r.ImGui_TableNextColumn(ctx)
+      ImGui.TableNextRow(ctx)
+      ImGui.TableNextColumn(ctx)
+      ImGui.CheckboxFlags(ctx, 'Brickwall limit:', postprocess, BRICKWALL_ENABLE)
+      ImGui.TableNextColumn(ctx)
       enumCell(ctx, { 'Peak', 'True peak' }, (postprocess >> 7) & 1)
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_Text(ctx, ('%g dB'):format(VAL2DB(preset.RENDER_BRICKWALL or 1)))
+      ImGui.TableNextColumn(ctx)
+      ImGui.Text(ctx, ('%g dB'):format(VAL2DB(preset.RENDER_BRICKWALL or 1)))
 
-      r.ImGui_TableNextRow(ctx)
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_CheckboxFlags(ctx, 'Fade-in:', postprocess, FADEIN_ENABLE)
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_Text(ctx, ('%g ms'):format(preset.RENDER_FADEIN * 1e4))
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_Text(ctx, ('Shape %d'):format(preset.RENDER_FADEINSHAPE))
+      ImGui.TableNextRow(ctx)
+      ImGui.TableNextColumn(ctx)
+      ImGui.CheckboxFlags(ctx, 'Fade-in:', postprocess, FADEIN_ENABLE)
+      ImGui.TableNextColumn(ctx)
+      ImGui.Text(ctx, ('%g ms'):format(preset.RENDER_FADEIN * 1e4))
+      ImGui.TableNextColumn(ctx)
+      ImGui.Text(ctx, ('Shape %d'):format(preset.RENDER_FADEINSHAPE))
 
-      r.ImGui_TableNextRow(ctx)
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_CheckboxFlags(ctx, 'Fade-out:', postprocess, FADEOUT_ENABLE)
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_Text(ctx, ('%g ms'):format(preset.RENDER_FADEOUT * 1e4))
-      r.ImGui_TableNextColumn(ctx)
-      r.ImGui_Text(ctx, ('Shape %d'):format(preset.RENDER_FADEOUTSHAPE))
+      ImGui.TableNextRow(ctx)
+      ImGui.TableNextColumn(ctx)
+      ImGui.CheckboxFlags(ctx, 'Fade-out:', postprocess, FADEOUT_ENABLE)
+      ImGui.TableNextColumn(ctx)
+      ImGui.Text(ctx, ('%g ms'):format(preset.RENDER_FADEOUT * 1e4))
+      ImGui.TableNextColumn(ctx)
+      ImGui.Text(ctx, ('Shape %d'):format(preset.RENDER_FADEOUTSHAPE))
 
-      r.ImGui_EndTable(ctx)
+      ImGui.EndTable(ctx)
     end
-    r.ImGui_Separator(ctx)
+    ImGui.Separator(ctx)
 
-    r.ImGui_CheckboxFlags(ctx, 'Only normalize files that are too loud',
+    ImGui.CheckboxFlags(ctx, 'Only normalize files that are too loud',
       postprocess, NORMAL_TOO_LOUD)
-    r.ImGui_CheckboxFlags(ctx, 'Normalize/limit master mix, common gain to stems',
+    ImGui.CheckboxFlags(ctx, 'Normalize/limit master mix, common gain to stems',
       postprocess, NORMALIZE_MASTER)
 
-    r.ImGui_EndTooltip(ctx)
+    ImGui.EndTooltip(ctx)
   end
   boolText(ctx, (postprocess & (NORMALIZE_ENABLE | BRICKWALL_ENABLE)) ~= 0)
 end
@@ -744,7 +749,7 @@ local function sourceCell(ctx, preset)
     [0x1000] = 'Razor edit areas',
     [0x1080] = 'Razor edit areas via master',
   }
-  r.ImGui_Text(ctx, sources[source] or ('Unknown (%d)'):format(source))
+  ImGui.Text(ctx, sources[source] or ('Unknown (%d)'):format(source))
 end
 
 local function boundsCell(ctx, preset)
@@ -757,7 +762,7 @@ local function boundsCell(ctx, preset)
 
   if preset.RENDER_BOUNDSFLAG == 0
       and preset.RENDER_STARTPOS and preset.RENDER_ENDPOS then
-    r.ImGui_Text(ctx, ('%s to %s'):format(
+    ImGui.Text(ctx, ('%s to %s'):format(
       r.format_timestr(preset.RENDER_STARTPOS, ''),
       r.format_timestr(preset.RENDER_ENDPOS, '')))
   else
@@ -770,27 +775,27 @@ local function optionsCell(ctx, preset)
     return
   end
 
-  if isCellHovered(ctx) and r.ImGui_BeginTooltip(ctx) then
-    r.ImGui_CheckboxFlags(ctx, '2nd pass render', preset.RENDER_SETTINGS, 2048)
-    r.ImGui_CheckboxFlags(ctx, 'Tracks with only mono media to mono files',
+  if isCellHovered(ctx) and ImGui.BeginTooltip(ctx) then
+    ImGui.CheckboxFlags(ctx, '2nd pass render', preset.RENDER_SETTINGS, 2048)
+    ImGui.CheckboxFlags(ctx, 'Tracks with only mono media to mono files',
       preset.RENDER_SETTINGS, 16)
-    r.ImGui_CheckboxFlags(ctx, 'Multichannel tracks to multichannel files',
+    ImGui.CheckboxFlags(ctx, 'Multichannel tracks to multichannel files',
       preset.RENDER_SETTINGS, 4)
 
-    r.ImGui_AlignTextToFramePadding(ctx)
-    r.ImGui_Text(ctx, 'Embed:')
-    r.ImGui_SameLine(ctx)
-    r.ImGui_CheckboxFlags(ctx, 'Metadata', preset.RENDER_SETTINGS, 512)
-    r.ImGui_SameLine(ctx)
-    r.ImGui_CheckboxFlags(ctx, 'Stretch markers/transient guides',
+    ImGui.AlignTextToFramePadding(ctx)
+    ImGui.Text(ctx, 'Embed:')
+    ImGui.SameLine(ctx)
+    ImGui.CheckboxFlags(ctx, 'Metadata', preset.RENDER_SETTINGS, 512)
+    ImGui.SameLine(ctx)
+    ImGui.CheckboxFlags(ctx, 'Stretch markers/transient guides',
       preset.RENDER_SETTINGS, 256)
-    r.ImGui_SameLine(ctx)
-    r.ImGui_CheckboxFlags(ctx, 'Take markers', preset.RENDER_SETTINGS, 1024)
+    ImGui.SameLine(ctx)
+    ImGui.CheckboxFlags(ctx, 'Take markers', preset.RENDER_SETTINGS, 1024)
 
-    r.ImGui_EndTooltip(ctx)
+    ImGui.EndTooltip(ctx)
   end
 
-  r.ImGui_Bullet(ctx)
+  ImGui.Bullet(ctx)
 end
 
 local function mergeMetadata(tags)
@@ -826,40 +831,40 @@ end
 local function metadataCell(ctx, preset)
   if not preset.metadata then return end
 
-  if isCellHovered(ctx) and r.ImGui_BeginTooltip(ctx) then
+  if isCellHovered(ctx) and ImGui.BeginTooltip(ctx) then
     if not preset._metadata_merged then
       preset._metadata_merged = mergeMetadata(preset.metadata)
     end
-    local tableFlags = r.ImGui_TableFlags_Borders() | r.ImGui_TableFlags_RowBg()
-    if r.ImGui_BeginTable(ctx, 'metadata', 3, tableFlags) then
-      r.ImGui_TableSetupColumn(ctx, 'Tag')
-      r.ImGui_TableSetupColumn(ctx, 'Value')
-      r.ImGui_TableSetupColumn(ctx, 'Namespaces')
-      r.ImGui_TableHeadersRow(ctx)
+    local tableFlags = ImGui.TableFlags_Borders() | ImGui.TableFlags_RowBg()
+    if ImGui.BeginTable(ctx, 'metadata', 3, tableFlags) then
+      ImGui.TableSetupColumn(ctx, 'Tag')
+      ImGui.TableSetupColumn(ctx, 'Value')
+      ImGui.TableSetupColumn(ctx, 'Namespaces')
+      ImGui.TableHeadersRow(ctx)
 
       for i, metadata in ipairs(preset._metadata_merged) do
-        r.ImGui_TableNextRow(ctx)
-        r.ImGui_TableNextColumn(ctx)
-        r.ImGui_Text(ctx, metadata.tag)
-        r.ImGui_TableNextColumn(ctx)
+        ImGui.TableNextRow(ctx)
+        ImGui.TableNextColumn(ctx)
+        ImGui.Text(ctx, metadata.tag)
+        ImGui.TableNextColumn(ctx)
         if metadata.tag == 'Image Type' then
           enumCell(ctx, METADATA_IMAGE_TYPES, tonumber(metadata.value))
         else
-          r.ImGui_Text(ctx, ellipsis(metadata.value, 64))
+          ImGui.Text(ctx, ellipsis(metadata.value, 64))
         end
-        r.ImGui_TableNextColumn(ctx)
-        r.ImGui_PushTextWrapPos(ctx, r.ImGui_GetCursorPosX(ctx) + 255)
-        r.ImGui_Text(ctx, table.concat(metadata.namespaces, ', '))
-        r.ImGui_PopTextWrapPos(ctx)
+        ImGui.TableNextColumn(ctx)
+        ImGui.PushTextWrapPos(ctx, ImGui.GetCursorPosX(ctx) + 255)
+        ImGui.Text(ctx, table.concat(metadata.namespaces, ', '))
+        ImGui.PopTextWrapPos(ctx)
       end
 
-      r.ImGui_EndTable(ctx)
+      ImGui.EndTable(ctx)
     end
 
-    r.ImGui_EndTooltip(ctx)
+    ImGui.EndTooltip(ctx)
   end
 
-  r.ImGui_Bullet(ctx)
+  ImGui.Bullet(ctx)
 end
 
 function decodeBase64(data)
@@ -913,14 +918,14 @@ local function formatCell(ctx, preset, key)
     ['GIF '] = 'Video (GIF)',
     ['LCF '] = 'Video (LCF)',
   }
-  r.ImGui_Text(ctx, formats[preset._format_cache[key]] or preset._format_cache[key])
+  ImGui.Text(ctx, formats[preset._format_cache[key]] or preset._format_cache[key])
 end
 
 local function presetRow(ctx, name, preset)
-  r.ImGui_TableNextColumn(ctx)
-  if r.ImGui_Selectable(ctx, name, false, r.ImGui_SelectableFlags_SpanAllColumns()) then
+  ImGui.TableNextColumn(ctx)
+  if ImGui.Selectable(ctx, name, false, ImGui.SelectableFlags_SpanAllColumns()) then
     main(name, preset)
-    r.ImGui_CloseCurrentPopup(ctx)
+    ImGui.CloseCurrentPopup(ctx)
   end
 
   local speeds = {
@@ -951,8 +956,8 @@ local function presetRow(ctx, name, preset)
       if not preset.RENDER_TAILFLAG then return end
       boolText(ctx, preset.RENDER_TAILFLAG ~= 0)
       if preset.RENDER_TAILMS then
-        r.ImGui_SameLine(ctx, nil, 0)
-        r.ImGui_Text(ctx, (' (%d ms)'):format(preset.RENDER_TAILMS))
+        ImGui.SameLine(ctx, nil, 0)
+        ImGui.Text(ctx, (' (%d ms)'):format(preset.RENDER_TAILMS))
       end
     end,
     'RENDER_PATTERN', -- file name
@@ -961,11 +966,11 @@ local function presetRow(ctx, name, preset)
   }
 
   for _, cell in ipairs(cells) do
-    if r.ImGui_TableNextColumn(ctx) then
+    if ImGui.TableNextColumn(ctx) then
       if type(cell) == 'function' then
         cell(ctx, preset)
       else
-        r.ImGui_Text(ctx, preset[cell])
+        ImGui.Text(ctx, preset[cell])
       end
     end
   end
@@ -996,7 +1001,7 @@ for name, preset in pairs(presets) do
 end
 table.sort(names, function(a, b) return a:lower() < b:lower() end)
 
-if not r.ImGui_CreateContext then
+if not ImGui.CreateContext then
   local presetName = gfxdo(function()
     if #names == 0 then
       gfx.showmenu('#No render preset found')
@@ -1016,100 +1021,100 @@ if not r.ImGui_CreateContext then
   return
 end
 
-local ctx = r.ImGui_CreateContext(scriptInfo.name, r.ImGui_ConfigFlags_NavEnableKeyboard())
-local clipper = r.ImGui_CreateListClipper(ctx)
+local ctx = ImGui.CreateContext(scriptInfo.name, ImGui.ConfigFlags_NavEnableKeyboard())
+local clipper = ImGui.CreateListClipper(ctx)
 local size = r.GetAppVersion():match('OSX') and 12 or 14
-local font = r.ImGui_CreateFont('sans-serif', size)
-r.ImGui_Attach(ctx, font)
+local font = ImGui.CreateFont('sans-serif', size)
+ImGui.Attach(ctx, font)
 
 local function popup()
   if #names == 0 then
-    r.ImGui_TextDisabled(ctx, 'No render presets found.')
+    ImGui.TextDisabled(ctx, 'No render presets found.')
     return
   end
 
   if scriptInfo.isCreate then
-    r.ImGui_Text(ctx, 'Select a render preset for the new action:')
+    ImGui.Text(ctx, 'Select a render preset for the new action:')
   else
-    r.ImGui_Text(ctx, 'Select a render preset to apply:')
+    ImGui.Text(ctx, 'Select a render preset to apply:')
   end
-  r.ImGui_Spacing(ctx)
+  ImGui.Spacing(ctx)
 
   local tableFlags  =
-    r.ImGui_TableFlags_Borders()     |
-    r.ImGui_TableFlags_Hideable()    |
-    r.ImGui_TableFlags_Reorderable() |
-    r.ImGui_TableFlags_Resizable()   |
-    r.ImGui_TableFlags_RowBg()
+    ImGui.TableFlags_Borders()     |
+    ImGui.TableFlags_Hideable()    |
+    ImGui.TableFlags_Reorderable() |
+    ImGui.TableFlags_Resizable()   |
+    ImGui.TableFlags_RowBg()
   local hiddenColFlags =
-    r.ImGui_TableColumnFlags_DefaultHide()
+    ImGui.TableColumnFlags_DefaultHide()
 
-  if not r.ImGui_BeginTable(ctx, 'Presets', 15, tableFlags) then return end
-  r.ImGui_TableSetupColumn(ctx, 'Name')
-  r.ImGui_TableSetupColumn(ctx, 'Format')
-  r.ImGui_TableSetupColumn(ctx, 'Format (secondary)', hiddenColFlags)
-  r.ImGui_TableSetupColumn(ctx, 'Sample rate')
-  r.ImGui_TableSetupColumn(ctx, 'Channels', hiddenColFlags)
-  r.ImGui_TableSetupColumn(ctx, 'Speed', hiddenColFlags)
-  r.ImGui_TableSetupColumn(ctx, 'Resample mode', hiddenColFlags)
-  r.ImGui_TableSetupColumn(ctx, 'Dither', hiddenColFlags)
-  r.ImGui_TableSetupColumn(ctx, 'Postprocess', hiddenColFlags)
-  r.ImGui_TableSetupColumn(ctx, 'Source', hiddenColFlags)
-  r.ImGui_TableSetupColumn(ctx, 'Bounds', hiddenColFlags)
-  r.ImGui_TableSetupColumn(ctx, 'Tail', hiddenColFlags)
-  r.ImGui_TableSetupColumn(ctx, 'File name', hiddenColFlags)
-  r.ImGui_TableSetupColumn(ctx, 'Options', hiddenColFlags)
-  r.ImGui_TableSetupColumn(ctx, 'Metadata', hiddenColFlags)
+  if not ImGui.BeginTable(ctx, 'Presets', 15, tableFlags) then return end
+  ImGui.TableSetupColumn(ctx, 'Name')
+  ImGui.TableSetupColumn(ctx, 'Format')
+  ImGui.TableSetupColumn(ctx, 'Format (secondary)', hiddenColFlags)
+  ImGui.TableSetupColumn(ctx, 'Sample rate')
+  ImGui.TableSetupColumn(ctx, 'Channels', hiddenColFlags)
+  ImGui.TableSetupColumn(ctx, 'Speed', hiddenColFlags)
+  ImGui.TableSetupColumn(ctx, 'Resample mode', hiddenColFlags)
+  ImGui.TableSetupColumn(ctx, 'Dither', hiddenColFlags)
+  ImGui.TableSetupColumn(ctx, 'Post-processing', hiddenColFlags)
+  ImGui.TableSetupColumn(ctx, 'Source', hiddenColFlags)
+  ImGui.TableSetupColumn(ctx, 'Bounds', hiddenColFlags)
+  ImGui.TableSetupColumn(ctx, 'Tail', hiddenColFlags)
+  ImGui.TableSetupColumn(ctx, 'File name', hiddenColFlags)
+  ImGui.TableSetupColumn(ctx, 'Options', hiddenColFlags)
+  ImGui.TableSetupColumn(ctx, 'Metadata', hiddenColFlags)
 
-  r.ImGui_TableHeadersRow(ctx)
+  ImGui.TableHeadersRow(ctx)
 
-  r.ImGui_ListClipper_Begin(clipper, #names)
-  while r.ImGui_ListClipper_Step(clipper) do
-    local display_start, display_end = r.ImGui_ListClipper_GetDisplayRange(clipper)
+  ImGui.ListClipper_Begin(clipper, #names)
+  while ImGui.ListClipper_Step(clipper) do
+    local display_start, display_end = ImGui.ListClipper_GetDisplayRange(clipper)
     for i = display_start + 1, display_end do
       local name = names[i]
-      r.ImGui_TableNextRow(ctx)
-      r.ImGui_PushID(ctx, i)
+      ImGui.TableNextRow(ctx)
+      ImGui.PushID(ctx, i)
       presetRow(ctx, name, presets[name])
-      r.ImGui_PopID(ctx)
+      ImGui.PopID(ctx)
     end
   end
 
-  r.ImGui_EndTable(ctx)
+  ImGui.EndTable(ctx)
 end
 
 local function loop()
-  if r.ImGui_IsWindowAppearing(ctx) then
-    r.ImGui_SetNextWindowPos(ctx,
-      r.ImGui_PointConvertNative(ctx, r.GetMousePosition()))
-    r.ImGui_OpenPopup(ctx, scriptInfo.name)
+  if ImGui.IsWindowAppearing(ctx) then
+    ImGui.SetNextWindowPos(ctx,
+      ImGui.PointConvertNative(ctx, r.GetMousePosition()))
+    ImGui.OpenPopup(ctx, scriptInfo.name)
   end
 
   local windowFlags =
-    r.ImGui_WindowFlags_AlwaysAutoResize() |
-    r.ImGui_WindowFlags_NoDocking()        |
-    r.ImGui_WindowFlags_NoTitleBar()       |
-    r.ImGui_WindowFlags_TopMost()
+    ImGui.WindowFlags_AlwaysAutoResize() |
+    ImGui.WindowFlags_NoDocking()        |
+    ImGui.WindowFlags_NoTitleBar()       |
+    ImGui.WindowFlags_TopMost()
 
-  if r.ImGui_IsPopupOpen(ctx, scriptInfo.name) then
+  if ImGui.IsPopupOpen(ctx, scriptInfo.name) then
     -- HACK: Dirty trick to force the table to save its settings.
     -- Tables inherit the NoSavedSettings flag from the parent top-level window.
     -- Creating the window first prevents BeginPopup from setting that flag.
     local WindowFlags_Popup = 1 << 26
-    if r.ImGui_Begin(ctx, '##Popup_b362686d', false,
+    if ImGui.Begin(ctx, '##Popup_b362686d', false,
         windowFlags | WindowFlags_Popup) then
-      r.ImGui_End(ctx)
+      ImGui.End(ctx)
     end
   end
 
-  if r.ImGui_BeginPopup(ctx, scriptInfo.name, windowFlags) then
-    r.ImGui_PushFont(ctx, font)
+  if ImGui.BeginPopup(ctx, scriptInfo.name, windowFlags) then
+    ImGui.PushFont(ctx, font)
     popup()
-    r.ImGui_PopFont(ctx)
-    r.ImGui_EndPopup(ctx)
+    ImGui.PopFont(ctx)
+    ImGui.EndPopup(ctx)
     r.defer(loop)
   else
-    r.ImGui_DestroyContext(ctx)
+    ImGui.DestroyContext(ctx)
   end
 end
 
