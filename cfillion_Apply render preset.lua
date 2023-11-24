@@ -1,7 +1,7 @@
 -- @description Apply render preset
 -- @author cfillion
--- @version 2.0.3
--- @changelog Enable ReaImGui's backward compatibility shims
+-- @version 2.1
+-- @changelog Add support for rendering metadata [p=2736401]
 -- @provides
 --   .
 --   [main] . > cfillion_Apply render preset (create action).lua
@@ -41,13 +41,173 @@
 
 if reaper.ImGui_CreateContext then
   dofile(reaper.GetResourcePath() ..
-        '/Scripts/ReaTeam Extensions/API/imgui.lua')('0.7')
+        '/Scripts/ReaTeam Extensions/API/imgui.lua')('0.8')
 end
 
 local r = reaper
 local REAPER_BEFORE_V6 = tonumber(r.GetAppVersion():match('^%d+')) < 6
 local SETTINGS_SOURCE_MASK  = 0x10EB
 local SETTINGS_OPTIONS_MASK = 0x0F14
+local KNOWN_METADATA_TAGS = {
+  ['Title'] = {
+    'APE:Title', 'ASWG:project', 'CAFINFO:title', 'CART:Title',
+    'CUE:DISC_TITLE', 'ID3:TIT2', 'IFF:NAME', 'INFO:INAM', 'IXML:PROJECT',
+    'VORBIS:TITLE', 'XMP:dc/title',
+  },
+  ['Description'] = {
+    'APE:Subtitle', 'ASWG:session', 'BWF:Description', 'ID3:TIT3', 'IFF:ANNO',
+    'INFO:IKEY', 'INFO:ISBJ', 'VORBIS:DESCRIPTION', 'XMP:dc/description',
+  },
+  ['Comment'] = {
+    'APE:Comment', 'ASWG:notes', 'CAFINFO:comments', 'CART:TagText',
+    'CUE:DISC_REM', 'ID3:COMM', 'INFO:ICMT', 'IXML:NOTE', 'VORBIS:COMMENT',
+    'XMP:dm/logComment',
+  },
+  ['Artist'] = {
+    'APE:Artist', 'ASWG:artist', 'CAFINFO:artist', 'CART:Artist', 'ID3:TPE1',
+    'IFF:AUTH', 'INFO:IART', 'VORBIS:ARTIST', 'XMP:dm/artist',
+  },
+  ['Album Artist'] = {
+    'ID3:TPE2', 'VORBIS:ALBUMARTIST',
+  },
+  ['Performer'] = {
+    'CUE:DISC_PERFORMER', 'VORBIS:PERFORMER',
+  },
+  ['Date'] = {
+    'APE:Record Date', 'APE:Year', 'BWF:OriginationDate', 'CAFINFO:year',
+    'CART:StartDate', 'ID3:TDRC', 'ID3:TYER', 'INFO:ICRD', 'VORBIS:DATE',
+    'XMP:dc/date',
+  },
+  ['Recording Time'] = {
+    'BWF:OriginationTime', 'CAFINFO:recorded date', 'ID3:TIME',
+  },
+  ['Genre'] = {
+    'APE:Genre', 'ASWG:genre', 'CAFINFO:genre', 'CART:Category', 'ID3:TCON',
+    'INFO:IGNR', 'VORBIS:GENRE', 'XMP:dm/genre',
+  },
+  ['Key'] = {
+    'APE:Key', 'ASWG:inKey', 'CAFINFO:key signature', 'ID3:TKEY', 'VORBIS:KEY',
+    'XMP:dm/key',
+  },
+  ['Tempo'] = {
+    'APE:BPM', 'ASWG:tempo', 'CAFINFO:tempo', 'ID3:TBPM', 'VORBIS:BPM',
+    'XMP:dm/tempo',
+  },
+  ['Time Signature'] = {
+    'ASWG:timeSig', 'CAFINFO:time signature', 'XMP:dm/timeSignature',
+  },
+  -- skipped: Start Offset (automatic)
+  ['Track Number'] = {
+    'APE:Track', 'CAFINFO:track number', 'CART:CutID', 'CUE:INDEX',
+    'ID3:TRCK', 'INFO:TRCK', 'VORBIS:TRACKNUMBER', 'XMP:dm/trackNumber',
+  },
+  -- skipped: Chapter (automatic)
+  ['Part Number'] = {
+    'ASWG:orderRef', 'ID3:TPOS', 'VORBIS:PARTNUMBER',
+  },
+  ['Scene'] = {
+    'IXML:SCENE', 'XMP:dm/scene',
+  },
+  ['Lyrics'] = {
+    'ID3:USLT', 'VORBIS:LYRICS',
+  },
+  ['Composer'] = {
+    'APE:Composer', 'ASWG:composer', 'CAFINFO:composer', 'ID3:TCOM',
+    'VORBIS:COMPOSER', 'XMP:dm/composer',
+  },
+  ['Conductor'] = {
+    'APE:Conductor', 'VORBIS:CONDUCTOR',
+  },
+  ['Creator'] = {
+    'ASWG:creatorId', 'XMP:dc/creator',
+  },
+  ['Engineer'] = {
+    'ASWG:recEngineer', 'INFO:IENG', 'XMP:dm/engineer',
+  },
+  ['Lyricist'] = {
+    'CAFINFO:lyricist', 'ID3:TEXT', 'VORBIS:LYRICIST',
+  },
+  ['Producer'] = {
+    'ASWG:producer', 'VORBIS:PRODUCER',
+  },
+  ['Publisher'] = {
+    'APE:Publisher', 'ASWG:musicPublisher', 'VORBIS:PUBLISHER',
+  },
+  ['Album'] = {
+    'APE:Album', 'CAFINFO:album', 'ID3:TALB', 'INFO:IPRD', 'VORBIS:ALBUM',
+    'XMP:dm/album',
+  },
+  ['Originator'] = {
+    'ASWG:originator', 'BWF:Originator',
+  },
+  ['Source'] = {
+    'ASWG:isSource', 'INFO:ISRC',
+  },
+  ['Version'] = {
+    'ASWG:musicVersion', 'VORBIS:VERSION',
+  },
+  ['Media Explorer Tags'] = {
+  },
+  -- skipped: User Defined
+  ['ISRC'] = {
+    'APE:ISRC', 'ASWG:isrcId', 'AXML:ISRC', 'ID3:TSRC', 'VORBIS:ISRC',
+  },
+  ['Barcode'] = {
+    'CUE:DISC_CATALOG', 'VORBIS:EAN/UPN',
+  },
+  ['Copyright Message'] = {
+    'CAFINFO:copyright', 'ID3:TCOP', 'IFF:COPY', 'INFO:ICOP', 'XMP:dm/copyright',
+  },
+  ['Copyright Holder'] = {
+    'APE:Copyright', 'VORBIS:COPYRIGHT',
+  },
+  ['License'] = {
+    'ASWG:isLicensed', 'VORBIS:LICENSE',
+  },
+  ['Channel Configuration'] = {
+    'CAFINFO:channel configuration', 'WAVEXT:channel configuration',
+  },
+  ['Channel Layout Text'] = {
+    'ASWG:channelConfig', 'CAFINFO:channel layout',
+  },
+  ['Encoded By'] = {
+    'CAFINFO:encoding application', 'VORBIS:ENCODED-BY',
+  },
+  ['Encoding Settings'] = {
+    'CAFINFO:source encoder', 'VORBIS:ENCODING',
+  },
+  ['Language'] = {
+    'APE:Language', 'ASWG:language', 'ID3:COMMENT_LANG', 'ID3:LYRIC_LANG',
+    'VORBIS:LANGUAGE', 'XMP:dc/language',
+  },
+  ['LRA Loudness Range'] = {
+    'ASWG:loudnessRange', 'BWF:LoudnessRange',
+  },
+  ['LUFS-I Integrated Loudness'] = {
+    'ASWG:loudness', 'BWF:LoudnessValue',
+  },
+  ['Recording Location'] = {
+    'APE:Record Location', 'ASWG:impulseLocation', 'ASWG:recordingLoc',
+    'VORBIS:LOCATION',
+  },
+  ['Image Type'] = {
+    'FLACPIC:APIC_TYPE', 'ID3:APIC_TYPE',
+  },
+  ['Image Description'] = {
+    'FLACPIC:APIC_DESC', 'ID3:APIC_DESC',
+  },
+  ['Image File'] = {
+    'FLACPIC:APIC_FILE', 'ID3:APIC_FILE',
+  },
+}
+local METADATA_IMAGE_TYPES = {
+  'Other', '32z32 pixel file icon', 'Other file icon', 'Cover (front)',
+  'Cover (back)', 'Leaflet page', 'Media', 'Lead artist/Lead performer/Soloist',
+  'Artist/Performer', 'Conductor', 'Band/Orchestra', 'Composer',
+  'Lyricist/Text Writer', 'Recording Location', 'During recording',
+  'During performance', 'Movie/video screen capture', 'A bright colored fish',
+  'Illustration', 'Band/Artist logotype', 'Publisher/Studio logotype',
+}
 
 local function getScriptInfo()
   local path = ({r.get_action_context()})[2]
@@ -127,36 +287,50 @@ local function tokenize(line)
   return tokens
 end
 
-function parseDefault(presets, line)
+function parseDefault(presets, file, line)
   local tokens = tokenize(line)
 
+  -- reaper-render.ini
   if tokens[1] == '<RENDERPRESET' then
-    return parseFormatPreset(presets, tokens)
+    return parseFormatPreset(presets, file, tokens)
   elseif tokens[1] == '<RENDERPRESET2' then
-    return parseFormatPreset2(presets, tokens)
+    return parseFormatPreset2(presets, file, tokens)
   elseif tokens[1] == 'RENDERPRESET_OUTPUT' then
-    return parseOutputPreset(presets, tokens)
+    return parseOutputPreset(presets, file, tokens)
   elseif tokens[1] == 'RENDERPRESET_EXT' then
-    return parseNormalizePreset(presets, tokens)
+    return parseNormalizePreset(presets, file, tokens)
   end
 
-  return nil, string.format(
-    'reaper-render.ini: found unknown preset type: %s', tokens[1])
+  -- reaper-render2.ini
+  if tokens[1] == '<RENDERPRESETMETADATA' then
+    return parseMetadataPreset(presets, file, tokens)
+  end
+
+  return nil, ('%s: found unknown preset type: %s'):format(file, tokens[1])
 end
 
-function nodeContentExtractor(preset, key)
-  local function parser(_, line)
+function parseNodeContents(extractor, defaultParser)
+  local function parser(presets, file, line)
+    line = line:match('^%s*(.*)$')
+
     if line:sub(1, 1) == '>' then
-      -- reached the end of the RENDERPRESET tag
-      return parseDefault
+      -- reached the end of the XMLRPP tag
+      return defaultParser or parseDefault
     end
 
-    preset[key] = (preset[key] or '') .. line:match('[^%s]+')
-
-    return parser
+    local ok, err = extractor(file, line)
+    if ok == true then ok = parser end
+    return ok, err
   end
 
   return parser
+end
+
+local function propertyExtractor(preset, key)
+  return function(file, line)
+    preset[key] = (preset[key] or '') .. line
+    return true
+  end
 end
 
 local function addPresetSettings(preset, mask, value)
@@ -164,8 +338,8 @@ local function addPresetSettings(preset, mask, value)
   preset._render_settings_mask = mask | (preset._render_settings_mask or 0)
 end
 
-function parseFormatPreset(presets, tokens)
-  local ok, err = checkTokenCount(tokens, 8, 9)
+function parseFormatPreset(presets, file, tokens)
+  local ok, err = checkTokenCount(file, tokens, 8, 9)
   if not ok then return nil, err end
 
   local preset = insertPreset(presets, tokens[2])
@@ -183,19 +357,19 @@ function parseFormatPreset(presets, tokens)
     addPresetSettings(preset, SETTINGS_OPTIONS_MASK, tonumber(tokens[9]))
   end
 
-  return nodeContentExtractor(preset, 'RENDER_FORMAT')
+  return parseNodeContents(propertyExtractor(preset, 'RENDER_FORMAT'))
 end
 
-function parseFormatPreset2(presets, tokens)
-  local ok, err = checkTokenCount(tokens, 1)
+function parseFormatPreset2(presets, file, tokens)
+  local ok, err = checkTokenCount(file, tokens, 1)
   if not ok then return nil, err end
 
   local preset = insertPreset(presets, tokens[2])
-  return nodeContentExtractor(preset, 'RENDER_FORMAT2')
+  return parseNodeContents(propertyExtractor(preset, 'RENDER_FORMAT2'))
 end
 
-function parseOutputPreset(presets, tokens)
-  local ok, err = checkTokenCount(tokens, 9)
+function parseOutputPreset(presets, file, tokens)
+  local ok, err = checkTokenCount(file, tokens, 9)
   if not ok then return nil, err end
 
   local settingsMask = SETTINGS_SOURCE_MASK
@@ -217,8 +391,8 @@ function parseOutputPreset(presets, tokens)
   return parseDefault
 end
 
-function parseNormalizePreset(presets, tokens)
-  local ok, err = checkTokenCount(tokens, 3)
+function parseNormalizePreset(presets, file, tokens)
+  local ok, err = checkTokenCount(file, tokens, 3)
   if not ok then return nil, err end
 
   local preset = insertPreset(presets, tokens[2])
@@ -227,35 +401,107 @@ function parseNormalizePreset(presets, tokens)
   if tokens[5] ~= nil then
     preset.RENDER_BRICKWALL = tonumber(tokens[5]) -- v6.37
   end
+  if tokens[6] ~= nil then
+    -- TODO until 9
+  end
 
   return parseDefault
 end
 
-local function getRenderPresets()
-  local presets = {}
-  local parser = parseDefault
+local function findMetadataTagRoot(search)
+  for key, synonyms in pairs(KNOWN_METADATA_TAGS) do
+    for i, ident in ipairs(synonyms) do
+      if ident == search then return key end
+    end
+  end
 
-  local path = string.format('%s/reaper-render.ini', r.GetResourcePath())
+  return search
+end
+
+local function addSingleLineMetadata(preset, file, tokens)
+  local ok, err = checkTokenCount(file, tokens, 3)
+  if not ok then return nil, err end
+
+  preset.metadata[#preset.metadata + 1] =
+    { tag = tokens[2], value = tokens[3] }
+  return true
+end
+
+local function addMultilineMetadata(preset, file, tokens)
+  local ok, err = checkTokenCount(file, tokens, 2)
+  if not ok then return nil, err end
+
+  local metadata = { tag = tokens[2], value = '', isBase64 = true }
+  preset.metadata[#preset.metadata + 1] = metadata
+
+  return parseNodeContents(function(file, line)
+    metadata.value = metadata.value .. line
+    return true
+  end, parseNodeContents(metadataExtractor(preset)))
+end
+
+function metadataExtractor(preset)
+  return function(file, line)
+    if not preset.metadata then preset.metadata = {} end
+
+    local tokens = tokenize(line)
+
+    if tokens[1] == 'TAG' then
+      return addSingleLineMetadata(preset, file, tokens)
+    elseif tokens[1] == '<TAG' then
+      return addMultilineMetadata(preset, file, tokens)
+    else
+      return nil, ('%s: unknown metadata line: %s'):format(file, tokens[1])
+    end
+  end
+end
+
+function parseMetadataPreset(presets, file, tokens)
+  local ok, err = checkTokenCount(file, tokens, 2)
+  if not ok then return nil, err end
+
+  local preset = insertPreset(presets, tokens[2])
+  return parseNodeContents(metadataExtractor(preset))
+end
+
+local function readRenderPresets(presets, filename)
+  local path = string.format('%s/%s', r.GetResourcePath(), filename)
   if not r.file_exists(path) then
     return presets
   end
 
-  local file, err = assert(io.open(path, 'r'))
+  local file = assert(io.open(path, 'r'))
 
+  local parser = parseDefault
   for line in file:lines() do
-    parser = assert(parser(presets, line))
+    parser = assert(parser(presets, filename, line))
   end
 
   file:close()
 
-  assert(parser == parseDefault, 'reaper-render.ini: prematurely reached EOF')
+  assert(parser == parseDefault, ('%s: prematurely reached EOF'):format(filename))
+end
 
-  return presets
+local function clearMetadata(project)
+  local tags = select(2, r.GetSetProjectInfo_String(project, 'RENDER_METADATA', '', false))
+  for tag in tags:gmatch('[^;]+') do
+    r.GetSetProjectInfo_String(project, 'RENDER_METADATA', ('%s|'):format(tag), true)
+  end
+end
+
+local function applyMetadata(project, tags)
+  for i, metadata in ipairs(tags) do
+    r.GetSetProjectInfo_String(project, 'RENDER_METADATA',
+      ('%s|%s'):format(metadata.tag, metadata.value), true)
+  end
 end
 
 local function applyRenderPreset(project, preset)
   for key, value in pairs(preset) do
     if key:match('^_') or key == 'RENDER_FORMAT' then -- unsupported setting
+    elseif key == 'metadata' then
+      clearMetadata(project)
+      applyMetadata(project, preset.metadata)
     elseif type(value) == 'string' then
       r.GetSetProjectInfo_String(project, key, value, true)
     elseif key:match('^[a-z]') then -- lowercase
@@ -363,8 +609,7 @@ local function enumCell(ctx, values, value)
 end
 
 local function sampleRateCell(ctx, preset)
-  if isCellHovered(ctx) and preset.projrenderrateinternal ~= nil then
-    r.ImGui_BeginTooltip(ctx)
+  if isCellHovered(ctx) and preset.projrenderrateinternal ~= nil and r.ImGui_BeginTooltip(ctx) then
     r.ImGui_Checkbox(ctx,
       'Use project sample rate for mixing and FX/synth processing',
       preset.projrenderrateinternal)
@@ -385,8 +630,7 @@ end
 local function ditherCell(ctx, preset)
   local dither = preset.RENDER_DITHER
   if not dither then return end
-  if isCellHovered(ctx) then
-    r.ImGui_BeginTooltip(ctx)
+  if isCellHovered(ctx) and r.ImGui_BeginTooltip(ctx) then
     if r.ImGui_BeginTable(ctx, 'dither', 2) then
       r.ImGui_TableNextRow(ctx)
       r.ImGui_TableNextColumn(ctx)
@@ -420,9 +664,7 @@ local function normalizeCell(ctx, preset)
 
   local normalize = preset.RENDER_NORMALIZE
   if not normalize then return end
-  if isCellHovered(ctx) then
-    r.ImGui_BeginTooltip(ctx)
-
+  if isCellHovered(ctx) and r.ImGui_BeginTooltip(ctx) then
     if r.ImGui_BeginTable(ctx, 'normal', 3) then
       r.ImGui_TableNextRow(ctx)
       r.ImGui_TableNextColumn(ctx)
@@ -491,8 +733,7 @@ local function optionsCell(ctx, preset)
     return
   end
 
-  if isCellHovered(ctx) then
-    r.ImGui_BeginTooltip(ctx)
+  if isCellHovered(ctx) and r.ImGui_BeginTooltip(ctx) then
     r.ImGui_CheckboxFlags(ctx, '2nd pass render', preset.RENDER_SETTINGS, 2048)
     r.ImGui_CheckboxFlags(ctx, 'Tracks with only mono media to mono files',
       preset.RENDER_SETTINGS, 16)
@@ -508,6 +749,75 @@ local function optionsCell(ctx, preset)
       preset.RENDER_SETTINGS, 256)
     r.ImGui_SameLine(ctx)
     r.ImGui_CheckboxFlags(ctx, 'Take markers', preset.RENDER_SETTINGS, 1024)
+
+    r.ImGui_EndTooltip(ctx)
+  end
+
+  r.ImGui_Bullet(ctx)
+end
+
+local function mergeMetadata(tags)
+  local merged, indices = {}, {}
+  for i, metadata in ipairs(tags) do
+    local root = findMetadataTagRoot(metadata.tag)
+    local namespace = metadata.tag:match('^[^:]+')
+    local value = metadata.value
+    if metadata.isBase64 then value = decodeBase64(value) end
+
+    local match = merged[indices[root]]
+    if match and match.value == value then
+      match.namespaces[#match.namespaces + 1] = namespace
+    else
+      if match then root = metadata.tag end -- different value
+      indices[root] = #merged + 1
+      merged[#merged + 1] =
+        { tag = root, value = value, namespaces = { namespace } }
+    end
+  end
+  return merged
+end
+
+local function ellipsis(text, maxLen)
+  text = text:gsub('[\r\n]+', '\x20')
+  if text:len() > maxLen then
+    return text:sub(1, maxLen) .. '...'
+  else
+    return text
+  end
+end
+
+local function metadataCell(ctx, preset)
+  if not preset.metadata then return end
+
+  if isCellHovered(ctx) and r.ImGui_BeginTooltip(ctx) then
+    if not preset._metadata_merged then
+      preset._metadata_merged = mergeMetadata(preset.metadata)
+    end
+    local tableFlags = r.ImGui_TableFlags_Borders() | r.ImGui_TableFlags_RowBg()
+    if r.ImGui_BeginTable(ctx, 'metadata', 3, tableFlags) then
+      r.ImGui_TableSetupColumn(ctx, 'Tag')
+      r.ImGui_TableSetupColumn(ctx, 'Value')
+      r.ImGui_TableSetupColumn(ctx, 'Namespaces')
+      r.ImGui_TableHeadersRow(ctx)
+
+      for i, metadata in ipairs(preset._metadata_merged) do
+        r.ImGui_TableNextRow(ctx)
+        r.ImGui_TableNextColumn(ctx)
+        r.ImGui_Text(ctx, metadata.tag)
+        r.ImGui_TableNextColumn(ctx)
+        if metadata.tag == 'Image Type' then
+          enumCell(ctx, METADATA_IMAGE_TYPES, tonumber(metadata.value))
+        else
+          r.ImGui_Text(ctx, ellipsis(metadata.value, 64))
+        end
+        r.ImGui_TableNextColumn(ctx)
+        r.ImGui_PushTextWrapPos(ctx, r.ImGui_GetCursorPosX(ctx) + 255)
+        r.ImGui_Text(ctx, table.concat(metadata.namespaces, ', '))
+        r.ImGui_PopTextWrapPos(ctx)
+      end
+
+      r.ImGui_EndTable(ctx)
+    end
 
     r.ImGui_EndTooltip(ctx)
   end
@@ -571,8 +881,7 @@ end
 
 local function presetRow(ctx, name, preset)
   r.ImGui_TableNextColumn(ctx)
-  if r.ImGui_Selectable(ctx, name, false,
-      r.ImGui_SelectableFlags_SpanAllColumns()) then
+  if r.ImGui_Selectable(ctx, name, false, r.ImGui_SelectableFlags_SpanAllColumns()) then
     main(name, preset)
     r.ImGui_CloseCurrentPopup(ctx)
   end
@@ -606,6 +915,7 @@ local function presetRow(ctx, name, preset)
     end,
     'RENDER_PATTERN', -- file name
     optionsCell,
+    metadataCell,
   }
 
   for _, cell in ipairs(cells) do
@@ -622,7 +932,9 @@ end
 assert(r.GetSetProjectInfo,   'REAPER v5.975 or newer is required')
 assert(r.SNM_SetIntConfigVar, 'The SWS extension is not installed')
 
-local presets = getRenderPresets()
+local presets = {}
+readRenderPresets(presets, 'reaper-render.ini')
+readRenderPresets(presets, 'reaper-render2.ini')
 
 if ApplyPresetByName then
   local preset = presets[ApplyPresetByName]
@@ -662,71 +974,66 @@ if not r.ImGui_CreateContext then
   return
 end
 
-local contextFlags = r.ImGui_ConfigFlags_NavEnableKeyboard()
-local windowFlags  =
-  r.ImGui_WindowFlags_AlwaysAutoResize() |
-  r.ImGui_WindowFlags_NoDocking()        |
-  r.ImGui_WindowFlags_NoTitleBar()       |
-  r.ImGui_WindowFlags_TopMost()
-local tableFlags   =
-  r.ImGui_TableFlags_Borders()           |
-  r.ImGui_TableFlags_Hideable()          |
-  r.ImGui_TableFlags_Reorderable()       |
-  r.ImGui_TableFlags_Resizable()         |
-  r.ImGui_TableFlags_RowBg()
-local hiddenColFlags =
-  r.ImGui_TableColumnFlags_DefaultHide()
-
-local ctx = r.ImGui_CreateContext(scriptInfo.name, contextFlags)
+local ctx = r.ImGui_CreateContext(scriptInfo.name, r.ImGui_ConfigFlags_NavEnableKeyboard())
 local clipper = r.ImGui_CreateListClipper(ctx)
 local size = r.GetAppVersion():match('OSX') and 12 or 14
 local font = r.ImGui_CreateFont('sans-serif', size)
-r.ImGui_AttachFont(ctx, font)
+r.ImGui_Attach(ctx, font)
 
 local function popup()
   if #names == 0 then
     r.ImGui_TextDisabled(ctx, 'No render presets found.')
+    return
+  end
+
+  if scriptInfo.isCreate then
+    r.ImGui_Text(ctx, 'Select a render preset for the new action:')
   else
-    if scriptInfo.isCreate then
-      r.ImGui_Text(ctx, 'Select a render preset for the new action:')
-    else
-      r.ImGui_Text(ctx, 'Select a render preset to apply:')
-    end
-    r.ImGui_Spacing(ctx)
+    r.ImGui_Text(ctx, 'Select a render preset to apply:')
+  end
+  r.ImGui_Spacing(ctx)
 
-    if r.ImGui_BeginTable(ctx, 'Presets', 14, tableFlags) then
-      r.ImGui_TableSetupColumn(ctx, 'Name')
-      r.ImGui_TableSetupColumn(ctx, 'Format')
-      r.ImGui_TableSetupColumn(ctx, 'Format (secondary)', hiddenColFlags)
-      r.ImGui_TableSetupColumn(ctx, 'Sample rate')
-      r.ImGui_TableSetupColumn(ctx, 'Channels', hiddenColFlags)
-      r.ImGui_TableSetupColumn(ctx, 'Speed', hiddenColFlags)
-      r.ImGui_TableSetupColumn(ctx, 'Resample mode', hiddenColFlags)
-      r.ImGui_TableSetupColumn(ctx, 'Dither', hiddenColFlags)
-      r.ImGui_TableSetupColumn(ctx, 'Normalize', hiddenColFlags)
-      r.ImGui_TableSetupColumn(ctx, 'Source', hiddenColFlags)
-      r.ImGui_TableSetupColumn(ctx, 'Bounds', hiddenColFlags)
-      r.ImGui_TableSetupColumn(ctx, 'Tail', hiddenColFlags)
-      r.ImGui_TableSetupColumn(ctx, 'File name', hiddenColFlags)
-      r.ImGui_TableSetupColumn(ctx, 'Options', hiddenColFlags)
+  local tableFlags  =
+    r.ImGui_TableFlags_Borders()     |
+    r.ImGui_TableFlags_Hideable()    |
+    r.ImGui_TableFlags_Reorderable() |
+    r.ImGui_TableFlags_Resizable()   |
+    r.ImGui_TableFlags_RowBg()
+  local hiddenColFlags =
+    r.ImGui_TableColumnFlags_DefaultHide()
 
-      r.ImGui_TableHeadersRow(ctx)
+  if not r.ImGui_BeginTable(ctx, 'Presets', 15, tableFlags) then return end
+  r.ImGui_TableSetupColumn(ctx, 'Name')
+  r.ImGui_TableSetupColumn(ctx, 'Format')
+  r.ImGui_TableSetupColumn(ctx, 'Format (secondary)', hiddenColFlags)
+  r.ImGui_TableSetupColumn(ctx, 'Sample rate')
+  r.ImGui_TableSetupColumn(ctx, 'Channels', hiddenColFlags)
+  r.ImGui_TableSetupColumn(ctx, 'Speed', hiddenColFlags)
+  r.ImGui_TableSetupColumn(ctx, 'Resample mode', hiddenColFlags)
+  r.ImGui_TableSetupColumn(ctx, 'Dither', hiddenColFlags)
+  r.ImGui_TableSetupColumn(ctx, 'Normalize', hiddenColFlags)
+  r.ImGui_TableSetupColumn(ctx, 'Source', hiddenColFlags)
+  r.ImGui_TableSetupColumn(ctx, 'Bounds', hiddenColFlags)
+  r.ImGui_TableSetupColumn(ctx, 'Tail', hiddenColFlags)
+  r.ImGui_TableSetupColumn(ctx, 'File name', hiddenColFlags)
+  r.ImGui_TableSetupColumn(ctx, 'Options', hiddenColFlags)
+  r.ImGui_TableSetupColumn(ctx, 'Metadata', hiddenColFlags)
 
-      r.ImGui_ListClipper_Begin(clipper, #names)
-      while r.ImGui_ListClipper_Step(clipper) do
-        local display_start, display_end = r.ImGui_ListClipper_GetDisplayRange(clipper)
-        for i = display_start + 1, display_end do
-          local name = names[i]
-          r.ImGui_TableNextRow(ctx)
-          r.ImGui_PushID(ctx, i)
-          presetRow(ctx, name, presets[name])
-          r.ImGui_PopID(ctx)
-        end
-      end
+  r.ImGui_TableHeadersRow(ctx)
 
-      r.ImGui_EndTable(ctx)
+  r.ImGui_ListClipper_Begin(clipper, #names)
+  while r.ImGui_ListClipper_Step(clipper) do
+    local display_start, display_end = r.ImGui_ListClipper_GetDisplayRange(clipper)
+    for i = display_start + 1, display_end do
+      local name = names[i]
+      r.ImGui_TableNextRow(ctx)
+      r.ImGui_PushID(ctx, i)
+      presetRow(ctx, name, presets[name])
+      r.ImGui_PopID(ctx)
     end
   end
+
+  r.ImGui_EndTable(ctx)
 end
 
 local function loop()
@@ -735,6 +1042,12 @@ local function loop()
       r.ImGui_PointConvertNative(ctx, r.GetMousePosition()))
     r.ImGui_OpenPopup(ctx, scriptInfo.name)
   end
+
+  local windowFlags =
+    r.ImGui_WindowFlags_AlwaysAutoResize() |
+    r.ImGui_WindowFlags_NoDocking()        |
+    r.ImGui_WindowFlags_NoTitleBar()       |
+    r.ImGui_WindowFlags_TopMost()
 
   if r.ImGui_IsPopupOpen(ctx, scriptInfo.name) then
     -- HACK: Dirty trick to force the table to save its settings.
