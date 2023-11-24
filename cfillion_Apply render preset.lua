@@ -2,6 +2,7 @@
 -- @author cfillion
 -- @version 2.1
 -- @changelog
+--   Add support for postprocessing fade-in and fade-out
 --   Add support for rendering metadata [p=2736401]
 --   Add support for tail length
 -- @provides
@@ -241,17 +242,15 @@ local function insertPreset(presets, name)
   return preset
 end
 
-local function checkTokenCount(tokens, expectedMin, expectedMax)
+local function checkTokenCount(file, tokens, expectedMin, expectedMax)
+  if not expectedMax then expectedMax = expectedMin end
+
   if #tokens < expectedMin then
-    return false, string.format(
-      'reaper-render.ini: %s contains %d tokens, expected at least %d',
-      tokens[1], #tokens, expectedMin
-    )
-  elseif expectedMax and #tokens > expectedMax then
-    return false, string.format(
-      'reaper-render.ini: %s contains %d tokens, expected no more than %d',
-      tokens[1], #tokens, expectedMax
-    )
+    return false, ('%s: %s contains %d tokens, expected at least %d'):format(
+      file, tokens[1], #tokens, expectedMin)
+  elseif #tokens > expectedMax then
+    return false, ('%s: %s contains %d tokens, expected no more than %d'):format(
+      file, tokens[1], #tokens, expectedMax)
   else
     return true
   end
@@ -300,7 +299,7 @@ function parseDefault(presets, file, line)
   elseif tokens[1] == 'RENDERPRESET_OUTPUT' then
     return parseOutputPreset(presets, file, tokens)
   elseif tokens[1] == 'RENDERPRESET_EXT' then
-    return parseNormalizePreset(presets, file, tokens)
+    return parsePostprocessPreset(presets, file, tokens)
   end
 
   -- reaper-render2.ini
@@ -399,8 +398,8 @@ function parseOutputPreset(presets, file, tokens)
   return parseDefault
 end
 
-function parseNormalizePreset(presets, file, tokens)
-  local ok, err = checkTokenCount(file, tokens, 3)
+function parsePostprocessPreset(presets, file, tokens)
+  local ok, err = checkTokenCount(file, tokens, 4, 9)
   if not ok then return nil, err end
 
   local preset = insertPreset(presets, tokens[2])
@@ -410,7 +409,10 @@ function parseNormalizePreset(presets, file, tokens)
     preset.RENDER_BRICKWALL = tonumber(tokens[5]) -- v6.37
   end
   if tokens[6] ~= nil then
-    -- TODO until 9
+    preset.RENDER_FADEIN       = tonumber(tokens[6])
+    preset.RENDER_FADEOUT      = tonumber(tokens[7])
+    preset.RENDER_FADEINSHAPE  = tonumber(tokens[8])
+    preset.RENDER_FADEOUTSHAPE = tonumber(tokens[9])
   end
 
   return parseDefault
@@ -666,36 +668,63 @@ local function VAL2DB(x)
   return math.max(v, -150.0)
 end
 
-local function normalizeCell(ctx, preset)
+local function postprocessCell(ctx, preset)
   local NORMALIZE_ENABLE = 1
-  local BRICKWALL_ENABLE = 64
+  local NORMALIZE_MASTER = 1<<5
+  local BRICKWALL_ENABLE = 1<<6
+  -- local BRICKWALL_TPEAK  = 1<<7
+  local NORMAL_TOO_LOUD  = 1<<8
+  local FADEIN_ENABLE    = 1<<9
+  local FADEOUT_ENABLE   = 1<<10
 
-  local normalize = preset.RENDER_NORMALIZE
-  if not normalize then return end
+  local postprocess = preset.RENDER_NORMALIZE
+  if not postprocess then return end
   if isCellHovered(ctx) and r.ImGui_BeginTooltip(ctx) then
     if r.ImGui_BeginTable(ctx, 'normal', 3) then
       r.ImGui_TableNextRow(ctx)
       r.ImGui_TableNextColumn(ctx)
-      r.ImGui_CheckboxFlags(ctx, 'Normalize to:', normalize, NORMALIZE_ENABLE)
+      r.ImGui_CheckboxFlags(ctx, 'Normalize to:', postprocess, NORMALIZE_ENABLE)
       r.ImGui_TableNextColumn(ctx)
-      enumCell(ctx, { 'LUFS-I', 'RMS', 'Peak', 'True peak' }, (normalize & 14) >> 1)
+      enumCell(ctx, { 'LUFS-I', 'RMS', 'Peak', 'True peak' }, (postprocess & 14) >> 1)
       r.ImGui_TableNextColumn(ctx)
       r.ImGui_Text(ctx, ('%g dB'):format(VAL2DB(preset.RENDER_NORMALIZE_TARGET)))
 
       r.ImGui_TableNextRow(ctx)
       r.ImGui_TableNextColumn(ctx)
-      r.ImGui_CheckboxFlags(ctx, 'Brickwall limit:', normalize, BRICKWALL_ENABLE)
+      r.ImGui_CheckboxFlags(ctx, 'Brickwall limit:', postprocess, BRICKWALL_ENABLE)
       r.ImGui_TableNextColumn(ctx)
-      enumCell(ctx, { 'Peak', 'True peak' }, (normalize >> 7) & 1)
+      enumCell(ctx, { 'Peak', 'True peak' }, (postprocess >> 7) & 1)
       r.ImGui_TableNextColumn(ctx)
       r.ImGui_Text(ctx, ('%g dB'):format(VAL2DB(preset.RENDER_BRICKWALL or 1)))
 
+      r.ImGui_TableNextRow(ctx)
+      r.ImGui_TableNextColumn(ctx)
+      r.ImGui_CheckboxFlags(ctx, 'Fade-in:', postprocess, FADEIN_ENABLE)
+      r.ImGui_TableNextColumn(ctx)
+      r.ImGui_Text(ctx, ('%g ms'):format(preset.RENDER_FADEIN * 1e4))
+      r.ImGui_TableNextColumn(ctx)
+      r.ImGui_Text(ctx, ('Shape %d'):format(preset.RENDER_FADEINSHAPE))
+
+      r.ImGui_TableNextRow(ctx)
+      r.ImGui_TableNextColumn(ctx)
+      r.ImGui_CheckboxFlags(ctx, 'Fade-out:', postprocess, FADEOUT_ENABLE)
+      r.ImGui_TableNextColumn(ctx)
+      r.ImGui_Text(ctx, ('%g ms'):format(preset.RENDER_FADEOUT * 1e4))
+      r.ImGui_TableNextColumn(ctx)
+      r.ImGui_Text(ctx, ('Shape %d'):format(preset.RENDER_FADEOUTSHAPE))
+
       r.ImGui_EndTable(ctx)
     end
+    r.ImGui_Separator(ctx)
+
+    r.ImGui_CheckboxFlags(ctx, 'Only normalize files that are too loud',
+      postprocess, NORMAL_TOO_LOUD)
+    r.ImGui_CheckboxFlags(ctx, 'Normalize/limit master mix, common gain to stems',
+      postprocess, NORMALIZE_MASTER)
 
     r.ImGui_EndTooltip(ctx)
   end
-  boolText(ctx, (normalize & (NORMALIZE_ENABLE | BRICKWALL_ENABLE)) ~= 0)
+  boolText(ctx, (postprocess & (NORMALIZE_ENABLE | BRICKWALL_ENABLE)) ~= 0)
 end
 
 local function sourceCell(ctx, preset)
@@ -915,7 +944,7 @@ local function presetRow(ctx, name, preset)
     function() enumCell(ctx, speeds, preset.projrenderlimit) end,
     function() enumCell(ctx, resampleModes, preset.projrenderresample) end,
     ditherCell,
-    normalizeCell,
+    postprocessCell,
     sourceCell,
     boundsCell,
     function()
@@ -1024,7 +1053,7 @@ local function popup()
   r.ImGui_TableSetupColumn(ctx, 'Speed', hiddenColFlags)
   r.ImGui_TableSetupColumn(ctx, 'Resample mode', hiddenColFlags)
   r.ImGui_TableSetupColumn(ctx, 'Dither', hiddenColFlags)
-  r.ImGui_TableSetupColumn(ctx, 'Normalize', hiddenColFlags)
+  r.ImGui_TableSetupColumn(ctx, 'Postprocess', hiddenColFlags)
   r.ImGui_TableSetupColumn(ctx, 'Source', hiddenColFlags)
   r.ImGui_TableSetupColumn(ctx, 'Bounds', hiddenColFlags)
   r.ImGui_TableSetupColumn(ctx, 'Tail', hiddenColFlags)
