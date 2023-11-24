@@ -1,7 +1,9 @@
 -- @description Apply render preset
 -- @author cfillion
 -- @version 2.1
--- @changelog Add support for rendering metadata [p=2736401]
+-- @changelog
+--   Add support for rendering metadata [p=2736401]
+--   Add support for tail length
 -- @provides
 --   .
 --   [main] . > cfillion_Apply render preset (create action).lua
@@ -369,7 +371,7 @@ function parseFormatPreset2(presets, file, tokens)
 end
 
 function parseOutputPreset(presets, file, tokens)
-  local ok, err = checkTokenCount(file, tokens, 9)
+  local ok, err = checkTokenCount(file, tokens, 9, 11)
   if not ok then return nil, err end
 
   local settingsMask = SETTINGS_SOURCE_MASK
@@ -387,6 +389,12 @@ function parseOutputPreset(presets, file, tokens)
   preset._unknown          = tokens[7]           -- what is this (always 0)?
   preset.RENDER_PATTERN    = tostring(tokens[8]) -- file name
   preset.RENDER_TAILFLAG   = tonumber(tokens[9]) == 0 and 0 or 0xFF
+  if tokens[10] ~= nil then
+    -- directory field = tokens[10] -- v6.43, not accessible via API
+  end
+  if tokens[11] ~= nil then
+    preset.RENDER_TAILMS = tonumber(tokens[11]) -- v6.62
+  end
 
   return parseDefault
 end
@@ -911,7 +919,12 @@ local function presetRow(ctx, name, preset)
     sourceCell,
     boundsCell,
     function()
-      if preset.RENDER_TAILFLAG then boolText(ctx, preset.RENDER_TAILFLAG ~= 0) end
+      if not preset.RENDER_TAILFLAG then return end
+      boolText(ctx, preset.RENDER_TAILFLAG ~= 0)
+      if preset.RENDER_TAILMS then
+        r.ImGui_SameLine(ctx, nil, 0)
+        r.ImGui_Text(ctx, (' (%d ms)'):format(preset.RENDER_TAILMS))
+      end
     end,
     'RENDER_PATTERN', -- file name
     optionsCell,
