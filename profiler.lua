@@ -34,13 +34,7 @@ local ImGui = (function()
   local host_reaper = reaper
   reaper = {}
   for k,v in pairs(host_reaper) do reaper[k] = v end
-  dofile(reaper.GetResourcePath() ..
-    '/Scripts/ReaTeam Extensions/API/imgui.lua')('0.8.7')
-  local ImGui = {}
-  for name, func in pairs(reaper) do
-    name = name:match('^ImGui_(.+)$')
-    if name then ImGui[name] = func end
-  end
+  local ImGui = dofile(reaper.ImGui_GetBuiltinPath() .. '/imgui.lua') '0.9'
   reaper = host_reaper
   return ImGui
 end)()
@@ -187,12 +181,12 @@ end
 
 local function centerNextWindow(ctx)
   local center_x, center_y = ImGui.Viewport_GetCenter(ImGui.GetWindowViewport(ctx))
-  ImGui.SetNextWindowPos(ctx, center_x, center_y, ImGui.Cond_Appearing(), 0.5, 0.5)
+  ImGui.SetNextWindowPos(ctx, center_x, center_y, ImGui.Cond_Appearing, 0.5, 0.5)
 end
 
 local function alignNextItemRight(ctx, label, spacing)
   local item_spacing_w = spacing and
-    ImGui.GetStyleVar(ctx, ImGui.StyleVar_ItemSpacing()) or 0
+    ImGui.GetStyleVar(ctx, ImGui.StyleVar_ItemSpacing) or 0
   local want_pos_x = ImGui.GetScrollX(ctx) +
     ImGui.GetContentRegionMax(ctx) - item_spacing_w -
     ImGui.CalcTextSize(ctx, label, nil, nil, true)
@@ -224,8 +218,7 @@ local function alignGroupRight(ctx, callback)
 end
 
 local function tooltip(ctx, text)
-  if not ImGui.IsItemHovered(ctx, ImGui.HoveredFlags_DelayShort()) or
-    not ImGui.BeginTooltip(ctx) then return end
+  if not ImGui.BeginItemTooltip(ctx) then return end
   ImGui.PushTextWrapPos(ctx, ImGui.GetFontSize(ctx) * 42)
   ImGui.Text(ctx, text)
   ImGui.PopTextWrapPos(ctx)
@@ -246,10 +239,10 @@ local function progressBar(ctx, value)
 end
 
 local report_columns = (function()
-  local no_hide       = ImGui.TableColumnFlags_NoHide()
-  local def_sort_desc = ImGui.TableColumnFlags_PreferSortDescending()
-  local def_hide      = ImGui.TableColumnFlags_DefaultHide()
-  local frac_flags    = def_sort_desc | ImGui.TableColumnFlags_WidthStretch()
+  local no_hide       = ImGui.TableColumnFlags_NoHide
+  local def_sort_desc = ImGui.TableColumnFlags_PreferSortDescending
+  local def_hide      = ImGui.TableColumnFlags_DefaultHide
+  local frac_flags    = def_sort_desc | ImGui.TableColumnFlags_WidthStretch
   return {
     { name = 'Name',   field = 'name', width = 227, flags = no_hide },
     { name = 'Source', field = 'src',  width = 132 },
@@ -259,7 +252,7 @@ local report_columns = (function()
     { name = '% of parent', field = 'time_frac_parent',
       func = progressBar, flags = frac_flags | def_hide },
     { name = 'Time',   field = 'time', func = textCell, fmt   = formatTime,
-      flags = def_sort_desc | ImGui.TableColumnFlags_DefaultSort()            },
+      flags = def_sort_desc | ImGui.TableColumnFlags_DefaultSort              },
     { name = 'Calls',  field = 'count',
       func = textCell, fmt   = formatNumber, flags = def_sort_desc            },
     { name = 'MinT/c', field = 'time_per_call_min',
@@ -421,7 +414,7 @@ local function sortReport()
       if l ~= r then
         -- table.sort is not stable: using id to preserve relative positions
         if l[field] == r[field] then return l.id < r.id end
-        if state.sort.dir == ImGui.SortDirection_Ascending() then
+        if state.sort.dir == ImGui.SortDirection_Ascending then
           return l[field] < r[field]
         else
           return l[field] > r[field]
@@ -808,10 +801,9 @@ function profiler.frame()
 end
 
 function profiler.showWindow(ctx, p_open, flags)
-  flags = (flags or 0) |
-    ImGui.WindowFlags_MenuBar()
+  flags = (flags or 0) | ImGui.WindowFlags_MenuBar
 
-  ImGui.SetNextWindowSize(ctx, 850, 500, ImGui.Cond_FirstUseEver())
+  ImGui.SetNextWindowSize(ctx, 850, 500, ImGui.Cond_FirstUseEver)
 
   local host = select(2, reaper.get_action_context())
   local self = string.sub(debug.getinfo(1, 'S').source, 2)
@@ -889,7 +881,7 @@ function profiler.showWindow(ctx, p_open, flags)
   end
   centerNextWindow(ctx)
   if ImGui.BeginPopupModal(ctx, 'Frame measurement', true,
-      ImGui.WindowFlags_AlwaysAutoResize()) then
+      ImGui.WindowFlags_AlwaysAutoResize) then
     ImGui.Text(ctx,
       'Frame measurement requires usage of a proxy defer function.')
     ImGui.Spacing(ctx)
@@ -908,7 +900,7 @@ function profiler.showWindow(ctx, p_open, flags)
     end
     local snippet = 'reaper.defer = profiler.defer'
     ImGui.InputTextMultiline(ctx, '##snippet', snippet,
-      -FLT_MIN, ImGui.GetFontSize(ctx) * 3, ImGui.InputTextFlags_ReadOnly())
+      -FLT_MIN, ImGui.GetFontSize(ctx) * 3, ImGui.InputTextFlags_ReadOnly)
     ImGui.Spacing(ctx)
 
     ImGui.Text(ctx, 'Do you wish to enable acquisition anyway?')
@@ -954,8 +946,8 @@ function profiler.showProfile(ctx, label, width, height)
   if ImGui.IsWindowAppearing(ctx) then
     ImGui.SetKeyboardFocusHere(ctx)
   end
-  if ImGui.IsWindowFocused(ctx, ImGui.FocusedFlags_ChildWindows()) then
-    local key_0, pad_0 = ImGui.Key_0(), ImGui.Key_Keypad0()
+  if ImGui.IsWindowFocused(ctx, ImGui.FocusedFlags_ChildWindows) then
+    local key_0, pad_0 = ImGui.Key_0, ImGui.Key_Keypad0
     for i = 1, PROFILES_SIZE do
       if ImGui.IsKeyPressed(ctx, key_0 + i) or
           ImGui.IsKeyPressed(ctx, pad_0 + i) then
@@ -981,8 +973,8 @@ function profiler.showProfile(ctx, label, width, height)
       if i > 1 then ImGui.SameLine(ctx, nil, 4) end
       local was_current = i == state.current
       if was_current then
-        ImGui.PushStyleColor(ctx, ImGui.Col_Button(),
-          ImGui.GetStyleColor(ctx, ImGui.Col_HeaderActive()))
+        ImGui.PushStyleColor(ctx, ImGui.Col_Button,
+          ImGui.GetStyleColor(ctx, ImGui.Col_HeaderActive))
       end
       if ImGui.SmallButton(ctx, i) then
         setCurrentProfile(i)
@@ -1004,11 +996,11 @@ function profiler.showProfile(ctx, label, width, height)
     ImGui.SetNextWindowScroll(ctx, 0, 0)
     state.scroll_to_top = false
   end
-  local flags = ImGui.TableFlags_SizingFixedFit()                 |
-    ImGui.TableFlags_Resizable() | ImGui.TableFlags_Reorderable() |
-    ImGui.TableFlags_Hideable()  | ImGui.TableFlags_Sortable()    |
-    ImGui.TableFlags_ScrollX()   | ImGui.TableFlags_ScrollY()     |
-    ImGui.TableFlags_Borders()   | ImGui.TableFlags_RowBg()
+  local flags = ImGui.TableFlags_SizingFixedFit               |
+    ImGui.TableFlags_Resizable | ImGui.TableFlags_Reorderable |
+    ImGui.TableFlags_Hideable  | ImGui.TableFlags_Sortable    |
+    ImGui.TableFlags_ScrollX   | ImGui.TableFlags_ScrollY     |
+    ImGui.TableFlags_Borders   | ImGui.TableFlags_RowBg
   if not ImGui.BeginTable(ctx, 'table', 17, flags) then
     return ImGui.EndChild(ctx)
   end
@@ -1020,22 +1012,21 @@ function profiler.showProfile(ctx, label, width, height)
   ImGui.TableHeadersRow(ctx)
 
   if ImGui.TableNeedSort(ctx) then
-    local ok, id, col, order, dir =
-      ImGui.TableGetColumnSortSpecs(ctx, 0)
+    local ok, col, user_col, dir = ImGui.TableGetColumnSortSpecs(ctx, 0)
     if ok and (col ~= state.sort.col or dir ~= state.sort.dir) then
       state.sort = { col = col, dir = dir }
       sortReport()
     end
   end
 
-  local tree_node_flags = ImGui.TreeNodeFlags_SpanFullWidth() |
-    ImGui.TreeNodeFlags_DefaultOpen() | ImGui.TreeNodeFlags_FramePadding()
+  local tree_node_flags = ImGui.TreeNodeFlags_SpanAllColumns |
+    ImGui.TreeNodeFlags_DefaultOpen | ImGui.TreeNodeFlags_FramePadding
   local tree_node_leaf_flags = tree_node_flags |
-    ImGui.TreeNodeFlags_Leaf() | ImGui.TreeNodeFlags_NoTreePushOnOpen()
+    ImGui.TreeNodeFlags_Leaf | ImGui.TreeNodeFlags_NoTreePushOnOpen
 
   local i, prev_depth, cut_src_cache = 1, 1, {}
-  ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding(), 1, 1)
-  ImGui.PushStyleVar(ctx, ImGui.StyleVar_IndentSpacing(), 12)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding, 1, 1)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_IndentSpacing, 12)
   while i <= #profile.report do
     local line = profile.report[i]
 
@@ -1046,15 +1037,20 @@ function profiler.showProfile(ctx, label, width, height)
 
     ImGui.TableNextColumn(ctx)
     if profile.report.max_depth > 1 then
+      local tooltip_text
       if line.children > 0 then
         if not ImGui.TreeNodeEx(ctx, line.key, line.name, tree_node_flags) then
           i = i + line.children
         end
-        tooltip(ctx, string.format('%s (%d children)',
-          line.name, formatNumber(line.children)))
+        tooltip_text = string.format('%s (%d children)',
+          line.name, formatNumber(line.children))
       else
         ImGui.TreeNodeEx(ctx, line.key, line.name, tree_node_leaf_flags)
-        tooltip(ctx, line.name)
+        tooltip_text = line.name
+      end
+      local flags = ImGui.TableGetColumnFlags(ctx)
+      if (flags & ImGui.TableColumnFlags_IsHovered) ~= 0 then
+        tooltip(ctx, tooltip_text)
       end
     else
       ImGui.AlignTextToFramePadding(ctx)
@@ -1074,7 +1070,7 @@ function profiler.showProfile(ctx, label, width, height)
       if v and col.func then
         ImGui.TableNextColumn(ctx)
         local flags = ImGui.TableGetColumnFlags(ctx)
-        if flags & ImGui.TableColumnFlags_IsVisible() ~= 0 then
+        if flags & ImGui.TableColumnFlags_IsVisible ~= 0 then
           col.func(ctx, col.fmt and col.fmt(v) or v)
         end
       end
