@@ -22,6 +22,7 @@ local UNDO_STATE_TRACKCFG = 1
 local scrollTo, setDock
 -- initialized in reset()
 local currentIndex, nextIndex, invalid, filterPrompt
+local signals = {}
 
 local fonts = {
   small = ImGui.CreateFont('sans-serif', 13),
@@ -265,32 +266,6 @@ local function findSong(buffer)
   end
 end
 
-local SIGNALS = {
-  relative_move=function(move)
-    move = tonumber(move)
-
-    if move then
-      trySetCurrentIndex(currentIndex + move)
-    end
-  end,
-  absolute_move=function(index)
-    trySetCurrentIndex(tonumber(index))
-  end,
-  activate_queued=function()
-    if currentIndex ~= nextIndex then
-      setCurrentIndex(nextIndex)
-    end
-  end,
-  filter=function(filter)
-    local index = findSong(filter)
-
-    if index then
-      setCurrentIndex(index)
-    end
-  end,
-  reset=function() reset() end,
-}
-
 local function reset()
   songs = loadTracks()
 
@@ -324,7 +299,7 @@ local function reset()
   highlightTime = ImGui.GetTime(ctx)
 
   -- clear previous pending external commands
-  for signal, _ in pairs(SIGNALS) do
+  for signal, _ in pairs(signals) do
     reaper.DeleteExtState(EXT_SECTION, signal, false)
   end
 
@@ -344,7 +319,7 @@ local function reset()
 end
 
 local function execRemoteActions()
-  for signal, handler in pairs(SIGNALS) do
+  for signal, handler in pairs(signals) do
     if reaper.HasExtState(EXT_SECTION, signal) then
       local value = reaper.GetExtState(EXT_SECTION, signal)
       reaper.DeleteExtState(EXT_SECTION, signal, false);
@@ -687,6 +662,46 @@ local function loop()
     reaper.defer(loop)
   end
 end
+
+signals.relative_move = function(move)
+  move = tonumber(move)
+
+  if move then
+    trySetCurrentIndex(currentIndex + move)
+  end
+end
+
+signals.absolute_move = function(index)
+  trySetCurrentIndex(tonumber(index))
+end
+
+signals.activate_queued = function()
+  if currentIndex ~= nextIndex then
+    setCurrentIndex(nextIndex)
+  end
+end
+
+signals.relative_queue = function(move)
+  move = tonumber(move)
+
+  if move then
+    setNextIndex(nextIndex + move)
+  end
+end
+
+signals.absolute_queue = function(index)
+  setNextIndex(tonumber(index))
+end
+
+signals.filter = function(filter)
+  local index = findSong(filter)
+
+  if index then
+    setCurrentIndex(index)
+  end
+end
+
+signals.reset = reset
 
 -- GO!!
 reset()
