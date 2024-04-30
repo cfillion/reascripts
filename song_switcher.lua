@@ -1,14 +1,17 @@
-dofile(reaper.GetResourcePath() ..
-       '/Scripts/ReaTeam Extensions/API/imgui.lua')('0.7')
-
 local SCRIPT_NAME = 'Song switcher'
+
+if not reaper.ImGui_GetBuiltinPath then
+  return reaper.MB('ReaImGui is not installed or too old.', SCRIPT_NAME, 0)
+end
+package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua'
+local ImGui = require 'imgui' '0.9'
 
 local EXT_SECTION     = 'cfillion_song_switcher'
 local EXT_SWITCH_MODE = 'onswitch'
 local EXT_LAST_DOCK   = 'last_dock'
 local EXT_STATE       = 'state'
 
-local FLT_MIN, FLT_MAX = reaper.ImGui_NumericLimits_Float()
+local FLT_MIN, FLT_MAX = ImGui.NumericLimits_Float()
 
 local SWITCH_SEEK   = 1<<0
 local SWITCH_STOP   = 1<<1
@@ -16,22 +19,20 @@ local SWITCH_SCROLL = 1<<2
 
 local UNDO_STATE_TRACKCFG = 1
 
-dofile(reaper.GetResourcePath() .. '/Scripts/ReaTeam Extensions/API/imgui.lua')('0.7')
-
 local scrollTo, setDock
 -- initialized in reset()
 local currentIndex, nextIndex, invalid, filterPrompt
 
 local fonts = {
-  small = reaper.ImGui_CreateFont('sans-serif', 13),
-  large = reaper.ImGui_CreateFont('sans-serif', 28),
-  huge  = reaper.ImGui_CreateFont('sans-serif', 38),
+  small = ImGui.CreateFont('sans-serif', 13),
+  large = ImGui.CreateFont('sans-serif', 28),
+  huge  = ImGui.CreateFont('sans-serif', 38),
 }
 
-local ctx = reaper.ImGui_CreateContext(SCRIPT_NAME, reaper.ImGui_ConfigFlags_DockingEnable())
+local ctx = ImGui.CreateContext(SCRIPT_NAME)
 
 for key, font in pairs(fonts) do
-  reaper.ImGui_AttachFont(ctx, font)
+  ImGui.Attach(ctx, font)
 end
 
 local function parseSongName(trackName)
@@ -157,7 +158,7 @@ local function setNextIndex(index)
   if songs[index] then
     nextIndex = index
     scrollTo = index
-    highlightTime = reaper.ImGui_GetTime(ctx)
+    highlightTime = ImGui.GetTime(ctx)
   end
 end
 
@@ -320,7 +321,7 @@ local function reset()
 
   filterPrompt, invalid = false, false
   currentIndex, nextIndex, scrollTo = 0, 0, 0
-  highlightTime = reaper.ImGui_GetTime(ctx)
+  highlightTime = ImGui.GetTime(ctx)
 
   -- clear previous pending external commands
   for signal, _ in pairs(SIGNALS) do
@@ -355,22 +356,22 @@ end
 function drawName(song)
   local name = song and song.name or 'No song selected'
 
-  reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_Text(),
-    reaper.ImGui_GetStyleColor(ctx, (song and reaper.ImGui_Col_Text or reaper.ImGui_Col_TextDisabled)()))
-  reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_Button(), invalid and 0xff0000ff or 0)
-  reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_ButtonHovered(), 0x323232ff)
-  reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_ButtonActive(),  0x3232327f)
-  if reaper.ImGui_Button(ctx, ('%s###song_name'):format(name), -FLT_MIN) then
+  ImGui.PushStyleColor(ctx, ImGui.Col_Text,
+    ImGui.GetStyleColor(ctx, (song and ImGui.Col_Text or ImGui.Col_TextDisabled)))
+  ImGui.PushStyleColor(ctx, ImGui.Col_Button, invalid and 0xff0000ff or 0)
+  ImGui.PushStyleColor(ctx, ImGui.Col_ButtonHovered, 0x323232ff)
+  ImGui.PushStyleColor(ctx, ImGui.Col_ButtonActive,  0x3232327f)
+  if ImGui.Button(ctx, ('%s###song_name'):format(name), -FLT_MIN) then
     filterPrompt = true
   end
-  reaper.ImGui_PopStyleColor(ctx, 4)
+  ImGui.PopStyleColor(ctx, 4)
 end
 
 local function drawFilter()
-  reaper.ImGui_SetNextItemWidth(ctx, -FLT_MIN)
-  reaper.ImGui_SetKeyboardFocusHere(ctx)
-  local rv, filter = reaper.ImGui_InputText(ctx, '##name_fiter', '', reaper.ImGui_InputTextFlags_EnterReturnsTrue())
-  if reaper.ImGui_IsItemDeactivated(ctx) then
+  ImGui.SetNextItemWidth(ctx, -FLT_MIN)
+  ImGui.SetKeyboardFocusHere(ctx)
+  local rv, filter = ImGui.InputText(ctx, '##name_fiter', '', ImGui.InputTextFlags_EnterReturnsTrue)
+  if ImGui.IsItemDeactivated(ctx) then
     filterPrompt = false
   end
   if rv then
@@ -387,66 +388,66 @@ local function formatTime(time)
 end
 
 local function songList(y)
-  local flags = reaper.ImGui_TableFlags_Borders()   |
-                reaper.ImGui_TableFlags_RowBg()     |
-                reaper.ImGui_TableFlags_ScrollY()   |
-                reaper.ImGui_TableFlags_Hideable()  |
-                reaper.ImGui_TableFlags_Resizable() |
-                reaper.ImGui_TableFlags_Reorderable()
-  if not reaper.ImGui_BeginTable(ctx, 'song_list', 4, flags, -FLT_MIN, -FLT_MIN) then return end
+  local flags = ImGui.TableFlags_Borders   |
+                ImGui.TableFlags_RowBg     |
+                ImGui.TableFlags_ScrollY   |
+                ImGui.TableFlags_Hideable  |
+                ImGui.TableFlags_Resizable |
+                ImGui.TableFlags_Reorderable
+  if not ImGui.BeginTable(ctx, 'song_list', 4, flags, -FLT_MIN, -FLT_MIN) then return end
 
-  reaper.ImGui_TableSetupColumn(ctx, '#. Name',   reaper.ImGui_TableColumnFlags_WidthStretch())
-  reaper.ImGui_TableSetupColumn(ctx, 'Start',  reaper.ImGui_TableColumnFlags_WidthFixed())
-  reaper.ImGui_TableSetupColumn(ctx, 'End',    reaper.ImGui_TableColumnFlags_WidthFixed())
-  reaper.ImGui_TableSetupColumn(ctx, 'Length', reaper.ImGui_TableColumnFlags_WidthFixed())
-  reaper.ImGui_TableSetupScrollFreeze(ctx, 0, 1)
-  reaper.ImGui_TableHeadersRow(ctx)
+  ImGui.TableSetupColumn(ctx, '#. Name',   ImGui.TableColumnFlags_WidthStretch)
+  ImGui.TableSetupColumn(ctx, 'Start',  ImGui.TableColumnFlags_WidthFixed)
+  ImGui.TableSetupColumn(ctx, 'End',    ImGui.TableColumnFlags_WidthFixed)
+  ImGui.TableSetupColumn(ctx, 'Length', ImGui.TableColumnFlags_WidthFixed)
+  ImGui.TableSetupScrollFreeze(ctx, 0, 1)
+  ImGui.TableHeadersRow(ctx)
 
   local swap
   for index, song in ipairs(songs) do
-    reaper.ImGui_TableNextRow(ctx)
+    ImGui.TableNextRow(ctx)
 
-    reaper.ImGui_TableNextColumn(ctx)
-    local color = reaper.ImGui_GetStyleColor(ctx, reaper.ImGui_Col_Header())
+    ImGui.TableNextColumn(ctx)
+    local color = ImGui.GetStyleColor(ctx, ImGui.Col_Header)
     local isCurrent, isNext = index == currentIndex, index == nextIndex
     if isNext and not isCurrent then
       -- swap blue <-> green
       color = (color & 0xFF0000FF) | (color & 0x00FF0000) >> 8 | (color & 0x0000FF00) << 8
-      if (math.floor(highlightTime - reaper.ImGui_GetTime(ctx)) & 1) == 0 then
+      if (math.floor(highlightTime - ImGui.GetTime(ctx)) & 1) == 0 then
         color = (color & ~0xff) | 0x1a
       end
     end
-    reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_Header(), color)
-    if reaper.ImGui_Selectable(ctx, ('%s###%d'):format(song.name, song.uniqId),
+    ImGui.PushStyleColor(ctx, ImGui.Col_Header, color)
+    if ImGui.Selectable(ctx, ('%s###%d'):format(song.name, song.uniqId),
         isCurrent or isNext,
-        reaper.ImGui_SelectableFlags_SpanAllColumns()) then
+        ImGui.SelectableFlags_SpanAllColumns) then
       setCurrentIndex(index)
     end
-    if reaper.ImGui_IsItemActive(ctx) and not reaper.ImGui_IsItemHovered(ctx) then
-      local mouseDelta = select(2, reaper.ImGui_GetMouseDragDelta(ctx, reaper.ImGui_MouseButton_Left()))
+    if ImGui.IsItemActive(ctx) and not ImGui.IsItemHovered(ctx) then
+      local mouseDelta = select(2, ImGui.GetMouseDragDelta(ctx, nil, nil, ImGui.MouseButton_Left))
       local newIndex = index + (mouseDelta < 0 and -1 or 1)
       if newIndex > 0 and newIndex <= #songs then
         swap = { from=index, to=newIndex }
-        reaper.ImGui_ResetMouseDragDelta(ctx, reaper.ImGui_MouseButton_Left())
+        ImGui.ResetMouseDragDelta(ctx, ImGui.MouseButton_Left)
       end
     end
-    reaper.ImGui_PopStyleColor(ctx)
+    ImGui.PopStyleColor(ctx)
 
-    reaper.ImGui_TableNextColumn(ctx)
-    reaper.ImGui_Text(ctx, formatTime(song.startTime))
+    ImGui.TableNextColumn(ctx)
+    ImGui.Text(ctx, formatTime(song.startTime))
 
-    reaper.ImGui_TableNextColumn(ctx)
-    reaper.ImGui_Text(ctx, formatTime(song.endTime))
+    ImGui.TableNextColumn(ctx)
+    ImGui.Text(ctx, formatTime(song.endTime))
 
-    reaper.ImGui_TableNextColumn(ctx)
-    reaper.ImGui_Text(ctx, formatTime(song.endTime - song.startTime))
+    ImGui.TableNextColumn(ctx)
+    ImGui.Text(ctx, formatTime(song.endTime - song.startTime))
 
     if index == scrollTo then
-      reaper.ImGui_SetScrollHereY(ctx, 1)
+      ImGui.SetScrollHereY(ctx, 1)
     end
   end
 
-  reaper.ImGui_EndTable(ctx)
+  ImGui.EndTable(ctx)
   scrollTo = nil
 
   if swap then
@@ -456,28 +457,28 @@ end
 
 local function switchModeMenu()
   local mode = getSwitchMode()
-  if reaper.ImGui_MenuItem(ctx, 'Stop playback', nil, mode & SWITCH_STOP ~= 0) then
+  if ImGui.MenuItem(ctx, 'Stop playback', nil, mode & SWITCH_STOP ~= 0) then
     setSwitchMode(mode ~ SWITCH_STOP)
   end
-  if reaper.ImGui_MenuItem(ctx, 'Seek to first item', nil, mode & SWITCH_SEEK ~= 0) then
+  if ImGui.MenuItem(ctx, 'Seek to first item', nil, mode & SWITCH_SEEK ~= 0) then
     setSwitchMode(mode ~ SWITCH_SEEK)
   end
-  if reaper.ImGui_MenuItem(ctx, 'Scroll to first item', nil, mode & SWITCH_SCROLL ~= 0) then
+  if ImGui.MenuItem(ctx, 'Scroll to first item', nil, mode & SWITCH_SCROLL ~= 0) then
     setSwitchMode(mode ~ SWITCH_SCROLL)
   end
 end
 
 local function switchModeButton()
-  reaper.ImGui_SmallButton(ctx, 'onswitch')
-  if reaper.ImGui_BeginPopupContextItem(ctx, 'onswitch_menu', reaper.ImGui_PopupFlags_MouseButtonLeft()) then
+  ImGui.SmallButton(ctx, 'onswitch')
+  if ImGui.BeginPopupContextItem(ctx, 'onswitch_menu', ImGui.PopupFlags_MouseButtonLeft) then
     switchModeMenu()
-    reaper.ImGui_EndPopup(ctx)
+    ImGui.EndPopup(ctx)
   end
 end
 
 local function toggleDock(dockId)
-  dockId = dockId or reaper.ImGui_GetWindowDockID(ctx)
-  if dockId == 0 then
+  dockId = dockId or ImGui.GetWindowDockID(ctx)
+  if dockId >= 0 then
     local lastDock = tonumber(reaper.GetExtState(EXT_SECTION, EXT_LAST_DOCK))
     if not lastDock or lastDock < 0 or lastDock > 16 then lastDock = 0 end
     setDock = ~lastDock
@@ -488,33 +489,33 @@ local function toggleDock(dockId)
 end
 
 local function contextMenu()
-  local dockId = reaper.ImGui_GetWindowDockID(ctx)
-  if not reaper.ImGui_BeginPopupContextWindow(ctx, 'context_menu') then return end
+  local dockId = ImGui.GetWindowDockID(ctx)
+  if not ImGui.BeginPopupContextWindow(ctx, 'context_menu') then return end
 
-  if reaper.ImGui_MenuItem(ctx, 'Dock window', nil, dockId ~= 0) then
+  if ImGui.MenuItem(ctx, 'Dock window', nil, dockId ~= 0) then
     toggleDock(dockId)
   end
-  if reaper.ImGui_MenuItem(ctx, 'Reset data') then
+  if ImGui.MenuItem(ctx, 'Reset data') then
     reset()
   end
-  if reaper.ImGui_BeginMenu(ctx, 'When switching to a song...') then
+  if ImGui.BeginMenu(ctx, 'When switching to a song...') then
     switchModeMenu()
-    reaper.ImGui_EndMenu(ctx)
+    ImGui.EndMenu(ctx)
   end
-  reaper.ImGui_Separator(ctx)
+  ImGui.Separator(ctx)
   if #songs > 0 then
     for index, song in ipairs(songs) do
-      if reaper.ImGui_MenuItem(ctx, song.name, nil, index == currentIndex) then
+      if ImGui.MenuItem(ctx, song.name, nil, index == currentIndex) then
         setCurrentIndex(index)
       end
     end
-    reaper.ImGui_Separator(ctx)
+    ImGui.Separator(ctx)
   end
-  if reaper.ImGui_MenuItem(ctx, 'Help') then
+  if ImGui.MenuItem(ctx, 'Help') then
     about()
   end
 
-  reaper.ImGui_EndPopup(ctx)
+  ImGui.EndPopup(ctx)
 end
 
 function about()
@@ -527,63 +528,68 @@ function about()
   end
 end
 
-local function navButtons(size)
+local function navButtons()
   local pad_x, pad_y = 8, 8
-  local dl = reaper.ImGui_GetWindowDrawList(ctx)
+  local dl = ImGui.GetWindowDrawList(ctx)
+  local x1, y1 = ImGui.GetItemRectMin(ctx)
+  local x2, y2 = ImGui.GetItemRectMax(ctx)
+  local size = y2 - y1
 
-  local col_text   = reaper.ImGui_GetColor(ctx, reaper.ImGui_Col_Text())
-  local col_hover  = reaper.ImGui_GetColor(ctx, reaper.ImGui_Col_ButtonHovered())
-  local col_active = reaper.ImGui_GetColor(ctx, reaper.ImGui_Col_ButtonActive())
+  local col_text   = ImGui.GetColor(ctx, ImGui.Col_Text)
+  local col_hover  = ImGui.GetColor(ctx, ImGui.Col_ButtonHovered)
+  local col_active = ImGui.GetColor(ctx, ImGui.Col_ButtonActive)
 
   local function btn(isPrev)
-    reaper.ImGui_TableSetColumnIndex(ctx, isPrev and 0 or 2)
+    ImGui.SetCursorScreenPos(ctx, isPrev and x1 or (x2 - size), y1)
 
-    if reaper.ImGui_InvisibleButton(ctx, isPrev and 'prev' or 'next', size, size) then
+    if ImGui.InvisibleButton(ctx, isPrev and 'prev' or 'next', size, size) then
       setCurrentIndex(currentIndex + (isPrev and -1 or 1))
     end
 
-    local color = reaper.ImGui_IsItemActive(ctx)  and col_active
-               or reaper.ImGui_IsItemHovered(ctx) and col_hover
+    local color = ImGui.IsItemActive(ctx)  and col_active
+               or ImGui.IsItemHovered(ctx) and col_hover
                or col_text
 
-    local min_x, min_y = reaper.ImGui_GetItemRectMin(ctx)
-    local max_x, max_y = reaper.ImGui_GetItemRectMax(ctx)
+    local min_x, min_y = ImGui.GetItemRectMin(ctx)
+    local max_x, max_y = ImGui.GetItemRectMax(ctx)
     local mid_y = min_y + ((max_y - min_y) / 2)
     min_x, min_y = min_x + pad_x, min_y + pad_y
     max_x, max_y = max_x - pad_x, max_y - pad_y
 
     if isPrev then
-      reaper.ImGui_DrawList_AddTriangleFilled(dl,
+      ImGui.DrawList_AddTriangleFilled(dl,
         min_x, mid_y, max_x, min_y, max_x, max_y, color)
     else
-      reaper.ImGui_DrawList_AddTriangleFilled(dl,
+      ImGui.DrawList_AddTriangleFilled(dl,
         min_x, min_y, max_x, mid_y, min_x, max_y, color)
     end
   end
 
-  if currentIndex > 1        then btn(true) end
+  if currentIndex > 1        then btn(true)  end
   if songs[currentIndex + 1] then btn(false) end
 end
 
 local function keyInput(input)
-  if not reaper.ImGui_IsWindowFocused(ctx) or reaper.ImGui_IsAnyItemActive(ctx) then return end
+  if not ImGui.IsWindowFocused(ctx, ImGui.FocusedFlags_ChildWindows) and
+    not ImGui.IsAnyItemActive(ctx) then return end
 
-  if reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_UpArrow()) or
-     reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_LeftArrow()) then
+  if ImGui.IsKeyPressed(ctx, ImGui.Key_UpArrow) or
+     ImGui.IsKeyPressed(ctx, ImGui.Key_LeftArrow) then
     setNextIndex(nextIndex - 1)
-  elseif reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_DownArrow()) or
-         reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_RightArrow()) then
+  elseif ImGui.IsKeyPressed(ctx, ImGui.Key_DownArrow) or
+         ImGui.IsKeyPressed(ctx, ImGui.Key_RightArrow) then
     setNextIndex(nextIndex + 1)
-  elseif reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_PageUp(), false) or
-         reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_KeypadSubtract(), false) then
+  elseif ImGui.IsKeyPressed(ctx, ImGui.Key_PageUp, false) or
+         ImGui.IsKeyPressed(ctx, ImGui.Key_KeypadSubtract, false) then
     trySetCurrentIndex(currentIndex - 1)
-  elseif reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_PageDown(), false) or
-         reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_KeypadAdd(), false) then
+  elseif ImGui.IsKeyPressed(ctx, ImGui.Key_PageDown, false) or
+         ImGui.IsKeyPressed(ctx, ImGui.Key_KeypadAdd, false) then
     trySetCurrentIndex(currentIndex + 1)
-  -- elseif input == KEY_CLEAR then
-  --   reset()
-  elseif reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_Enter(), false) or
-         reaper.ImGui_IsKeyPressed(ctx, reaper.ImGui_Key_KeypadEnter(), false) then
+  elseif ImGui.IsKeyPressed(ctx, ImGui.Key_Insert, false) or
+         ImGui.IsKeyPressed(ctx, ImGui.Key_NumLock, false) then
+    reset()
+  elseif ImGui.IsKeyPressed(ctx, ImGui.Key_Enter, false) or
+         ImGui.IsKeyPressed(ctx, ImGui.Key_KeypadEnter, false) then
     if nextIndex == currentIndex then
       filterPrompt = true
     else
@@ -592,70 +598,71 @@ local function keyInput(input)
   end
 end
 
+local function buttonSize(label)
+  return ImGui.CalcTextSize(ctx, label) +
+    (ImGui.GetStyleVar(ctx, ImGui.StyleVar_FramePadding) * 2)
+end
+
 local function toolbar()
-  local frame_padding_x, frame_padding_y = reaper.ImGui_GetStyleVar(ctx, reaper.ImGui_StyleVar_FramePadding())
-  local item_spacing_x,  item_spacing_y  = reaper.ImGui_GetStyleVar(ctx, reaper.ImGui_StyleVar_ItemSpacing())
-  reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_FramePadding(), frame_padding_x, math.floor(frame_padding_y * 0.60))
-  reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_ItemSpacing(),  item_spacing_x,  math.floor(item_spacing_y  * 0.60))
-  reaper.ImGui_PushFont(ctx, nil)
+  local y_bak = ImGui.GetCursorPosY(ctx)
+  local x1, y1 = ImGui.GetItemRectMin(ctx)
+  local x2, y2 = ImGui.GetItemRectMax(ctx)
+  local btn_height = ImGui.GetFontSize(ctx)
 
-  switchModeButton()
-  reaper.ImGui_SameLine(ctx)
+  local frame_padding_x, frame_padding_y = ImGui.GetStyleVar(ctx, ImGui.StyleVar_FramePadding)
+  local item_spacing_x,  item_spacing_y  = ImGui.GetStyleVar(ctx, ImGui.StyleVar_ItemSpacing)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding, frame_padding_x, math.floor(frame_padding_y * 0.60))
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_ItemSpacing,  item_spacing_x,  math.floor(item_spacing_y  * 0.60))
+  ImGui.PushFont(ctx, nil)
 
-  local dockLabel = reaper.ImGui_IsWindowDocked(ctx) and 'undock' or 'dock'
-  if reaper.ImGui_SmallButton(ctx, ('%s###dock'):format(dockLabel)) then
+  ImGui.SetCursorScreenPos(ctx, x1, y1)
+  local dockLabel = ImGui.IsWindowDocked(ctx) and 'undock' or 'dock'
+  if ImGui.SmallButton(ctx, ('%s###dock'):format(dockLabel)) then
     toggleDock()
   end
-  reaper.ImGui_SameLine(ctx)
 
-  reaper.ImGui_PushStyleColor(ctx, reaper.ImGui_Col_ButtonHovered(), 0xff4242ff)
-  if reaper.ImGui_SmallButton(ctx, 'reset') then reset() end
-  reaper.ImGui_PopStyleColor(ctx)
-  reaper.ImGui_SameLine(ctx)
+  ImGui.SetCursorScreenPos(ctx, x1, y2 - btn_height)
+  switchModeButton()
 
-  if reaper.ImGui_SmallButton(ctx, 'help') then about() end
+  ImGui.SetCursorScreenPos(ctx, x2 - buttonSize('reset'), y1)
+  ImGui.PushStyleColor(ctx, ImGui.Col_ButtonHovered, 0xff4242ff)
+  if ImGui.SmallButton(ctx, 'reset') then reset() end
+  ImGui.PopStyleColor(ctx)
 
-  reaper.ImGui_PopFont(ctx)
-  reaper.ImGui_PopStyleVar(ctx, 2)
+  ImGui.SetCursorScreenPos(ctx, x2 - buttonSize('help'), y2 - btn_height)
+  if ImGui.SmallButton(ctx, 'help') then about() end
+
+  ImGui.PopFont(ctx)
+  ImGui.PopStyleVar(ctx, 2)
+
+  ImGui.SetCursorPosY(ctx, y_bak)
 end
 
 local function mainWindow()
   contextMenu()
   keyInput()
 
-  local avail_y = select(2, reaper.ImGui_GetContentRegionAvail(ctx))
-  local fullUI = avail_y > 50 and reaper.ImGui_GetScrollMaxY(ctx) <= avail_y
+  local avail_y = select(2, ImGui.GetContentRegionAvail(ctx))
+  local fullUI = avail_y > 50 and ImGui.GetScrollMaxY(ctx) <= avail_y
 
-  filterPrompt = filterPrompt and reaper.ImGui_IsWindowFocused(ctx)
-  reaper.ImGui_PushStyleVar(ctx, reaper.ImGui_StyleVar_CellPadding(), 0, 0)
-  if reaper.ImGui_BeginTable(ctx, 'topbar', fullUI and 1 or 3) then
-    reaper.ImGui_PushFont(ctx, fullUI and fonts.large or fonts.huge)
-
-    if fullUI then
-      reaper.ImGui_TableNextColumn(ctx)
-    else
-      local width = reaper.ImGui_GetFontSize(ctx)
-      reaper.ImGui_TableSetupColumn(ctx, 'prev', reaper.ImGui_TableColumnFlags_WidthFixed(), width)
-      reaper.ImGui_TableSetupColumn(ctx, 'name', reaper.ImGui_TableColumnFlags_WidthStretch())
-      reaper.ImGui_TableSetupColumn(ctx, 'next', reaper.ImGui_TableColumnFlags_WidthFixed(), width)
-      reaper.ImGui_TableNextRow(ctx)
-      navButtons(width)
-      reaper.ImGui_TableSetColumnIndex(ctx, 1)
+  filterPrompt = filterPrompt and ImGui.IsWindowFocused(ctx)
+  ImGui.PushFont(ctx, fullUI and fonts.large or fonts.huge)
+  if filterPrompt then
+    drawFilter()
+  else
+    ImGui.SetNextItemAllowOverlap(ctx)
+    drawName(songs[currentIndex])
+    if not fullUI then
+      navButtons()
     end
-
-    if filterPrompt then
-      drawFilter()
-    else
-      drawName(songs[currentIndex])
-    end
-
-    reaper.ImGui_PopFont(ctx)
-    reaper.ImGui_EndTable(ctx)
   end
-  reaper.ImGui_PopStyleVar(ctx)
+  ImGui.PopFont(ctx)
+
   if fullUI then
-    toolbar()
-    reaper.ImGui_Spacing(ctx)
+    if not filterPrompt then
+      toolbar()
+    end
+    ImGui.Spacing(ctx)
     songList()
   end
 end
@@ -663,23 +670,21 @@ end
 local function loop()
   execRemoteActions()
 
-  reaper.ImGui_PushFont(ctx, fonts.small)
-  reaper.ImGui_SetNextWindowSize(ctx, 500, 300, setDock and reaper.ImGui_Cond_Always() or reaper.ImGui_Cond_FirstUseEver())
+  ImGui.PushFont(ctx, fonts.small)
+  ImGui.SetNextWindowSize(ctx, 500, 300, setDock and ImGui.Cond_Always or ImGui.Cond_FirstUseEver)
   if setDock then
-    reaper.ImGui_SetNextWindowDockID(ctx, setDock)
+    ImGui.SetNextWindowDockID(ctx, setDock)
     setDock = nil
   end
-  local visible, open = reaper.ImGui_Begin(ctx, SCRIPT_NAME, true, reaper.ImGui_WindowFlags_NoScrollbar())
+  local visible, open = ImGui.Begin(ctx, SCRIPT_NAME, true, ImGui.WindowFlags_NoScrollbar)
   if visible then
     mainWindow()
-    reaper.ImGui_End(ctx)
+    ImGui.End(ctx)
   end
-  reaper.ImGui_PopFont(ctx)
+  ImGui.PopFont(ctx)
 
   if open then
     reaper.defer(loop)
-  else
-    reaper.ImGui_DestroyContext(ctx)
   end
 end
 
