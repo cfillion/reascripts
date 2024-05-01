@@ -1095,12 +1095,9 @@ local function setZoom(ctx, zoom, scroll_x, avail_w)
   if scroll_x then
     scroll_x = scroll_x * zoom
   else
-    scroll_x = ImGui.GetScrollX(ctx)
-    local prev_w  = (avail_w * state.zoom) // 1
-    local mouse_x = ImGui.GetMousePos(ctx) - ImGui.GetWindowPos(ctx) -
-      (scroll_x + ImGui.GetCursorStartPos(ctx))
-    mouse_x  = math.max(0, math.min(1, mouse_x / avail_w))
-    scroll_x = scroll_x + (mouse_x * (new_w - prev_w))
+    local mouse_x = ImGui.GetMousePos(ctx) -
+      ImGui.GetWindowPos(ctx) - ImGui.GetCursorStartPos(ctx)
+    scroll_x = ImGui.GetScrollX(ctx) + ((mouse_x * (zoom / state.zoom)) - mouse_x)
   end
   state.set_scroll = { scroll_x // 1, -1 }
 
@@ -1195,14 +1192,13 @@ local function flameGraph(ctx)
   ImGui.PushStyleColor(ctx, ImGui.Col_Button, 0x23446CFF)
   ImGui.PushStyleVar(ctx, ImGui.StyleVar_ItemSpacing, 0, 0)
   for i = 1, #profile.report do
-    ImGui.PushID(ctx, i)
     local level = profile.report[i]
     local first_of_line, prev_parent = true, nil
     local x, start_x = 0, ImGui.GetCursorPosX(ctx)
     local visible_x = ImGui.GetScrollX(ctx) + start_x
     for j = 1, #level do
       local item = level[j]
-      ImGui.PushID(ctx, j)
+      ImGui.PushID(ctx, item.id)
 
       if first_of_line then
         first_of_line = false
@@ -1255,7 +1251,6 @@ local function flameGraph(ctx)
       x = x + item.w
       ImGui.PopID(ctx)
     end
-    ImGui.PopID(ctx)
 
     if i == 1 then
       local full_w = (avail_w * zoom) // 1
