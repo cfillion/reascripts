@@ -90,7 +90,7 @@ setmetatable(options, {
     local v = options_cache[key]
     if v ~= nil then return v end
     v = options_default[key]
-    assert(v ~= nil, 'option does not exist')
+    if v == nil then error('option does not exist', 2) end
     if not reaper.HasExtState(EXT_STATE_ROOT, key) then
       reaper.SetExtState(EXT_STATE_ROOT, key, tostring(v), true)
     else
@@ -99,14 +99,16 @@ setmetatable(options, {
       if t == 'boolean' then
         v = v == 'true'
       elseif t ~= 'string' then
-        error('unsupported type')
+        error('unsupported type', 2)
       end
     end
     options_cache[key] = v
     return v
   end,
   __newindex = function(options, key, value)
-    assert(type(value) == type(options_default[key]), 'unexpected value type')
+    if type(value) ~= type(options_default[key]) then
+      error('unexpected value type', 2)
+    end
     reaper.SetExtState(EXT_STATE_ROOT, key, tostring(value), true)
     options_cache[key] = value
   end,
@@ -311,7 +313,7 @@ end
 local function leave()
   local now = getTime()
   if profile_cur == profile then
-    error('unbalanced leave (missing call to enter)')
+    error('unbalanced leave (missing call to enter)', 3)
   end
 
   local time = now - profile_cur.enter_time
@@ -333,8 +335,9 @@ end
 local function setActive(frame_count, force_auto)
   if frame_count == true then frame_count = -1
   elseif not frame_count then frame_count = 0 end
-  assert(type(frame_count) == 'number',
-    'value must be nil, a boolean, or an integer')
+  if type(frame_count) ~= 'number' then
+    error('value must be nil, a boolean, or an integer', 3)
+  end
   frame_count = math.floor(frame_count)
 
   if frame_count ~= 0 then
@@ -563,7 +566,9 @@ local function eachLocals(level, search_above)
 end
 
 local function getHostVar(path, level)
-  assert(type(path) == 'string', 'variable name must be a string')
+  if type(path) ~= 'string' then
+    error('variable name must be a string', level)
+  end
 
   local off, sep = 1, string.find(path, '[%.`]')
   local seg = string.sub(path, off, sep and sep - 1)
@@ -593,15 +598,17 @@ local function getHostVar(path, level)
         match = nil
         break
       end
+    elseif type(match) ~= 'table' then
+      error(string.format('%s is not a table', string.sub(path, 1, off - 2)), level)
     else
-      assert(type(match) == 'table',
-        string.format('%s is not a table', string.sub(path, 1, sep and sep - 1)))
       parent, match = match, match[seg]
     end
   end
 
-  assert(match, string.format('variable not found: %s',
-    string.sub(path, 1, sep and sep - 1)))
+  if not match then
+    error(string.format('variable not found: %s',
+      string.sub(path, 1, sep and sep - 1)), level)
+  end
 
   return match, level - 1, local_idx, parent, seg
 end
@@ -664,8 +671,10 @@ local function attachToVar(is_attach, var, opts)
   local val, level, idx, parent, parent_key = getHostVar(var, 4)
   -- start at depth=0 to attach to tables by name with opts.recursion=false
   local ok, wrapper = attach(is_attach, var, val, opts, 0)
-  assert(ok, string.format('%s is not %s',
-    var, is_attach and 'attachable' or 'detachable'))
+  if not ok then
+    error(string.format('%s is not %s',
+      var, is_attach and 'attachable' or 'detachable'), 3)
+  end
   if wrapper then
     if idx then debug.setlocal(level, idx, wrapper) end
     if parent then parent[parent_key] = wrapper end
@@ -713,7 +722,9 @@ function profiler.clear()
 end
 
 function profiler.start()
-  assert(not active, 'profiler is already active')
+  if active then
+    error('profiler is already active', 2)
+  end
   active = true
 
   -- prevent the garbage collector from affecting measurement repeatability
@@ -737,7 +748,11 @@ function profiler.leave()
 end
 
 function profiler.stop()
-  assert(active, 'profiler is not active')
+  if profile_cur ~= profile then
+    error('unbalanced enter (missing call to leave)', 2)
+  elseif not active then
+    error('profiler is not active', 2)
+  end
   updateTime() -- before setting active to false
   active = false
 
@@ -769,7 +784,9 @@ local function updateFrame(line)
 end
 
 function profiler.frame()
-  assert(not active, 'profiler must be stopped before calling frame')
+  if active then
+    error('profiler must be stopped before calling frame', 2)
+  end
 
   for key, line in eachDeep(profile) do
     if line.count > line.prev_count then
