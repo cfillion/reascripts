@@ -5,7 +5,7 @@
 --
 -- # General
 -- * profiler.clear()
--- * profiler.defer(function callback)
+-- * profiler.defer(function callback) and alias profiler.runloop
 -- * profiler.run()
 --
 -- # Instrumentation (see `makeAttachOpts` for supported options)
@@ -915,7 +915,9 @@ function profiler.showWindow(ctx, p_open, flags)
     if ImGui.IsWindowAppearing(ctx) then
       ImGui.SetKeyboardFocusHere(ctx)
     end
-    local snippet = 'reaper.defer = profiler.defer'
+    local snippet = '\z
+      reaper.defer   = profiler.defer\n\z
+      reaper.runloop = profiler.runloop'
     ImGui.InputTextMultiline(ctx, '##snippet', snippet,
       -FLT_MIN, ImGui.GetFontSize(ctx) * 3, ImGui.InputTextFlags_ReadOnly)
     ImGui.Spacing(ctx)
@@ -932,8 +934,9 @@ function profiler.showWindow(ctx, p_open, flags)
     ImGui.EndDisabled(ctx)
     ImGui.SameLine(ctx)
     if ImGui.Button(ctx, 'Inject proxy and continue') then
-      _G['reaper'].defer, state.defer_called = profiler.defer, true
-      setActive(state.want_activate)
+      _G['reaper'].defer, _G['reaper'].runloop = profiler.defer, profiler.runloop
+      state.defer_called = true
+      setActive(state.want_activate) -- reads defer_called and sets want_activate
       state.want_activate = nil
       ImGui.CloseCurrentPopup(ctx)
     end
@@ -1117,6 +1120,8 @@ function profiler.defer(callback)
   end)
 end
 
+profiler.runloop = profiler.defer
+
 function profiler.run()
   if state.run_called then return end
   state.run_called = true
@@ -1150,11 +1155,11 @@ profiler.clear()
 
 -- if not CF_PROFILER_SELF then
 --   CF_PROFILER_SELF = true
---   local self_profile = dofile(debug.getinfo(1, 'S').source:sub(2))
+--   local self_profiler = dofile(debug.getinfo(1, 'S').source:sub(2))
 --   CF_PROFILER_SELF = nil
---   reaper.defer = self_profile.defer
---   self_profile.attachToLocals({ search_above = false })
---   self_profile.run()
+--   reaper.defer = self_profiler.defer
+--   self_profiler.attachToLocals({ search_above = false })
+--   self_profiler.run()
 -- end
 
 return profiler
