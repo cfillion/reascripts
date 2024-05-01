@@ -45,13 +45,13 @@ local PROFILES_SIZE = 8
 
 -- 'active' is not in 'state' for faster access
 local profiler, profiles, active, state = {}, {}, false, {
-  current = 1, auto_active = 0, sort = {},
+  current = 1, auto_active = 0, sort = {}, zoom = 1,
 }
 local attachments, wrappers, locations = {}, {}, {}
 local getTime = reaper.time_precise -- faster than os.clock
 local profile, profile_cur -- references to profiles[current] for quick access
 local options, options_cache, options_default = {}, {}, {
-  tree_view = true,
+  view = 1, -- tree view
 }
 
 -- weak references to have the garbage collector auto-clear the caches
@@ -98,6 +98,8 @@ setmetatable(options, {
       v = reaper.GetExtState(EXT_STATE_ROOT, key)
       if t == 'boolean' then
         v = v == 'true'
+      elseif t == 'number' then
+        v = tonumber(v) or 0
       elseif t ~= 'string' then
         error('unsupported type', 2)
       end
@@ -439,7 +441,8 @@ local function updateReport()
 
   profile.report = { max_depth = 1 }
 
-  local id, parents, flatten = 1, {}, not options.tree_view and {}
+  local id, parents, flatten = 1, {}, options.view == 0 and {}
+  local flame_graph = options.view == 2
   for key, line, depth in eachDeep(profile) do
     if flatten then depth = 1 end
     if depth > profile.report.max_depth then
@@ -481,7 +484,19 @@ local function updateReport()
       end
 
       if flatten then flatten[key] = report end
-      profile.report[#profile.report + 1] = report
+
+      local subtree
+      if flame_graph then
+        subtree = profile.report[depth]
+        if not subtree then
+          subtree = {}
+          profile.report[depth] = subtree
+        end
+      else
+        subtree = profile.report
+      end
+
+      subtree[#subtree + 1] = report
     end
 
     local parent = parents[depth - 1]
@@ -499,7 +514,27 @@ local function updateReport()
     report.calls_per_frame_avg = report.frames and report.count // report.frames
   end
 
-  if state.sort.col then sortReport() end
+  if flame_graph then
+    local field = 'time_frac'
+    for i = 1, #profile.report do
+      table.sort(profile.report[i], function(a, b)
+        if i > 1 then
+          local parent_a, parent_b = a.parents[i - 1], b.parents[i - 1]
+          if parent_a[field] < parent_b[field] then
+            return false
+          elseif parent_a[field] > parent_b[field] then
+            return true
+          end
+        end
+        if parent_a == parent_b then
+          if a[field] == b[field] then return a.id < b.id end -- for stability
+          return a[field] > b[field]
+        end
+      end)
+    end
+  elseif state.sort.col then
+    sortReport()
+  end
 end
 
 local function setCurrentProfile(i)
@@ -521,7 +556,7 @@ local function setCurrentProfile(i)
   profile.dirty = true -- always refresh to apply new display and sort options
   updateReport()       -- refresh now to avoid 1-frame flicker
 
-  state.scroll_to_top = true
+  state.set_scroll, state.zoom = { 0, 0 }, 1
 end
 
 local function callLeave(...)
@@ -865,20 +900,27 @@ function profiler.showWindow(ctx, p_open, flags)
     end
     if ImGui.BeginMenu(ctx, 'Profile') then
       local has_data = profile.start_time ~= nil
-      if ImGui.MenuItem(ctx, 'Tree view', nil, options.tree_view) then
-        options.tree_view, profile.dirty = not options.tree_view, true
+      if ImGui.MenuItem(ctx, 'Flat list', nil, options.view == 0) then
+        options.view, profile.dirty = 0, true
       end
+      if ImGui.MenuItem(ctx, 'Tree view', nil, options.view == 1) then
+        options.view, profile.dirty = 1, true
+      end
+      if ImGui.MenuItem(ctx, 'Flame graph', nil, options.view == 2) then
+        options.view, profile.dirty = 2, true
+      end
+      ImGui.Separator(ctx)
       if ImGui.MenuItem(ctx, 'Clear', nil, nil, has_data) then
         profiler.clear()
       end
       ImGui.EndMenu(ctx)
     end
     if ImGui.BeginMenu(ctx, 'Help', reaper.CF_ShellExecute ~= nil) then
-      if ImGui.MenuItem(ctx, 'Donate...') then
-        reaper.CF_ShellExecute('https://reapack.com/donate')
-      end
       if ImGui.MenuItem(ctx, 'Forum thread') then
         reaper.CF_ShellExecute('https://forum.cockos.com/showthread.php?t=283461')
+      end
+      if ImGui.MenuItem(ctx, 'Donate...') then
+        reaper.CF_ShellExecute('https://reapack.com/donate')
       end
       ImGui.EndMenu(ctx)
     end
@@ -957,6 +999,287 @@ function profiler.showWindow(ctx, p_open, flags)
   return p_open
 end
 
+local function tableView(ctx)
+  local flags = ImGui.TableFlags_SizingFixedFit               |
+    ImGui.TableFlags_Resizable | ImGui.TableFlags_Reorderable |
+    ImGui.TableFlags_Hideable  | ImGui.TableFlags_Sortable    |
+    ImGui.TableFlags_ScrollX   | ImGui.TableFlags_ScrollY     |
+    ImGui.TableFlags_Borders   | ImGui.TableFlags_RowBg
+  if not ImGui.BeginTable(ctx, 'table', 17, flags) then return end
+
+  ImGui.TableSetupScrollFreeze(ctx, 0, 1)
+  for i, column in ipairs(report_columns) do
+    ImGui.TableSetupColumn(ctx, column.name, column.flags, column.width)
+  end
+  ImGui.TableHeadersRow(ctx)
+
+  if ImGui.TableNeedSort(ctx) then
+    local ok, col, user_col, dir = ImGui.TableGetColumnSortSpecs(ctx, 0)
+    if ok and (col ~= state.sort.col or dir ~= state.sort.dir) then
+      state.sort = { col = col, dir = dir }
+      sortReport()
+    end
+  end
+
+  local tree_node_flags = ImGui.TreeNodeFlags_SpanAllColumns |
+    ImGui.TreeNodeFlags_DefaultOpen | ImGui.TreeNodeFlags_FramePadding
+  local tree_node_leaf_flags = tree_node_flags |
+    ImGui.TreeNodeFlags_Leaf | ImGui.TreeNodeFlags_NoTreePushOnOpen
+
+  local i, prev_depth, cut_src_cache = 1, 1, {}
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding, 1, 1)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_IndentSpacing, 12)
+  while i <= #profile.report do
+    local line = profile.report[i]
+
+    for j = #line.parents, prev_depth - 1 do ImGui.TreePop(ctx) end
+    prev_depth = #line.parents
+
+    ImGui.TableNextRow(ctx)
+
+    ImGui.TableNextColumn(ctx)
+    if profile.report.max_depth > 1 then
+      local tooltip_text
+      if line.children > 0 then
+        if not ImGui.TreeNodeEx(ctx, line.key, line.name, tree_node_flags) then
+          i = i + line.children
+        end
+        tooltip_text = string.format('%s (%d children)',
+          line.name, formatNumber(line.children))
+      else
+        ImGui.TreeNodeEx(ctx, line.key, line.name, tree_node_leaf_flags)
+        tooltip_text = line.name
+      end
+      local flags = ImGui.TableGetColumnFlags(ctx)
+      if (flags & ImGui.TableColumnFlags_IsHovered) ~= 0 then
+        tooltip(ctx, tooltip_text)
+      end
+    else
+      ImGui.AlignTextToFramePadding(ctx)
+      textCell(ctx, line.name, false)
+    end
+
+    ImGui.TableNextColumn(ctx)
+    local src_short = cut_src_cache[line.src_short]
+    if not src_short then
+      src_short = ellipsis(ctx, line.src_short)
+      cut_src_cache[line.src_short] = src_short
+    end
+    textCell(ctx, src_short, false, line.src)
+
+    for j, col in ipairs(report_columns) do
+      local v = line[col.field]
+      if v and col.func then
+        ImGui.TableNextColumn(ctx)
+        local flags = ImGui.TableGetColumnFlags(ctx)
+        if flags & ImGui.TableColumnFlags_IsVisible ~= 0 then
+          col.func(ctx, col.fmt and col.fmt(v) or v)
+        end
+      end
+    end
+
+    i = i + 1
+  end
+  for i = 2, prev_depth do ImGui.TreePop(ctx) end
+  ImGui.PopStyleVar(ctx, 2)
+  ImGui.EndTable(ctx)
+end
+
+local function setZoom(ctx, zoom, scroll_x, avail_w)
+  zoom = math.max(1, math.min(512, zoom))
+  if state.zoom == zoom then return end
+
+  local new_w = (avail_w * zoom) // 1
+  state.set_content_size = { new_w, 0 }
+
+  if scroll_x then
+    scroll_x = scroll_x * zoom
+  else
+    scroll_x = ImGui.GetScrollX(ctx)
+    local prev_w  = (avail_w * state.zoom) // 1
+    local mouse_x = ImGui.GetMousePos(ctx) - ImGui.GetWindowPos(ctx) -
+      (scroll_x + ImGui.GetCursorStartPos(ctx))
+    mouse_x  = math.max(0, math.min(1, mouse_x / avail_w))
+    scroll_x = scroll_x + (mouse_x * (new_w - prev_w))
+  end
+  state.set_scroll = { scroll_x // 1, -1 }
+
+  state.zoom = zoom
+end
+
+local function reportLineTooltip(ctx, line)
+  ImGui.SetNextWindowSize(ctx, 300, 0)
+  if not ImGui.BeginItemTooltip(ctx) then return end
+  if not ImGui.BeginTable(ctx, 'tooltip', 2) then
+    ImGui.EndTooltip(ctx)
+    return
+  end
+
+  local stats = {}
+  ImGui.TableSetupColumn(ctx, 'key', ImGui.TableColumnFlags_WidthFixed)
+  ImGui.TableSetupColumn(ctx, 'value', ImGui.TableColumnFlags_WidthStretch)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding, 0, 0)
+  for j, col in ipairs(report_columns) do
+    local stat_which, stat_name = col.name:match('^(.-)(./.-)$')
+    local v, show = nil, false
+    if col.field == 'src' then
+      v, show = line.src_short .. ':' .. line.src_line, true
+    elseif stat_which then
+      local stat = stats[#stats]
+      if not stat or stat.name ~= stat_name then
+        stat = { name = stat_name }
+        stats[#stats + 1] = stat
+      end
+      stat[#stat + 1] = { which = stat_which, line = line, col = col }
+    elseif col.field ~= 'src_line' then
+      v, show = line[col.field], true
+    end
+    if show then
+      ImGui.TableNextRow(ctx)
+      ImGui.TableNextColumn(ctx)
+      textCell(ctx, col.name .. ':')
+      if v then
+        ImGui.TableNextColumn(ctx)
+        if col.fmt then v = col.fmt(v) end
+        (col.func or ImGui.TextWrapped)(ctx, v)
+      end
+    end
+  end
+
+  ImGui.TableNextRow(ctx)
+  ImGui.TableSetColumnIndex(ctx, 1)
+  if ImGui.BeginTable(ctx, 'stats', 3,
+      ImGui.TableFlags_Borders | ImGui.TableFlags_SizingStretchSame) then
+    for _, val in ipairs(stats[1]) do
+      ImGui.TableSetupColumn(ctx, val.which)
+    end
+    ImGui.TableHeadersRow(ctx)
+    for _, stat in ipairs(stats) do
+      ImGui.TableNextRow(ctx)
+      stat.y = ImGui.GetCursorPosY(ctx)
+      for _, val in ipairs(stat) do
+        ImGui.TableNextColumn(ctx)
+        local v = val.line[val.col.field]
+        if v then
+          val.col.func(ctx, val.col.fmt(v))
+        else
+          ImGui.NewLine(ctx)
+        end
+      end
+    end
+    ImGui.EndTable(ctx)
+  end
+  ImGui.TableNextColumn(ctx)
+  for _, stat in ipairs(stats) do
+    ImGui.SetCursorPosY(ctx, stat.y)
+    textCell(ctx, stat.name .. ':')
+  end
+
+  ImGui.PopStyleVar(ctx)
+  ImGui.EndTable(ctx)
+  ImGui.EndTooltip(ctx)
+end
+
+local function flameGraph(ctx)
+  local is_zooming = ImGui.GetKeyMods(ctx) & ~ImGui.Mod_Shift ~= 0
+  local window_flags = ImGui.WindowFlags_HorizontalScrollbar
+  if is_zooming then
+    window_flags = window_flags | ImGui.WindowFlags_NoScrollWithMouse
+  end
+
+  if not ImGui.BeginChild(ctx, 'graph', 0, 0,
+    ImGui.ChildFlags_Border, window_flags) then return end
+  local draw_list, border_color = ImGui.GetWindowDrawList(ctx), 0x566683FF
+  local tiny_w, avail_w, zoom = 2, ImGui.GetContentRegionAvail(ctx), state.zoom
+  if state.did_set_content_size then avail_w = math.ceil(avail_w / zoom) end
+  ImGui.PushStyleColor(ctx, ImGui.Col_Button, 0x23446CFF)
+  ImGui.PushStyleVar(ctx, ImGui.StyleVar_ItemSpacing, 0, 0)
+  for i = 1, #profile.report do
+    ImGui.PushID(ctx, i)
+    local level = profile.report[i]
+    local first_of_line, prev_parent = true, nil
+    local x, start_x = 0, ImGui.GetCursorPosX(ctx)
+    local visible_x = ImGui.GetScrollX(ctx) + start_x
+    for j = 1, #level do
+      local item = level[j]
+      ImGui.PushID(ctx, j)
+
+      if first_of_line then
+        first_of_line = false
+      else
+        ImGui.SameLine(ctx)
+      end
+
+      local parent = item.parents[i - 1]
+      local parent_w = parent and parent.w or avail_w
+      if parent and prev_parent ~= parent then x = parent.x end
+      item.x, item.w = x, parent_w * item.time_frac_parent
+
+      local display_x = start_x + (x * zoom) // 1
+      local display_w = math.max(1, item.w * zoom) // 1
+
+      -- move the labels at the center of the view
+      if display_x <= visible_x then
+        local old_display_x = display_x
+        display_x = math.max(display_x, visible_x - start_x)
+        display_w = math.max(1, display_w - (display_x - old_display_x))
+      end
+      if display_x + display_w >= visible_x + avail_w then
+        local offset_x = math.max(0, display_x - visible_x)
+        display_w = math.min(display_w, (avail_w - offset_x) + (start_x * 2))
+        display_w = math.max(1, display_w)
+      end
+
+      ImGui.SetCursorPosX(ctx, display_x)
+      if display_w < tiny_w then
+        ImGui.PushStyleColor(ctx, ImGui.Col_Button, border_color)
+        ImGui.SetNextItemAllowOverlap(ctx)
+      end
+      if ImGui.Button(ctx, item.name, display_w) then
+        setZoom(ctx, avail_w / item.w, item.x, avail_w)
+        ImGui.SetScrollHereY(ctx, 0)
+      end
+      if display_w < tiny_w then
+        ImGui.PopStyleColor(ctx)
+      else
+        -- not using StyleVar_FrameBorderSize to collapse borders
+        -- border color cannot have alpha because it's partially over buttons
+        local x1, y1 = ImGui.GetItemRectMin(ctx)
+        local x2, y2 = ImGui.GetItemRectMax(ctx)
+        ImGui.DrawList_AddRect(draw_list, x1, y1, x2 + 1, y2 + 1, border_color)
+      end
+
+      reportLineTooltip(ctx, item)
+
+      prev_parent = parent
+      x = x + item.w
+      ImGui.PopID(ctx)
+    end
+    ImGui.PopID(ctx)
+
+    if i == 1 then
+      local full_w = (avail_w * zoom) // 1
+      local idle_w = full_w - (x * zoom) // 1
+      if idle_w > 0 then
+        ImGui.SameLine(ctx)
+        ImGui.SetCursorPosX(ctx, start_x + (x * zoom) // 1)
+        ImGui.Dummy(ctx, idle_w, 1)
+      end
+    end
+  end
+  ImGui.PopStyleVar(ctx)
+  ImGui.PopStyleColor(ctx)
+
+  if is_zooming and ImGui.IsWindowHovered(ctx) then
+    local mouse_wheel = ImGui.GetMouseWheel(ctx) / 64
+    if mouse_wheel ~= 0 then
+      setZoom(ctx, zoom * (1 + mouse_wheel), nil, avail_w)
+    end
+  end
+
+  ImGui.EndChild(ctx)
+end
+
 function profiler.showProfile(ctx, label, width, height, child_flags)
   if not ImGui.BeginChild(ctx, label, width, height, child_flags) then return end
 
@@ -1012,95 +1335,19 @@ function profiler.showProfile(ctx, label, width, height, child_flags)
   end)
   ImGui.Spacing(ctx)
 
-  if state.scroll_to_top then
-    ImGui.SetNextWindowScroll(ctx, 0, 0)
-    state.scroll_to_top = false
+  if state.set_content_size then
+    ImGui.SetNextWindowContentSize(ctx, table.unpack(state.set_content_size))
+    state.set_content_size = nil
+    state.did_set_content_size = true
+  elseif state.did_set_content_size then
+    state.did_set_content_size = false
   end
-  local flags = ImGui.TableFlags_SizingFixedFit               |
-    ImGui.TableFlags_Resizable | ImGui.TableFlags_Reorderable |
-    ImGui.TableFlags_Hideable  | ImGui.TableFlags_Sortable    |
-    ImGui.TableFlags_ScrollX   | ImGui.TableFlags_ScrollY     |
-    ImGui.TableFlags_Borders   | ImGui.TableFlags_RowBg
-  if not ImGui.BeginTable(ctx, 'table', 17, flags) then
-    return ImGui.EndChild(ctx)
-  end
-
-  ImGui.TableSetupScrollFreeze(ctx, 0, 1)
-  for i, column in ipairs(report_columns) do
-    ImGui.TableSetupColumn(ctx, column.name, column.flags, column.width)
-  end
-  ImGui.TableHeadersRow(ctx)
-
-  if ImGui.TableNeedSort(ctx) then
-    local ok, col, user_col, dir = ImGui.TableGetColumnSortSpecs(ctx, 0)
-    if ok and (col ~= state.sort.col or dir ~= state.sort.dir) then
-      state.sort = { col = col, dir = dir }
-      sortReport()
-    end
+  if state.set_scroll then
+    ImGui.SetNextWindowScroll(ctx, table.unpack(state.set_scroll))
+    state.set_scroll = nil
   end
 
-  local tree_node_flags = ImGui.TreeNodeFlags_SpanAllColumns |
-    ImGui.TreeNodeFlags_DefaultOpen | ImGui.TreeNodeFlags_FramePadding
-  local tree_node_leaf_flags = tree_node_flags |
-    ImGui.TreeNodeFlags_Leaf | ImGui.TreeNodeFlags_NoTreePushOnOpen
-
-  local i, prev_depth, cut_src_cache = 1, 1, {}
-  ImGui.PushStyleVar(ctx, ImGui.StyleVar_FramePadding, 1, 1)
-  ImGui.PushStyleVar(ctx, ImGui.StyleVar_IndentSpacing, 12)
-  while i <= #profile.report do
-    local line = profile.report[i]
-
-    for i = #line.parents, prev_depth - 1 do ImGui.TreePop(ctx) end
-    prev_depth = #line.parents
-
-    ImGui.TableNextRow(ctx)
-
-    ImGui.TableNextColumn(ctx)
-    if profile.report.max_depth > 1 then
-      local tooltip_text
-      if line.children > 0 then
-        if not ImGui.TreeNodeEx(ctx, line.key, line.name, tree_node_flags) then
-          i = i + line.children
-        end
-        tooltip_text = string.format('%s (%d children)',
-          line.name, formatNumber(line.children))
-      else
-        ImGui.TreeNodeEx(ctx, line.key, line.name, tree_node_leaf_flags)
-        tooltip_text = line.name
-      end
-      local flags = ImGui.TableGetColumnFlags(ctx)
-      if (flags & ImGui.TableColumnFlags_IsHovered) ~= 0 then
-        tooltip(ctx, tooltip_text)
-      end
-    else
-      ImGui.AlignTextToFramePadding(ctx)
-      textCell(ctx, line.name, false)
-    end
-
-    ImGui.TableNextColumn(ctx)
-    local src_short = cut_src_cache[line.src_short]
-    if not src_short then
-      src_short = ellipsis(ctx, line.src_short)
-      cut_src_cache[line.src_short] = src_short
-    end
-    textCell(ctx, src_short, false, line.src)
-
-    for j, col in ipairs(report_columns) do
-      local v = line[col.field]
-      if v and col.func then
-        ImGui.TableNextColumn(ctx)
-        local flags = ImGui.TableGetColumnFlags(ctx)
-        if flags & ImGui.TableColumnFlags_IsVisible ~= 0 then
-          col.func(ctx, col.fmt and col.fmt(v) or v)
-        end
-      end
-    end
-
-    i = i + 1
-  end
-  for i = 2, prev_depth do ImGui.TreePop(ctx) end
-  ImGui.PopStyleVar(ctx, 2)
-  ImGui.EndTable(ctx)
+  (options.view == 2 and flameGraph or tableView)(ctx)
 
   if export then ImGui.LogFinish(ctx) end
 
