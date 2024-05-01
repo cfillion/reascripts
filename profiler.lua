@@ -27,8 +27,8 @@
 -- * profiler.frame()
 --
 -- # Embedding
--- * profiler.showWindow(ImGui_Context* ctx, nil|bool p_open, nil|integer flags)
--- * profiler.showProfile(ImGui_Context* ctx, string label, nil|number width, nil|number height)
+-- * profiler.showWindow(ImGui_Context* ctx, nil|bool p_open, nil|integer window_flags)
+-- * profiler.showProfile(ImGui_Context* ctx, string label, nil|number width, nil|number height, nil|integer child_flags)
 
 local ImGui = (function()
   local host_reaper = reaper
@@ -521,9 +521,9 @@ local function setCurrentProfile(i)
   state.scroll_to_top = true
 end
 
-local function callLeave(func, ...)
+local function callLeave(...)
   -- faster than capturing func's return values in a table + table.unpack
-  leave(func)
+  leave()
   return ...
 end
 
@@ -537,7 +537,7 @@ local function makeWrapper(name, func)
   wrapper = function(...)
     if not active then return func(...) end
     enter(func, name)
-    return callLeave(func, func(...))
+    return callLeave(func(...))
   end
 
   attachments[wrapper], wrappers[func] = func, wrapper
@@ -937,8 +937,8 @@ function profiler.showWindow(ctx, p_open, flags)
   return p_open
 end
 
-function profiler.showProfile(ctx, label, width, height)
-  if not ImGui.BeginChild(ctx, label, width, height) then return end
+function profiler.showProfile(ctx, label, width, height, child_flags)
+  if not ImGui.BeginChild(ctx, label, width, height, child_flags) then return end
 
   updateTime() -- may set dirty
   updateReport()
@@ -989,7 +989,7 @@ function profiler.showProfile(ctx, label, width, height)
       ImGui.LogToClipboard(ctx)
       ImGui.LogText(ctx, summary .. '\n\n')
     end
-  end, true)
+  end)
   ImGui.Spacing(ctx)
 
   if state.scroll_to_top then
