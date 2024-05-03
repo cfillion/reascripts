@@ -1275,7 +1275,7 @@ local function flameGraph(ctx)
   ImGui.PopStyleColor(ctx)
 
   if is_zooming and ImGui.IsWindowHovered(ctx) then
-    local mouse_wheel = ImGui.GetMouseWheel(ctx) / 64
+    local mouse_wheel = ImGui.GetMouseWheel(ctx) / 48
     if mouse_wheel ~= 0 then
       setZoom(ctx, zoom * (1 + mouse_wheel), true, avail_w)
     end
