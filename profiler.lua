@@ -1089,17 +1089,21 @@ local function setZoom(ctx, zoom, scroll_x, avail_w)
   zoom = math.max(1, math.min(512, zoom))
   if state.zoom == zoom then return end
 
-  local new_w = (avail_w * zoom) // 1
-  state.set_content_size = { new_w, 0 }
+  if avail_w then
+    local new_w = (avail_w * zoom) // 1
+    state.set_content_size = { new_w, 0 }
+  end
 
-  if scroll_x then
+  if type(scroll_x) == 'number' then
     scroll_x = scroll_x * zoom
-  else
+  elseif scroll_x then
     local mouse_x = ImGui.GetMousePos(ctx) -
       ImGui.GetWindowPos(ctx) - ImGui.GetCursorStartPos(ctx)
     scroll_x = ImGui.GetScrollX(ctx) + ((mouse_x * (zoom / state.zoom)) - mouse_x)
   end
-  state.set_scroll = { scroll_x // 1, -1 }
+  if scroll_x then
+    state.set_scroll = { scroll_x // 1, -1 }
+  end
 
   state.zoom = zoom
 end
@@ -1191,6 +1195,11 @@ local function flameGraph(ctx)
   if state.did_set_content_size then avail_w = math.ceil(avail_w / zoom) end
   ImGui.PushStyleColor(ctx, ImGui.Col_Button, 0x23446CFF)
   ImGui.PushStyleVar(ctx, ImGui.StyleVar_ItemSpacing, 0, 0)
+  if state.prev_flame_w and state.prev_flame_w ~= avail_w and state.zoom > 1 then
+    setZoom(ctx, state.zoom * (state.prev_flame_w / avail_w))
+    zoom = state.zoom
+  end
+  state.prev_flame_w = avail_w
   for i = 1, #profile.report do
     local level = profile.report[i]
     local first_of_line, prev_parent = true, nil
@@ -1268,7 +1277,7 @@ local function flameGraph(ctx)
   if is_zooming and ImGui.IsWindowHovered(ctx) then
     local mouse_wheel = ImGui.GetMouseWheel(ctx) / 64
     if mouse_wheel ~= 0 then
-      setZoom(ctx, zoom * (1 + mouse_wheel), nil, avail_w)
+      setZoom(ctx, zoom * (1 + mouse_wheel), true, avail_w)
     end
   end
 
