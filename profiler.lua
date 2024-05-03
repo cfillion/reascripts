@@ -1197,8 +1197,14 @@ local function flameGraph(ctx)
   ImGui.PushStyleColor(ctx, ImGui.Col_Button, 0x23446CFF)
   ImGui.PushStyleVar(ctx, ImGui.StyleVar_ItemSpacing, 0, 0)
   if state.prev_flame_w and state.prev_flame_w ~= avail_w and state.zoom > 1 then
-    setZoom(ctx, state.zoom * (state.prev_flame_w / avail_w))
+    local want_zoom = state.zoom * (state.prev_flame_w / avail_w)
+    setZoom(ctx, want_zoom)
     zoom = state.zoom
+    if zoom ~= want_zoom then
+      local scroll_x = ImGui.GetScrollX(ctx)
+      local new_scroll = scroll_x * (zoom / want_zoom)
+      ImGui.SetScrollX(ctx, new_scroll) -- unavoidable flicker
+    end
   end
   state.prev_flame_w = avail_w
   for i = 1, #profile.report do
