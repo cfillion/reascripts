@@ -202,6 +202,7 @@ end
 local function alignGroupRight(ctx, callback)
   local pos_x, right_x = ImGui.GetCursorPosX(ctx), ImGui.GetContentRegionMax(ctx)
 
+  ImGui.SetCursorPosX(ctx, 0)
   ImGui.BeginGroup(ctx)
   ImGui.PushID(ctx, 'width')
   ImGui.PushClipRect(ctx, 0, 0, 1, 1, false)
@@ -210,10 +211,10 @@ local function alignGroupRight(ctx, callback)
   ImGui.PopID(ctx)
   ImGui.EndGroup(ctx)
 
-  local want_pos = right_x - ImGui.GetItemRectSize(ctx)
-  if want_pos >= pos_x then
+  local want_x = right_x - ImGui.GetItemRectSize(ctx)
+  if want_x >= pos_x then
     ImGui.SameLine(ctx)
-    ImGui.SetCursorPosX(ctx, want_pos)
+    ImGui.SetCursorPosX(ctx, want_x)
   end
 
   ImGui.BeginGroup(ctx)
