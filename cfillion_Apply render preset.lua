@@ -1,7 +1,7 @@
 -- @description Apply render preset
 -- @author cfillion
--- @version 2.1.2
--- @changelog Add support for the Directory field (thanks odedd)
+-- @version 2.1.3
+-- @changelog Minor optimization and internal code cleanup
 -- @provides
 --   .
 --   [main] . > cfillion_Apply render preset (create action).lua
@@ -347,6 +347,7 @@ function parseFormatPreset(presets, file, tokens)
   preset.projrenderrateinternal = tonumber(tokens[6]) -- use proj splrate
   preset.projrenderresample     = tonumber(tokens[7])
   preset.RENDER_DITHER          = tonumber(tokens[8])
+  preset.RENDER_FORMAT          = '' -- handle duplicate <RENDERPRESET
   preset.RENDER_FORMAT2         = '' -- reset when no <RENDERPRESET2 node exists
 
   -- Moved from output presets to format presets in v6.0
@@ -481,6 +482,7 @@ local function readRenderPresets(presets, filename)
 
   local parser = parseDefault
   for line in file:lines() do
+    line = line:match('^(.-)\r*$')
     parser = assert(parser(presets, filename, line))
   end
 
@@ -867,6 +869,10 @@ local function metadataCell(ctx, preset)
 end
 
 function decodeBase64(data)
+  if reaper.NF_Base64_Decode then
+    return select(2, reaper.NF_Base64_Decode(data))
+  end
+
   -- source: https://stackoverflow.com/a/35303321/796375
   local b = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
   data = data:gsub('[^'..b..'=]', '')
@@ -899,7 +905,12 @@ local function formatCell(ctx, preset, key)
   end
   if not preset._format_cache[key] then
     local data = decodeBase64(preset[key])
-    preset._format_cache[key] = ('c4'):unpack(data):reverse()
+    if #data >= 4 then
+      data = ('c4'):unpack(data):reverse()
+    else
+      data = '<invalid>'
+    end
+    preset._format_cache[key] = data
   end
 
   local formats = {
