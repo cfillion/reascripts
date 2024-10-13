@@ -107,7 +107,7 @@ end
 
 local function isSongValid(song)
   for _,track in ipairs(song.tracks) do
-    if not reaper.ValidatePtr(track, 'MediaTrack*') then
+    if not pcall(reaper.GetTrackNumMediaItems, track) then
       return false
     end
   end
