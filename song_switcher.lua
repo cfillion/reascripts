@@ -4,7 +4,7 @@ if not reaper.ImGui_GetBuiltinPath then
   return reaper.MB('ReaImGui is not installed or too old.', SCRIPT_NAME, 0)
 end
 package.path = reaper.ImGui_GetBuiltinPath() .. '/?.lua'
-local ImGui = require 'imgui' '0.9'
+local ImGui = require 'imgui' '0.9.3'
 
 local EXT_SECTION     = 'cfillion_song_switcher'
 local EXT_SWITCH_MODE = 'onswitch'
@@ -23,6 +23,7 @@ local scrollTo, setDock
 -- initialized in reset()
 local currentIndex, nextIndex, invalid, filterPrompt
 local signals = {}
+local prevPlayPos
 
 local fonts = {
   small = ImGui.CreateFont('sans-serif', 13),
@@ -139,7 +140,7 @@ end
 local function updateState()
   local song = songs[currentIndex] or {name='', startTime=0, endTime=0}
 
-  local state = string.format("%d\t%d\t%s\t%f\t%f\t%s",
+  local state = ("%d\t%d\t%s\t%f\t%f\t%s"):format(
     currentIndex, #songs, song.name, song.startTime, song.endTime,
     tostring(invalid)
   )
@@ -297,6 +298,7 @@ local function reset()
   filterPrompt, invalid = false, false
   currentIndex, nextIndex, scrollTo = 0, 0, 0
   highlightTime = ImGui.GetTime(ctx)
+  prevPlayPos = nil
 
   -- clear previous pending external commands
   for signal, _ in pairs(signals) do
@@ -324,6 +326,68 @@ local function execRemoteActions()
       local value = reaper.GetExtState(EXT_SECTION, signal)
       reaper.DeleteExtState(EXT_SECTION, signal, false);
       handler(value)
+    end
+  end
+end
+
+local function getParentProject(track)
+  local search = reaper.GetMediaTrackInfo_Value(track, 'P_PROJECT')
+
+  if reaper.JS_Window_HandleFromAddress then
+    return reaper.JS_Window_HandleFromAddress(search)
+  end
+
+  for i = 0, math.huge do
+    local project = reaper.EnumProjects(i)
+    if not project then break end
+
+    local master = reaper.GetMasterTrack(project)
+    if search == reaper.GetMediaTrackInfo_Value(master, 'P_PROJECT') then
+      return project
+    end
+  end
+end
+
+local function execTakeMarkers()
+  if not reaper.GetNumTakeMarkers then return end -- REAPER v5
+
+  local song = songs[currentIndex]
+  local track = song and song.tracks[1]
+  local valid, numItems = pcall(reaper.GetTrackNumMediaItems, track)
+  if not valid then return end -- validates track across all tabs
+
+  local proj = getParentProject(track)
+  if reaper.GetPlayStateEx(proj) & 3 ~= 1 then return end -- not playing or paused
+
+  local playPos = reaper.GetPlayPositionEx(proj)
+  if playPos == prevPlayPos then return end
+
+  local minPos, maxPos = playPos, playPos
+  if prevPlayPos and playPos > prevPlayPos and (playPos - prevPlayPos) < 0.1 then
+    minPos = prevPlayPos
+  end
+  prevPlayPos = playPos
+
+  for ii = 0, numItems - 1 do
+    local item = reaper.GetTrackMediaItem(track, ii)
+    local mute = reaper.GetMediaItemInfo_Value(item, 'B_MUTE')
+    local pos  = reaper.GetMediaItemInfo_Value(item, 'D_POSITION')
+    local len  = reaper.GetMediaItemInfo_Value(item, 'D_LENGTH')
+    local take = reaper.GetActiveTake(item)
+
+    if take and mute == 0 and pos <= minPos and pos + len > maxPos then
+      local offs = reaper.GetMediaItemTakeInfo_Value(take, 'D_STARTOFFS')
+
+      for mi = 0, reaper.GetNumTakeMarkers(take) - 1 do
+        local time, name = reaper.GetTakeMarker(take, mi)
+        time = time + pos - offs
+        if time >= minPos and time <= maxPos and name:sub(1, 1) == '!' then
+          for action in name:sub(2):gmatch('%S+') do
+            local action = reaper.NamedCommandLookup(action)
+            if action ~= 0 then reaper.Main_OnCommandEx(action, 0, proj) end
+          end
+        end
+      end
     end
   end
 end
@@ -545,27 +609,25 @@ local function navButtons()
 end
 
 local function keyInput(input)
-  if not ImGui.IsWindowFocused(ctx,
-    ImGui.FocusedFlags_ChildWindows | ImGui.FocusedFlags_NoPopupHierarchy) or
-    ImGui.IsAnyItemActive(ctx) then return end
+  if ImGui.IsAnyItemActive(ctx) then return end
 
-  if ImGui.IsKeyPressed(ctx, ImGui.Key_UpArrow) or
-     ImGui.IsKeyPressed(ctx, ImGui.Key_LeftArrow) then
+  if ImGui.Shortcut(ctx, ImGui.Key_UpArrow, ImGui.InputFlags_Repeat) or
+     ImGui.Shortcut(ctx, ImGui.Key_LeftArrow, ImGui.InputFlags_Repeat) then
     setNextIndex(nextIndex - 1)
-  elseif ImGui.IsKeyPressed(ctx, ImGui.Key_DownArrow) or
-         ImGui.IsKeyPressed(ctx, ImGui.Key_RightArrow) then
+  elseif ImGui.Shortcut(ctx, ImGui.Key_DownArrow, ImGui.InputFlags_Repeat) or
+         ImGui.Shortcut(ctx, ImGui.Key_RightArrow, ImGui.InputFlags_Repeat) then
     setNextIndex(nextIndex + 1)
-  elseif ImGui.IsKeyPressed(ctx, ImGui.Key_PageUp, false) or
-         ImGui.IsKeyPressed(ctx, ImGui.Key_KeypadSubtract, false) then
+  elseif ImGui.Shortcut(ctx, ImGui.Key_PageUp) or
+         ImGui.Shortcut(ctx, ImGui.Key_KeypadSubtract) then
     trySetCurrentIndex(currentIndex - 1)
-  elseif ImGui.IsKeyPressed(ctx, ImGui.Key_PageDown, false) or
-         ImGui.IsKeyPressed(ctx, ImGui.Key_KeypadAdd, false) then
+  elseif ImGui.Shortcut(ctx, ImGui.Key_PageDown) or
+         ImGui.Shortcut(ctx, ImGui.Key_KeypadAdd) then
     trySetCurrentIndex(currentIndex + 1)
-  elseif ImGui.IsKeyPressed(ctx, ImGui.Key_Insert, false) or
-         ImGui.IsKeyPressed(ctx, ImGui.Key_NumLock, false) then
+  elseif ImGui.Shortcut(ctx, ImGui.Key_Insert) or
+         ImGui.Shortcut(ctx, ImGui.Key_NumLock) then
     reset()
-  elseif ImGui.IsKeyPressed(ctx, ImGui.Key_Enter, false) or
-         ImGui.IsKeyPressed(ctx, ImGui.Key_KeypadEnter, false) then
+  elseif ImGui.Shortcut(ctx, ImGui.Key_Enter) or
+         ImGui.Shortcut(ctx, ImGui.Key_KeypadEnter) then
     if nextIndex == currentIndex then
       filterPrompt = true
     else
@@ -648,6 +710,7 @@ end
 
 local function loop()
   execRemoteActions()
+  execTakeMarkers()
 
   ImGui.PushFont(ctx, fonts.small)
   ImGui.SetNextWindowSize(ctx, 500, 300, setDock and ImGui.Cond_Always or ImGui.Cond_FirstUseEver)
