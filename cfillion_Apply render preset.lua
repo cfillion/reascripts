@@ -1,7 +1,9 @@
 -- @description Apply render preset
 -- @author cfillion
--- @version 2.1.5
--- @changelog Display REAPER v7.23's new normalization options
+-- @version 2.1.6
+-- @changelog
+--   display REAPER v7.23's new "Adjust mono media an additional -3 dB" normalize option
+--   accept REAPER v7.29's new batch converter settings [p=2835830]
 -- @provides
 --   .
 --   [main] . > cfillion_Apply render preset (create action).lua
@@ -681,6 +683,7 @@ local function postprocessCell(ctx, preset)
   local NORMALIZE_TOO_LOUD  = 1<<8
   local NORMALIZE_TOO_QUIET = 1<<11
   local NORMALIZE_MODE_BITS = {5, 12}
+  local NORMALIZE_MONO3DB   = 1<<13
   local BRICKWALL_ENABLE    = 1<<6
   -- local BRICKWALL_TPEAK  = 1<<7
   local FADEIN_ENABLE       = 1<<9
@@ -732,6 +735,8 @@ local function postprocessCell(ctx, preset)
     ImGui.CheckboxFlags(ctx, 'too loud', postprocess, NORMALIZE_TOO_LOUD)
     ImGui.SameLine(ctx)
     ImGui.CheckboxFlags(ctx, 'too quiet', postprocess, NORMALIZE_TOO_QUIET)
+
+    ImGui.CheckboxFlags(ctx, 'Adjust mono media an additional -3 dB', postprocess, NORMALIZE_MONO3DB)
 
     local mode = 0
     for i, bit in ipairs(NORMALIZE_MODE_BITS) do
