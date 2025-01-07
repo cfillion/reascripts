@@ -370,7 +370,7 @@ function parseFormatPreset2(presets, file, tokens)
 end
 
 function parseOutputPreset(presets, file, tokens)
-  local ok, err = checkTokenCount(file, tokens, 9, 11)
+  local ok, err = checkTokenCount(file, tokens, 9, 12)
   if not ok then return nil, err end
 
   local settingsMask = SETTINGS_SOURCE_MASK
@@ -394,25 +394,32 @@ function parseOutputPreset(presets, file, tokens)
   if tokens[11] ~= nil then
     preset.RENDER_TAILMS = tonumber(tokens[11]) -- v6.62
   end
+  -- preset._BATCH_OUTFLAGS = tokens[12] -- v7.29
 
   return parseDefault
 end
 
 function parsePostprocessPreset(presets, file, tokens)
-  local ok, err = checkTokenCount(file, tokens, 4, 9)
+  local ok, err = checkTokenCount(file, tokens, 4, 13)
   if not ok then return nil, err end
 
   local preset = insertPreset(presets, tokens[2])
   preset.RENDER_NORMALIZE        = tonumber(tokens[3])
   preset.RENDER_NORMALIZE_TARGET = tonumber(tokens[4])
-  if tokens[5] ~= nil then
-    preset.RENDER_BRICKWALL = tonumber(tokens[5]) -- v6.37
+  if tokens[5] ~= nil then -- v6.37
+    preset.RENDER_BRICKWALL = tonumber(tokens[5])
   end
   if tokens[6] ~= nil then
     preset.RENDER_FADEIN       = tonumber(tokens[6])
     preset.RENDER_FADEOUT      = tonumber(tokens[7])
     preset.RENDER_FADEINSHAPE  = tonumber(tokens[8])
     preset.RENDER_FADEOUTSHAPE = tonumber(tokens[9])
+  end
+  if tokens[10] ~= nil then -- v7.29 (batch converter only)
+    preset._BATCH_TRIMSTART = tokens[10]
+    preset._BATCH_TRIMEND   = tokens[11]
+    preset._BATCH_PADSTART  = tokens[12]
+    preset._BATCH_PADSEND   = tokens[13]
   end
 
   return parseDefault
