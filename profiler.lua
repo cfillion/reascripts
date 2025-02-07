@@ -689,10 +689,13 @@ attachToTable = function(is_attach, prefix, array, opts, depth, in_metatable)
   if array == package.loaded then return end
 
   for name, value in pairs(array) do
-    local path = name
-    if prefix then path = string.format('%s.%s', prefix, name) end
-    local ok, wrapper = attach(is_attach, path, value, opts, depth, in_metatable)
-    if wrapper then array[name] = wrapper end
+    -- prevent `foo.bar = foo` from displaying foo.bar.bar.bar.bar.bar.bar.baz
+    if value ~= array then
+      local path = name
+      if prefix then path = string.format('%s.%s', prefix, name) end
+      local ok, wrapper = attach(is_attach, path, value, opts, depth, in_metatable)
+      if wrapper then array[name] = wrapper end
+    end
   end
 end
 
